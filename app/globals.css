@@ -431,3 +431,13 @@ input:-webkit-autofill:active {
 .onb-submit:disabled { background: var(--chip-neutral-bg); color: var(--text-disabled); cursor: not-allowed; }
 .onb-status { margin-top: 14px; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
 .onb-status b { color: var(--text-secondary); }
+
+/* onboarding — kopiera-prompt-steg */
+.onb-step { box-shadow: var(--hairline); border-radius: var(--radius-control); padding: 14px; background: var(--bg-surface-1); }
+.onb-step-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.onb-step-head span { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); }
+.copy-btn { background: var(--fill-primary); color: var(--on-primary); border: none; font-family: var(--font-mono); font-size: 12px; font-weight: 500; padding: 7px 13px; border-radius: var(--radius-control); cursor: pointer; transition: background var(--dur-fast); white-space: nowrap; }
+.copy-btn:hover { background: var(--fill-primary-hover); }
+.prompt-box { width: 100%; min-height: 200px; max-height: 340px; background: var(--bg-surface-0); box-shadow: var(--hairline); border: none; color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; line-height: 1.55; padding: 12px 14px; border-radius: var(--radius-control); resize: vertical; }
+.prompt-box:focus { box-shadow: var(--focus-ring); outline: none; }
+.onb-step .onb-status { margin-top: 10px; }
