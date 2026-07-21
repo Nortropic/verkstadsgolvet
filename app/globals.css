@@ -118,8 +118,8 @@ input:-webkit-autofill:active {
   height: 100vh; background: var(--bg-page); box-shadow: inset -1px 0 0 0 var(--border);
   display: flex; flex-direction: column; padding: 18px 12px 12px;
 }
-.sidebar-logo { padding: 6px 6px 20px; }
-.sidebar-logo img { width: 100%; max-width: 190px; height: auto; display: block; }
+.sidebar-logo { padding: 4px 10px 22px; }
+.sidebar-logo img { width: 150px; max-width: 100%; height: auto; display: block; }
 .sidebar-nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; }
 .nav-item {
   display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 10px;
