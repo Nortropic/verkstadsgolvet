@@ -50,7 +50,7 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-logo">
         <Link href="/" aria-label="Nortropic — översikt">
-          <NortropicLogo />
+          <NortropicLogo src="/nortropic-mark.png" />
         </Link>
       </div>
 
