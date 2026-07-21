@@ -38,6 +38,9 @@ const I = {
   framtiden: (
     <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M2 11.5h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><path d="M4.5 11.5a3.5 3.5 0 0 1 7 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><path d="M8 2.4v1.7M3.4 5.6l1.1 1.1M12.6 5.6l-1.1 1.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
   ),
+  integrationer: (
+    <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  ),
 };
 
 const HEALTH = [
@@ -129,6 +132,9 @@ export default function Sidebar() {
         </Link>
         <Link href="/marknadsforing" className={`nav-item${isActive("/marknadsforing") ? " active" : ""}`}>
           <span className="nav-ic">{I.marknad}</span> Marknadsföring
+        </Link>
+        <Link href="/integrationer" className={`nav-item${isActive("/integrationer") ? " active" : ""}`}>
+          <span className="nav-ic">{I.integrationer}</span> Integrationer
         </Link>
         <Link href="/framtiden" className={`nav-item${isActive("/framtiden") ? " active" : ""}`}>
           <span className="nav-ic">{I.framtiden}</span> Framtiden
