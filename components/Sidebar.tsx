@@ -35,6 +35,9 @@ const I = {
   statistik: (
     <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M2.5 13h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><rect x="3.5" y="8" width="2.2" height="4" rx=".4" stroke="currentColor" strokeWidth="1.4" /><rect x="6.9" y="5" width="2.2" height="7" rx=".4" stroke="currentColor" strokeWidth="1.4" /><rect x="10.3" y="9.5" width="2.2" height="2.5" rx=".4" stroke="currentColor" strokeWidth="1.4" /></svg>
   ),
+  framtiden: (
+    <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M2 11.5h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><path d="M4.5 11.5a3.5 3.5 0 0 1 7 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><path d="M8 2.4v1.7M3.4 5.6l1.1 1.1M12.6 5.6l-1.1 1.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+  ),
 };
 
 const HEALTH = [
@@ -126,6 +129,9 @@ export default function Sidebar() {
         </Link>
         <Link href="/marknadsforing" className={`nav-item${isActive("/marknadsforing") ? " active" : ""}`}>
           <span className="nav-ic">{I.marknad}</span> Marknadsföring
+        </Link>
+        <Link href="/framtiden" className={`nav-item${isActive("/framtiden") ? " active" : ""}`}>
+          <span className="nav-ic">{I.framtiden}</span> Framtiden
         </Link>
       </nav>
 
