@@ -99,6 +99,17 @@ body {
 :focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-control); }
 a { color: inherit; text-decoration: none; }
 
+/* håll autofyllda fält mörka (webkit whitear annars inputs → bryter temat) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--text-primary);
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-surface-2) inset;
+  caret-color: var(--text-primary);
+  transition: background-color 9999s ease-out;
+}
+
 /* ═══════════════ APP-SHELL + SIDEBAR ═══════════════ */
 .app-shell { display: flex; min-height: 100vh; }
 .sidebar {
@@ -370,9 +381,8 @@ a { color: inherit; text-decoration: none; }
 /* ═══════════════ LOGIN ═══════════════ */
 .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
 .login-card { width: 100%; max-width: 380px; background: var(--bg-surface-1); box-shadow: var(--hairline); border-radius: var(--radius-card); padding: 32px 28px; }
-.login-logo { display: flex; justify-content: center; margin-bottom: 8px; }
+.login-logo { display: flex; justify-content: center; margin-bottom: 26px; }
 .login-logo img { height: 34px; width: auto; }
-.login-title { text-align: center; font-size: var(--fs-caption); color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; font-family: var(--font-mono); margin-bottom: 24px; }
 .login-field { margin-bottom: 14px; }
 .login-field label { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
 .login-field input { width: 100%; background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px; padding: 11px 13px; border-radius: var(--radius-control); }

@@ -39,7 +39,6 @@ export default function LoginPage() {
         <div className="login-logo">
           <NortropicLogo />
         </div>
-        <div className="login-title">Intern · logga in</div>
         <form onSubmit={onSubmit} noValidate>
           <div className="login-field">
             <label htmlFor="username">Användarnamn</label>

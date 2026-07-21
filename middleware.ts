@@ -12,6 +12,8 @@ import { authConfig } from "./auth.config";
 export const { auth: middleware } = NextAuth(authConfig);
 
 export const config = {
-  // Kör på allt UTOM: NextAuth-endpoints, Next interna assets och favicon.
-  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
+  // Kör på allt UTOM: NextAuth-endpoints, Next interna assets, favicon och
+  // publika statiska assets (loggan) — annars gatas loggan bort på /login där
+  // besökaren ännu inte är inloggad (→ trasig bild).
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|nortropic-logo.png).*)"],
 };
