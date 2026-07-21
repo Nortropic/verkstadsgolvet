@@ -59,6 +59,7 @@ export function buildResearchPrompt(input: OnboardingInput): string {
    - **Kvitton — eller NYSTARTAD-inventering** (steg 6)
    - Priser / ROT-läge (om ROT-relevant)
    - Bildmaterial (steg 4 + rättighetsläget + ansiktsporträtt)
+   - **Bild-URL:er för nedladdning** — lista de användbara bildernas URL:er STRUKTURERAT per sektion (hero-kandidater, galleri/projekt, porträtt, övrigt), en URL per rad med en kort not per bild (motiv + varför den passar). Extrahera exakta URL:er där du kan (särskilt från befintlig sajt via web_fetch). För bilder bakom FB/IG-inloggning eller där exakt URL ej kan extraheras: skriv "kräver original från kund" istället för en gissad URL. Dessa laddas hem vid BYGGET, efter kundens publiceringsgodkännande — aldrig i detta steg.
    - Röst & ton (1–2 exempel ur egna inlägg + 2–3 exempel på branschens eget språk)
    - **Juridik-/scope-observationer** (steg 7, rått med citat)
    - Konkurrenter (steg 8)

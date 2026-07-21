@@ -105,10 +105,6 @@ export default function Sidebar() {
       </nav>
 
       <div className="account">
-        <div className="status-pill">
-          <span className="live-dot" />
-          <span>läs-only</span>
-        </div>
         <LogoutButton />
       </div>
     </aside>
