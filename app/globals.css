@@ -118,7 +118,7 @@ input:-webkit-autofill:active {
   height: 100vh; background: var(--bg-page); box-shadow: inset -1px 0 0 0 var(--border);
   display: flex; flex-direction: column; padding: 18px 12px 12px;
 }
-.sidebar-logo { padding: 4px 10px 22px; }
+.sidebar-logo { padding: 4px 8px 22px; display: flex; justify-content: center; }
 .sidebar-logo img { width: 150px; max-width: 100%; height: auto; display: block; }
 .sidebar-nav { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; }
 .nav-item {
