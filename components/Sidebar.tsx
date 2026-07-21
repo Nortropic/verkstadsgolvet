@@ -26,6 +26,9 @@ const I = {
   nykund: (
     <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" /><path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
   ),
+  gbp: (
+    <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M8 1.6c-2.4 0-4.3 1.9-4.3 4.3 0 3 4.3 7.5 4.3 7.5s4.3-4.5 4.3-7.5c0-2.4-1.9-4.3-4.3-4.3Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /><circle cx="8" cy="5.9" r="1.5" stroke="currentColor" strokeWidth="1.4" /></svg>
+  ),
 };
 
 const HEALTH = [
@@ -101,6 +104,9 @@ export default function Sidebar() {
         </Link>
         <Link href="/onboarding" className={`nav-item${isActive("/onboarding") ? " active" : ""}`}>
           <span className="nav-ic">{I.nykund}</span> Ny kund
+        </Link>
+        <Link href="/gbp" className={`nav-item${isActive("/gbp") ? " active" : ""}`}>
+          <span className="nav-ic">{I.gbp}</span> Google Business Profile
         </Link>
       </nav>
 

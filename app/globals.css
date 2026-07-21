@@ -125,6 +125,7 @@ input:-webkit-autofill:active {
   display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 10px;
   border-radius: var(--radius-control); font-size: var(--fs-body); color: var(--text-secondary);
   cursor: pointer; transition: background var(--dur-base), color var(--dur-base); background: none; border: none; width: 100%; text-align: left;
+  white-space: nowrap; overflow: hidden;
 }
 .nav-item:hover { background: var(--fill-ghost-hover); color: var(--text-primary); }
 .nav-item.active { background: var(--bg-surface-2); box-shadow: var(--hairline); color: var(--text-primary); font-weight: 500; }
