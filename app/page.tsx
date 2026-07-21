@@ -1,35 +1,55 @@
 import TopBar from "@/components/TopBar";
+import ProcessGuide from "@/components/ProcessGuide";
+import AgentPanel from "@/components/AgentPanel";
 import DocPanel from "@/components/DocPanel";
+import PipelinePanel from "@/components/PipelinePanel";
+import MetricsPanel from "@/components/MetricsPanel";
+import DoctorPanel from "@/components/DoctorPanel";
+import RetroPanel from "@/components/RetroPanel";
+import NattmanPanel from "@/components/NattmanPanel";
+import SystemMapPanel from "@/components/SystemMapPanel";
+import EffektPanel from "@/components/EffektPanel";
+import OvertimePanel from "@/components/OvertimePanel";
 
 /**
- * Dashboard. Middleware skyddar routen (inloggad = når hit). Läs-only.
- *
- * Steg 3–4: Dokumentnavigering är kopplad till RIKTIG GitHub-data (bevisar
- * läs-arkitekturen server→/api→klient). Övriga paneler byggs i steg 5 och visar
- * tills dess graceful "ej aktiv än"-lägen eftersom deras källfiler (agent-loggar,
- * doctor-output, retro-inbox, AUTO-DIGEST, Graphify) inte finns än.
+ * Dashboard — full prototyp-layout. Middleware skyddar routen (inloggad = når hit).
+ * Läs-only. Dokumentnavigering läser RIKTIG GitHub-data; övriga paneler visar ärliga
+ * graceful-lägen tills deras källfiler produceras (agent-loggar, doctor-output,
+ * retro-inbox, AUTO-DIGEST, Graphify). Ingen fabricerad data.
  */
 export default function Dashboard() {
   return (
     <>
       <TopBar />
 
-      <div className="grid">
-        {/* Agenter — kräver Z1 agent-loggning som inte finns än */}
-        <div className="panel">
-          <h2>
-            <span className="idx">◆</span> Agenter{" "}
-            <span className="hint">— arbetsloggar per agent</span>
-          </h2>
-          <div className="state">
-            <div className="st-title">Loggning ej aktiv än</div>
-            Agent-inblick kräver agent-loggning (Z1) i Workflow-repot. När loggarna
-            börjar produceras fylls den här panelen automatiskt.
-          </div>
-        </div>
+      <ProcessGuide />
 
-        {/* Dokumentation — RIKTIG data */}
+      <div className="grid">
+        <AgentPanel />
         <DocPanel />
+      </div>
+
+      <div className="bottom">
+        <PipelinePanel />
+        <MetricsPanel />
+      </div>
+
+      <div className="sysrow">
+        <DoctorPanel />
+        <RetroPanel />
+        <NattmanPanel />
+      </div>
+
+      <div className="sysmap-row">
+        <SystemMapPanel />
+        <EffektPanel />
+      </div>
+
+      <OvertimePanel />
+
+      <div className="foot">
+        läser <b>{process.env.WORKFLOW_REPO ?? "Workflow-repo"}</b> · <b>kund-*</b> ·{" "}
+        <b>läs-only</b>
       </div>
     </>
   );
