@@ -1,33 +1,31 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-// Typsnitten self-hostas vid build (ingen runtime-request till Google) och
-// exponeras som CSS-variabler som globals.css refererar. Matchar prototypens
-// Space Grotesk (rubriker) / Inter (brödtext) / JetBrains Mono (data).
+// Console-stilens typroller: Inter (UI/sans), Fraunces (serif-accent för rubriker),
+// JetBrains Mono (data/mono). Anthropics egna typsnitt är proprietära → nära substitut.
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
   display: "swap",
 });
-const spaceGrotesk = Space_Grotesk({
+const fraunces = Fraunces({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-space",
+  weight: ["400", "500", "600"],
+  variable: "--font-fraunces",
   display: "swap",
 });
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
-  variable: "--font-mono",
+  variable: "--font-jetbrains",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Nortropic · Verkstadsgolvet",
+  title: "Nortropic",
   description: "Intern byggövervakning — läs-only",
-  // Intern app: aldrig indexeras av sökmotorer.
   robots: { index: false, follow: false },
 };
 
@@ -37,7 +35,7 @@ export default function RootLayout({
   return (
     <html
       lang="sv"
-      className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
+      className={`${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable}`}
     >
       <body>{children}</body>
     </html>

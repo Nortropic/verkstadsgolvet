@@ -3,7 +3,7 @@
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import BrandMark from "@/components/BrandMark";
+import NortropicLogo from "@/components/NortropicLogo";
 
 export default function LoginPage() {
   const [error, setError] = useState("");
@@ -36,7 +36,10 @@ export default function LoginPage() {
   return (
     <main className="login-wrap">
       <div className="login-card">
-        <BrandMark sub="Intern · logga in" />
+        <div className="login-logo">
+          <NortropicLogo />
+        </div>
+        <div className="login-title">Intern · logga in</div>
         <form onSubmit={onSubmit} noValidate>
           <div className="login-field">
             <label htmlFor="username">Användarnamn</label>
