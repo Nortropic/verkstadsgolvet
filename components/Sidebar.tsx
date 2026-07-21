@@ -64,6 +64,16 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
+        <Link href="/onboarding" className={`nav-cta${isActive("/onboarding") ? " active" : ""}`}>
+          <span className="nav-cta-ic">
+            <svg viewBox="0 0 16 16" fill="none" width="15" height="15"><circle cx="6.3" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5" /><path d="M2.3 13c0-2.4 1.9-3.9 4-3.9.5 0 1 .1 1.5.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M11.6 8.6v4M9.6 10.6h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+          </span>
+          <span className="nav-cta-label">Ny kund</span>
+          <span className="nav-cta-arrow" aria-hidden="true">
+            <svg viewBox="0 0 12 12" width="13" height="13" fill="none"><path d="M4 2.5 7.5 6 4 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </span>
+        </Link>
+
         <Link href="/" className={`nav-item${isActive("/") ? " active" : ""}`}>
           <span className="nav-ic">{I.oversikt}</span> Översikt
         </Link>
@@ -108,17 +118,14 @@ export default function Sidebar() {
         <Link href="/systemkarta" className={`nav-item${isActive("/systemkarta") ? " active" : ""}`}>
           <span className="nav-ic">{I.karta}</span> Systemkarta
         </Link>
-        <Link href="/onboarding" className={`nav-item${isActive("/onboarding") ? " active" : ""}`}>
-          <span className="nav-ic">{I.nykund}</span> Ny kund
-        </Link>
         <Link href="/gbp" className={`nav-item${isActive("/gbp") ? " active" : ""}`}>
           <span className="nav-ic">{I.gbp}</span> Google Business Profile
         </Link>
-        <Link href="/marknadsforing" className={`nav-item${isActive("/marknadsforing") ? " active" : ""}`}>
-          <span className="nav-ic">{I.marknad}</span> Marknadsföring
-        </Link>
         <Link href="/statistik" className={`nav-item${isActive("/statistik") ? " active" : ""}`}>
           <span className="nav-ic">{I.statistik}</span> Cookies, GDPR & statistik
+        </Link>
+        <Link href="/marknadsforing" className={`nav-item${isActive("/marknadsforing") ? " active" : ""}`}>
+          <span className="nav-ic">{I.marknad}</span> Marknadsföring
         </Link>
       </nav>
 
