@@ -29,6 +29,12 @@ const I = {
   gbp: (
     <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M8 1.6c-2.4 0-4.3 1.9-4.3 4.3 0 3 4.3 7.5 4.3 7.5s4.3-4.5 4.3-7.5c0-2.4-1.9-4.3-4.3-4.3Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /><circle cx="8" cy="5.9" r="1.5" stroke="currentColor" strokeWidth="1.4" /></svg>
   ),
+  marknad: (
+    <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M2.5 6.3v3.4l6.5 2.3V4L2.5 6.3Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /><path d="M11 6c1 .7 1 3.3 0 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><path d="M4.5 9.5v2.2a1 1 0 0 0 2 .3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+  ),
+  statistik: (
+    <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M2.5 13h11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /><rect x="3.5" y="8" width="2.2" height="4" rx=".4" stroke="currentColor" strokeWidth="1.4" /><rect x="6.9" y="5" width="2.2" height="7" rx=".4" stroke="currentColor" strokeWidth="1.4" /><rect x="10.3" y="9.5" width="2.2" height="2.5" rx=".4" stroke="currentColor" strokeWidth="1.4" /></svg>
+  ),
 };
 
 const HEALTH = [
@@ -107,6 +113,12 @@ export default function Sidebar() {
         </Link>
         <Link href="/gbp" className={`nav-item${isActive("/gbp") ? " active" : ""}`}>
           <span className="nav-ic">{I.gbp}</span> Google Business Profile
+        </Link>
+        <Link href="/marknadsforing" className={`nav-item${isActive("/marknadsforing") ? " active" : ""}`}>
+          <span className="nav-ic">{I.marknad}</span> Marknadsföring
+        </Link>
+        <Link href="/statistik" className={`nav-item${isActive("/statistik") ? " active" : ""}`}>
+          <span className="nav-ic">{I.statistik}</span> Cookies, GDPR & statistik
         </Link>
       </nav>
 
