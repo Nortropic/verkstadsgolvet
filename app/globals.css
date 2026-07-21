@@ -8,9 +8,9 @@
 
 :root {
   /* ---- Surfaces & background ---- */
-  --bg-page: #1a1a19;        /* page + sidebar */
-  --bg-surface-0: #0d0d0d;   /* deepest — code/log bg */
-  --bg-surface-1: #1a1a19;   /* card fill (= page) */
+  --bg-page: #1a1815;        /* page + sidebar — matchar Nortropic-loggans badge-fill */
+  --bg-surface-0: #0d0c0b;   /* deepest — code/log bg */
+  --bg-surface-1: #1a1815;   /* card fill (= page) */
   --bg-surface-2: #2c2c2a;   /* elevated panel */
   --bg-surface-3: #383835;   /* popover / tooltip */
 
@@ -99,15 +99,15 @@ body {
 :focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius-control); }
 a { color: inherit; text-decoration: none; }
 
-/* håll autofyllda fält mörka (webkit whitear annars inputs → bryter temat) */
+/* håll autofyllda fält mörka utan box-shadow-mask (masken läckte vita hörnprickar).
+   Långa transitions gör att webkit aldrig hinner måla sin gula/vita bakgrund. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   -webkit-text-fill-color: var(--text-primary);
-  -webkit-box-shadow: 0 0 0 1000px #302f2c inset;
   caret-color: var(--text-primary);
-  transition: background-color 9999s ease-out;
+  transition: background-color 600000s 0s, color 600000s 0s;
 }
 
 /* ═══════════════ APP-SHELL + SIDEBAR ═══════════════ */
@@ -379,22 +379,41 @@ input:-webkit-autofill:active {
 .logout { background: var(--fill-secondary); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; padding: 8px 12px; border-radius: var(--radius-control); cursor: pointer; border: none; transition: background var(--dur-base); text-align: left; }
 .logout:hover { background: var(--fill-secondary-hover); color: var(--text-primary); }
 
-/* ═══════════════ LOGIN ═══════════════ */
-/* Bakgrund matchar loggans badge-fill (#1a1815) så wordmarken smälter in sömlöst. */
-.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; background: #1a1815; }
-.login-card { width: 100%; max-width: 400px; background: #1a1815; box-shadow: var(--hairline); border-radius: var(--radius-card); padding: 40px 36px 30px; }
-.login-logo { display: flex; justify-content: center; margin-bottom: 32px; }
+/* ═══════════════ LOGIN (pop / floating card) ═══════════════ */
+/* Mörkare backdrop + mjuk clay/accent-glow → kortet lyfter. Kortet självt är #1a1815
+   (= loggans badge-fill) så wordmarken smälter in sömlöst i kortet. */
+.login-wrap {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+  background:
+    radial-gradient(760px 540px at 50% 30%, rgba(217, 119, 87, 0.10), transparent 72%),
+    radial-gradient(900px 620px at 50% 116%, rgba(42, 120, 214, 0.07), transparent 70%),
+    #100f0d;
+}
+.login-card {
+  width: 100%; max-width: 400px;
+  background: #1a1815;
+  border-radius: 16px;
+  padding: 44px 38px 36px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.09),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 28px 70px -18px rgba(0, 0, 0, 0.80),
+    0 8px 26px rgba(0, 0, 0, 0.45);
+  animation: loginRise 0.55s var(--ease-out) both;
+}
+@keyframes loginRise { from { opacity: 0; transform: translateY(16px) scale(0.985); } to { opacity: 1; transform: none; } }
+.login-logo { display: flex; justify-content: center; margin-bottom: 34px; }
 .login-logo img { width: 300px; max-width: 100%; height: auto; }
-.login-field { margin-bottom: 16px; }
-.login-field label { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
-.login-field input { width: 100%; background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-sans); font-size: 15px; padding: 13px 14px; border-radius: var(--radius-control); }
+.login-field { margin-bottom: 18px; }
+.login-field label { display: block; font-family: var(--font-sans); font-size: 12px; font-weight: 500; letter-spacing: 0.2px; color: var(--text-secondary); margin-bottom: 8px; }
+.login-field input { width: 100%; background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-sans); font-size: 15px; padding: 14px 15px; border-radius: var(--radius-control); }
 .login-field input::placeholder { color: var(--text-disabled); }
 .login-field input:focus { box-shadow: var(--focus-ring); outline: none; }
-.login-btn { width: 100%; margin-top: 12px; height: 48px; background: var(--fill-primary); border: none; color: var(--on-primary); font-family: var(--font-sans); font-size: 15px; font-weight: 500; border-radius: var(--radius-control); cursor: pointer; transition: background var(--dur-fast); }
+.login-btn { width: 100%; margin-top: 14px; height: 48px; background: var(--fill-primary); border: none; color: var(--on-primary); font-family: var(--font-sans); font-size: 15px; font-weight: 600; border-radius: var(--radius-control); cursor: pointer; transition: background var(--dur-fast), transform var(--dur-fast); }
 .login-btn:hover:not(:disabled) { background: var(--fill-primary-hover); }
+.login-btn:active:not(:disabled) { transform: translateY(1px); }
 .login-btn:disabled { opacity: .55; cursor: not-allowed; }
 .login-err { color: var(--danger-text); font-size: 12.5px; margin-top: 14px; text-align: center; }
-.login-foot { text-align: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 1px; text-transform: uppercase; }
 
 /* ═══════════════ ONBOARDING-FORMULÄR ═══════════════ */
 .form-grid { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
