@@ -1,0 +1,2 @@
+# Normalisera radbrytningar till LF i repot (byggs på Linux/Railway).
+* text=auto eol=lf
