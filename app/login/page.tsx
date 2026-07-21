@@ -53,6 +53,7 @@ export default function LoginPage() {
           </button>
           {error && <div className="login-err" role="alert">{error}</div>}
         </form>
+        <div className="login-foot">Intern · endast behörig personal</div>
       </div>
     </main>
   );
