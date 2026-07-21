@@ -237,7 +237,7 @@ input:-webkit-autofill:active {
 .doc-layout { display: grid; grid-template-columns: 180px 1fr; gap: 14px; height: 520px; }
 @media (max-width: 600px) { .doc-layout { grid-template-columns: 1fr; height: auto; } }
 .doc-tree { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
-.tree-group { font-family: var(--font-mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin: 10px 0 4px 4px; }
+.tree-group { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); margin: 12px 0 5px 4px; }
 .tree-group:first-child { margin-top: 0; }
 .doc-file { display: flex; align-items: center; gap: 7px; padding: 6px 9px; border-radius: 7px; cursor: pointer; transition: background var(--dur-base); font-size: 12px; width: 100%; text-align: left; color: inherit; font-family: inherit; background: none; border: none; }
 .doc-file:hover { background: var(--fill-ghost-hover); }
@@ -319,7 +319,7 @@ input:-webkit-autofill:active {
 .sysmap-row { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; }
 @media (max-width: 960px) { .sysmap-row { grid-template-columns: 1fr; } }
 .confidence-block { margin-bottom: 18px; }
-.conf-label { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1.3px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 9px; }
+.conf-label { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 9px; }
 .conf-bar { height: 12px; border-radius: 6px; overflow: hidden; display: flex; background: var(--bg-surface-1); box-shadow: var(--hairline); }
 .conf-found { background: var(--success-fill); transition: width 1s var(--ease-out); }
 .conf-inferred { background: repeating-linear-gradient(45deg, var(--warning-fill), var(--warning-fill) 4px, #b88a3e 4px, #b88a3e 8px); transition: width 1s var(--ease-out); }
@@ -329,7 +329,7 @@ input:-webkit-autofill:active {
 .conf-legend .dot.found { background: var(--success-text); }
 .conf-legend .dot.inferred { background: var(--warning-text); }
 .conf-note { font-size: 10.5px; color: var(--text-muted); margin-top: 9px; font-style: italic; }
-.gn-label { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1.3px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 9px; }
+.gn-label { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 9px; }
 .gn-row { display: flex; align-items: center; gap: 11px; padding: 7px 0; border-bottom: 1px solid var(--border); }
 .gn-row:last-child { border-bottom: none; }
 .gn-rank { font-family: var(--font-mono); font-size: 11px; color: var(--accent-text); width: 16px; flex: none; }
@@ -340,7 +340,7 @@ input:-webkit-autofill:active {
 .savings { text-align: center; padding: 14px 0 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
 .sav-big { font-family: var(--font-sans); font-size: 42px; font-weight: 600; color: var(--success-text); line-height: 1; letter-spacing: -1px; }
 .sav-sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); margin-top: 8px; letter-spacing: .5px; }
-.loop-label { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1.3px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+.loop-label { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; }
 .loop-steps { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 11px; }
 .loop-step { font-size: 11px; padding: 5px 9px; background: var(--bg-surface-1); box-shadow: var(--hairline); border-radius: 6px; color: var(--text-muted); }
 .loop-step.hl { background: var(--tint-accent-bg); box-shadow: inset 0 0 0 1px var(--tint-accent-border); color: var(--accent-text); }
@@ -369,7 +369,7 @@ input:-webkit-autofill:active {
 
 /* repo-väljare */
 .repo-select { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.repo-select label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); }
+.repo-select label { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); }
 .repo-select select { background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-mono); font-size: 12px; padding: 7px 11px; border-radius: var(--radius-control); cursor: pointer; }
 .repo-select select:focus { box-shadow: var(--focus-ring); outline: none; }
 
@@ -415,7 +415,7 @@ input:-webkit-autofill:active {
 
 /* ═══════════════ ONBOARDING-FORMULÄR ═══════════════ */
 .form-grid { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
-.form-field label { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.form-field label { display: block; font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; }
 .form-field .req { color: var(--brand); }
 .form-field input, .form-field textarea { width: 100%; background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px; padding: 11px 13px; border-radius: var(--radius-control); }
 .form-field input:focus, .form-field textarea:focus { box-shadow: var(--focus-ring); outline: none; }
