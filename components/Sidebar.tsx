@@ -41,6 +41,12 @@ const I = {
   integrationer: (
     <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
   ),
+  workspace: (
+    <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><rect x="2" y="3.5" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4" /><path d="M2.6 5 8 8.6 13.4 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  ),
+  extlink: (
+    <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M6 3.5H4A1.5 1.5 0 0 0 2.5 5v7A1.5 1.5 0 0 0 4 13.5h7A1.5 1.5 0 0 0 12.5 12v-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><path d="M9 2.5h4.5V7M13.2 2.8 7.5 8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  ),
 };
 
 const HEALTH = [
@@ -139,6 +145,15 @@ export default function Sidebar() {
         <Link href="/framtiden" className={`nav-item${isActive("/framtiden") ? " active" : ""}`}>
           <span className="nav-ic">{I.framtiden}</span> Framtiden
         </Link>
+        <a
+          href="https://admin.google.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="nav-item"
+        >
+          <span className="nav-ic">{I.workspace}</span> Google Workspace
+          <span className="nav-ext-ic" aria-hidden="true">{I.extlink}</span>
+        </a>
       </nav>
 
       <div className="account">
