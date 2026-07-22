@@ -1,0 +1,258 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import type { LeadMedScore, LeadStatus } from "@/lib/leads-types";
+
+/* human-läsbara etiketter för score-signalerna (för "varför fick den sin poäng") */
+const SIGNAL_LABEL: Record<string, string> = {
+  ingen_sajt: "Ingen sajt",
+  rec_20plus: "≥20 recensioner",
+  rec_10_19: "10–19 recensioner",
+  rec_5_9: "5–9 recensioner",
+  rec_1_4: "1–4 recensioner",
+  betyg_45plus: "Betyg ≥4,5",
+  betyg_40_44: "Betyg 4,0–4,4",
+  betyg_35_39: "Betyg 3,5–3,9",
+  farskhet_u3man: "Recension <3 mån",
+  farskhet_3_6man: "Recension 3–6 mån",
+  farskhet_6_12man: "Recension 6–12 mån",
+  farskhet_over12man: "Recension >12 mån (vilande)",
+  flode_6man: "≥3 recensioner sen. 6 mån",
+  agare_svarar: "Ägaren svarar på recensioner",
+  gbp_foton: "GBP har foton",
+  gbp_oppettider: "GBP har öppettider",
+  gbp_beskrivning: "GBP har beskrivning",
+  har_fb_ig: "Har Facebook/Instagram",
+  bildmaterial_bra: "Bildmaterial: bra",
+  bildmaterial_saknas: "Bildmaterial: saknas",
+  bransch_ring1: "Bransch i Ring 1",
+  noll_recensioner: "0 recensioner",
+  betyg_u35: "Betyg <3,5",
+};
+
+const STATUS_BADGE: Record<LeadStatus, string> = {
+  kandidat: "neutral",
+  kvalificerad: "accent",
+  diskvalificerad: "danger",
+  demo_byggd: "accent",
+  kontaktad: "warning",
+  svar: "success",
+  mote: "success",
+  kund: "success",
+  nej: "danger",
+};
+
+const STATUS_LABEL: Record<LeadStatus, string> = {
+  kandidat: "Kandidat",
+  kvalificerad: "Kvalificerad",
+  diskvalificerad: "Diskvalificerad",
+  demo_byggd: "Demo byggd",
+  kontaktad: "Kontaktad",
+  svar: "Svar",
+  mote: "Möte",
+  kund: "Kund",
+  nej: "Nej",
+};
+
+function månaderSedan(iso: string | null): number | null {
+  if (!iso) return null;
+  const d = new Date(iso).getTime();
+  if (Number.isNaN(d)) return null;
+  return (Date.now() - d) / (1000 * 60 * 60 * 24 * 30.44);
+}
+
+function färskhetText(iso: string | null): { text: string; cls: string } {
+  const m = månaderSedan(iso);
+  if (m == null) return { text: "—", cls: "dim" };
+  const mån = Math.round(m);
+  const text = mån < 1 ? "denna månad" : mån === 1 ? "1 mån sedan" : `${mån} mån sedan`;
+  const cls = m < 6 ? "fresh" : m > 12 ? "stale" : "dim";
+  return { text, cls };
+}
+
+type ApiSvar =
+  | { ok: true; leads: LeadMedScore[]; config: { version: number; bygg_demo_min: number; kvalificerad_min: number } }
+  | { ok: false; reason: string; message: string };
+
+export default function LeadsList() {
+  const [data, setData] = useState<ApiSvar | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("");
+  const [bransch, setBransch] = useState("");
+  const [ort, setOrt] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    const q = new URLSearchParams();
+    if (status) q.set("status", status);
+    if (bransch) q.set("bransch", bransch);
+    if (ort) q.set("ort", ort);
+    fetch(`/api/leads?${q.toString()}`, { credentials: "same-origin" })
+      .then((r) => r.json())
+      .then((j: ApiSvar) => {
+        if (alive) {
+          setData(j);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          setData({ ok: false, reason: "network", message: "Kunde inte nå servern." });
+          setLoading(false);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [status, bransch, ort]);
+
+  const brancher = useMemo(() => {
+    if (!data?.ok) return [];
+    return Array.from(new Set(data.leads.map((l) => l.bransch).filter(Boolean))).sort() as string[];
+  }, [data]);
+
+  if (loading && !data) return <div className="panel"><p className="dim">Laddar leads…</p></div>;
+
+  if (data && !data.ok) {
+    const ejKonfig = data.reason === "no-config";
+    return (
+      <div className="panel" style={{ maxWidth: 720 }}>
+        <h2><span className="idx">◆</span> {ejKonfig ? "Väntar på Supabase" : "Kunde inte hämta leads"}</h2>
+        <p style={{ color: "var(--text-muted)", marginTop: 10, lineHeight: 1.6 }}>{data.message}</p>
+        {ejKonfig && (
+          <p style={{ color: "var(--text-muted)", marginTop: 8, lineHeight: 1.6 }}>
+            Lägg in <code>SUPABASE_URL</code> och <code>SUPABASE_SERVICE_KEY</code> i Railway → så tänds listan mot dina leads.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  const leads = data?.ok ? data.leads : [];
+
+  return (
+    <>
+      <div className="leads-toolbar">
+        <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">Alla statusar</option>
+          {(Object.keys(STATUS_LABEL) as LeadStatus[]).map((s) => (
+            <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+          ))}
+        </select>
+        <select value={bransch} onChange={(e) => setBransch(e.target.value)}>
+          <option value="">Alla branscher</option>
+          {brancher.map((b) => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
+        <input placeholder="Ort…" value={ort} onChange={(e) => setOrt(e.target.value)} />
+        <span className="leads-meta">
+          {leads.length} leads{data?.ok ? ` · modell v${data.config.version}` : ""}
+        </span>
+      </div>
+
+      <div className="leads-tablewrap">
+        <table className="leads-table">
+          <thead>
+            <tr>
+              <th className="num">Score</th>
+              <th>Företag</th>
+              <th className="num">Betyg</th>
+              <th className="num">Rec.</th>
+              <th>Senaste rec.</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leads.map((l) => {
+              const f = färskhetText(l.senaste_recension_at);
+              const exp = expanded === l.id;
+              return (
+                <FragmentRow
+                  key={l.id}
+                  lead={l}
+                  färskhet={f}
+                  expanded={exp}
+                  onToggle={() => setExpanded(exp ? null : l.id)}
+                />
+              );
+            })}
+            {leads.length === 0 && (
+              <tr><td colSpan={6} style={{ color: "var(--text-muted)", padding: 20 }}>Inga leads matchar filtret.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function FragmentRow({
+  lead,
+  färskhet,
+  expanded,
+  onToggle,
+}: {
+  lead: LeadMedScore;
+  färskhet: { text: string; cls: string };
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const b = lead.berakning;
+  const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(`${lead.namn} ${lead.ort ?? ""}`)}`;
+  return (
+    <>
+      <tr className={`lead-row${expanded ? " exp" : ""}`} onClick={onToggle}>
+        <td className="num">
+          <span className={`score-badge ${b.niva}`}>{b.score}</span>
+        </td>
+        <td>
+          <div className="lead-namn">{lead.namn}</div>
+          <div className="lead-sub">{[lead.bransch, lead.ort].filter(Boolean).join(" · ")}</div>
+        </td>
+        <td className="num">{lead.betyg ?? "—"}</td>
+        <td className="num">{lead.recensioner_antal ?? 0}</td>
+        <td><span className={färskhet.cls}>{färskhet.text}</span></td>
+        <td><span className={`badge ${STATUS_BADGE[lead.status]}`}>{STATUS_LABEL[lead.status]}</span></td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td className="lead-detail-td" colSpan={6}>
+            <div className="lead-detail">
+              <div>
+                <div className="ld-h">Varför score {b.score}</div>
+                {b.rader.map((r) => (
+                  <div className="sig-row" key={r.signal}>
+                    <span>{SIGNAL_LABEL[r.signal] ?? r.signal}</span>
+                    <span className={`p ${r.poang >= 0 ? "pos" : "neg"}`}>{r.poang >= 0 ? "+" : ""}{r.poang}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="ld-h">Öppna & bedöm</div>
+                <div className="ld-links">
+                  {lead.gbp_url && <a className="ld-link" href={lead.gbp_url} target="_blank" rel="noopener noreferrer">Google-profil ↗</a>}
+                  <a className="ld-link" href={googleUrl} target="_blank" rel="noopener noreferrer">Google-sök ↗</a>
+                  {lead.fb_url && <a className="ld-link" href={lead.fb_url} target="_blank" rel="noopener noreferrer">Facebook ↗</a>}
+                  {lead.ig_url && <a className="ld-link" href={lead.ig_url} target="_blank" rel="noopener noreferrer">Instagram ↗</a>}
+                </div>
+                <div className="ld-facts" style={{ marginTop: 14 }}>
+                  <div><span className="k">Telefon:</span> {lead.telefon ?? "—"}</div>
+                  <div><span className="k">Adress:</span> {lead.adress ?? "—"}</div>
+                  <div><span className="k">GBP foton / öppettider / beskrivning:</span>{" "}
+                    {[lead.gbp_har_foton, lead.gbp_har_oppettider, lead.gbp_har_beskrivning].map((x) => (x ? "ja" : "nej")).join(" / ")}
+                  </div>
+                  <div><span className="k">Ägaren svarar på recensioner:</span>{" "}
+                    {lead.agare_svarar_pa_recensioner == null ? "okänd (bedöm manuellt)" : lead.agare_svarar_pa_recensioner ? "ja" : "nej"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
