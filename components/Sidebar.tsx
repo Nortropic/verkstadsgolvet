@@ -49,6 +49,14 @@ const I = {
   youtube: (
     <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.4 31.4 0 0 0 0 12a31.4 31.4 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.4 31.4 0 0 0 24 12a31.4 31.4 0 0 0-.5-5.8Z" fill="#FF0000" /><path d="M9.6 15.5 15.8 12 9.6 8.5v7Z" fill="#fff" /></svg>
   ),
+  /* Hästskomagnet — "attrahera leads", visuellt skild från trattikonen (I.leads). */
+  leadscraper: (
+    <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M4 2.5v4.5a4 4 0 0 0 8 0V2.5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /><path d="M2.5 2.5h3M10.5 2.5h3M2.5 5.5h3M10.5 5.5h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+  ),
+  /* Uthoppspil för externa länkar (öppnas i ny flik). */
+  extlink: (
+    <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M6 3.5H4A1.5 1.5 0 0 0 2.5 5v7A1.5 1.5 0 0 0 4 13.5h7A1.5 1.5 0 0 0 12.5 12v-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><path d="M9 2.5h4.5V7M13.2 2.8 7.5 8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  ),
 };
 
 const HEALTH = [
@@ -144,6 +152,17 @@ export default function Sidebar() {
             </div>
           )}
         </div>
+
+        {/* Externt verktyg — Lead Scraper (Railway). Uthopp i ny flik, inte en app-route. */}
+        <a
+          href="https://leadsinc-production.up.railway.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="nav-item"
+        >
+          <span className="nav-ic">{I.leadscraper}</span> Lead Scraper
+          <span className="nav-ext-ic" aria-hidden="true">{I.extlink}</span>
+        </a>
 
         {/* Systemhälsa — nästad grupp. Parent = knapp (togglar + navigerar till översikt
             vid expansion). Caret är en icke-interaktiv span → giltig HTML, ingen a>button. */}
