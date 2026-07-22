@@ -41,12 +41,22 @@ const I = {
   integrationer: (
     <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
   ),
+  leads: (
+    <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M2.5 3.5H13.5L8.7 8.5V12.5H7.3V8.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /></svg>
+  ),
 };
 
 const HEALTH = [
   { href: "/systemhalsa/doktorn", label: "Doktorn" },
   { href: "/systemhalsa/retro", label: "Retro" },
   { href: "/systemhalsa/nattmannen", label: "Nattmannen" },
+];
+
+const LEADS = [
+  { href: "/leads/insamling", label: "Insamling" },
+  { href: "/leads/lista", label: "Kvalificering" },
+  { href: "/leads/arbetsvy", label: "Arbetsvy" },
+  { href: "/leads/kalibrering", label: "Kalibrering" },
 ];
 
 export default function Sidebar() {
@@ -57,6 +67,12 @@ export default function Sidebar() {
   useEffect(() => {
     if (inHealth) setOpen(true);
   }, [inHealth]);
+
+  const inLeads = pathname.startsWith("/leads");
+  const [openLeads, setOpenLeads] = useState(inLeads);
+  useEffect(() => {
+    if (inLeads) setOpenLeads(true);
+  }, [inLeads]);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href;
@@ -89,6 +105,37 @@ export default function Sidebar() {
         <Link href="/dokument" className={`nav-item${isActive("/dokument") ? " active" : ""}`}>
           <span className="nav-ic">{I.dokument}</span> Dokument
         </Link>
+
+        {/* Leads — nästad grupp (samma mönster som Systemhälsa). Parent togglar +
+            navigerar till /leads (→ redirect till /leads/lista) vid expansion. */}
+        <div className="nav-group">
+          <button
+            type="button"
+            className={`nav-item${inLeads ? " active" : ""}`}
+            aria-expanded={openLeads}
+            onClick={() =>
+              setOpenLeads((o) => {
+                const next = !o;
+                if (next) router.push("/leads");
+                return next;
+              })
+            }
+          >
+            <span className="nav-ic">{I.leads}</span> Leads
+            <span className={`nav-caret${openLeads ? " open" : ""}`} aria-hidden="true">
+              <svg viewBox="0 0 12 12" width="12" height="12" fill="none"><path d="M4 2.5 7.5 6 4 9.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </span>
+          </button>
+          {openLeads && (
+            <div className="nav-sub">
+              {LEADS.map((l) => (
+                <Link key={l.href} href={l.href} className={`nav-item${isActive(l.href) ? " active" : ""}`}>
+                  {l.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Systemhälsa — nästad grupp. Parent = knapp (togglar + navigerar till översikt
             vid expansion). Caret är en icke-interaktiv span → giltig HTML, ingen a>button. */}
