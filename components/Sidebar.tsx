@@ -44,6 +44,11 @@ const I = {
   leads: (
     <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M2.5 3.5H13.5L8.7 8.5V12.5H7.3V8.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /></svg>
   ),
+  /* YouTube-loggan i sina egna varumärkesfärger (röd platta + vit play-triangel),
+     till skillnad från de monokroma linje-ikonerna ovan — så den läses som just YouTube. */
+  youtube: (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.4 31.4 0 0 0 0 12a31.4 31.4 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.4 31.4 0 0 0 24 12a31.4 31.4 0 0 0-.5-5.8Z" fill="#FF0000" /><path d="M9.6 15.5 15.8 12 9.6 8.5v7Z" fill="#fff" /></svg>
+  ),
 };
 
 const HEALTH = [
@@ -104,6 +109,9 @@ export default function Sidebar() {
         </Link>
         <Link href="/dokument" className={`nav-item${isActive("/dokument") ? " active" : ""}`}>
           <span className="nav-ic">{I.dokument}</span> Dokument
+        </Link>
+        <Link href="/youtube-research" className={`nav-item${isActive("/youtube-research") ? " active" : ""}`}>
+          <span className="nav-ic">{I.youtube}</span> YouTube research
         </Link>
 
         {/* Leads — nästad grupp (samma mönster som Systemhälsa). Parent togglar +
