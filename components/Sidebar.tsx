@@ -153,17 +153,6 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* Externt verktyg — Lead Scraper (Railway). Uthopp i ny flik, inte en app-route. */}
-        <a
-          href="https://leadsinc-production.up.railway.app/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="nav-item"
-        >
-          <span className="nav-ic">{I.leadscraper}</span> Lead Scraper
-          <span className="nav-ext-ic" aria-hidden="true">{I.extlink}</span>
-        </a>
-
         {/* Systemhälsa — nästad grupp. Parent = knapp (togglar + navigerar till översikt
             vid expansion). Caret är en icke-interaktiv span → giltig HTML, ingen a>button. */}
         <div className="nav-group">
