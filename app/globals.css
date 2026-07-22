@@ -580,3 +580,22 @@ input:-webkit-autofill:active {
   padding: 9px 11px; border-radius: var(--radius-control); resize: vertical;
 }
 .bedom-note:focus { box-shadow: var(--focus-ring); outline: none; }
+
+/* leads — arbetsvy (flöde) */
+.arb-list { display: flex; flex-direction: column; gap: 8px; }
+.arb-kort { box-shadow: var(--hairline); border-radius: var(--radius-control); background: var(--bg-surface-1); overflow: hidden; }
+.arb-kort.exp { box-shadow: var(--hairline), 0 2px 10px -5px rgba(0, 0, 0, 0.5); }
+.arb-huvud { display: flex; align-items: center; gap: 11px; padding: 11px 13px; cursor: pointer; transition: background var(--dur-base); }
+.arb-huvud:hover { background: var(--fill-ghost-hover); }
+.arb-namn { color: var(--text-primary); font-weight: 500; font-size: 13.5px; }
+.arb-ort { color: var(--text-muted); font-size: 12px; }
+.arb-huvud .badge { margin-left: auto; }
+.arb-huvud .badge + .badge { margin-left: 6px; }
+.arb-detalj { padding: 4px 14px 16px; border-top: 1px solid var(--border); }
+.arb-falt { display: flex; flex-wrap: wrap; gap: 14px; margin: 12px 0 6px; }
+.arb-falt label { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; }
+.arb-falt input { background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-sans); font-size: 13px; padding: 9px 11px; border-radius: var(--radius-control); }
+.arb-falt input:focus { box-shadow: var(--focus-ring); outline: none; }
+.arb-sms-rad { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.arb-svar-text { width: 100%; margin-top: 8px; background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-sans); font-size: 13px; padding: 9px 11px; border-radius: var(--radius-control); }
+.arb-svar-text:focus { box-shadow: var(--focus-ring); outline: none; }
