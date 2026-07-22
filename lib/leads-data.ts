@@ -98,6 +98,65 @@ export async function listLeads(filter: LeadFilter = {}): Promise<Result<{ leads
   return { ok: true, data: { leads, config: cfg.data } };
 }
 
+export type Kalibrering = {
+  version: number;
+  antal_leads: number;
+  antal_utfall: number; // kontaktade (status ∈ kontaktad/svar/mote/kund/nej)
+  snitt_demo_min: number | null;
+  intervaller: { namn: string; leads: number; kontaktade: number; svar: number; kunder: number; svarsfrekvens: number | null }[];
+  vikter: { signal: string; poang: number; beskrivning: string | null }[];
+};
+
+/** Kalibrering beräknad i TS (score live, ej persisterad). Svarsfrekvens per score-intervall. */
+export async function getKalibrering(): Promise<Result<Kalibrering>> {
+  const client = supa();
+  if (!client) return EJ_KONFIG;
+  const cfg = await getScoreConfig();
+  if (!cfg.ok) return cfg;
+
+  const { data, error } = await client.from("leads").select("*");
+  if (error) return fel("db-error", error.message);
+  const { data: vikter } = await client
+    .from("score_vikter")
+    .select("signal, poang, beskrivning")
+    .eq("version", cfg.data.version)
+    .order("poang", { ascending: false });
+
+  const kontaktStatus = new Set(["kontaktad", "svar", "mote", "kund", "nej"]);
+  const svarStatus = new Set(["svar", "mote", "kund"]);
+  const bucket = (s: number) => (s >= 85 ? "85+" : s >= 60 ? "60–84" : s >= 40 ? "40–59" : "<40");
+  const ordning = ["85+", "60–84", "40–59", "<40"];
+  const acc: Record<string, { leads: number; kontaktade: number; svar: number; kunder: number }> = {};
+  for (const n of ordning) acc[n] = { leads: 0, kontaktade: 0, svar: 0, kunder: 0 };
+
+  const tider: number[] = [];
+  let antalUtfall = 0;
+  for (const l of data as Lead[]) {
+    const s = beräknaScore(l, cfg.data).score;
+    const b = acc[bucket(s)];
+    b.leads++;
+    if (kontaktStatus.has(l.status)) { b.kontaktade++; antalUtfall++; }
+    if (svarStatus.has(l.status)) b.svar++;
+    if (l.status === "kund") b.kunder++;
+    if (typeof l.demo_byggtid_min === "number") tider.push(l.demo_byggtid_min);
+  }
+
+  return {
+    ok: true,
+    data: {
+      version: cfg.data.version,
+      antal_leads: (data as Lead[]).length,
+      antal_utfall: antalUtfall,
+      snitt_demo_min: tider.length ? Math.round(tider.reduce((a, b) => a + b, 0) / tider.length) : null,
+      intervaller: ordning.map((namn) => {
+        const a = acc[namn];
+        return { namn, leads: a.leads, kontaktade: a.kontaktade, svar: a.svar, kunder: a.kunder, svarsfrekvens: a.kontaktade ? Math.round((100 * a.svar) / a.kontaktade) : null };
+      }),
+      vikter: (vikter ?? []) as Kalibrering["vikter"],
+    },
+  };
+}
+
 export async function getLead(id: string): Promise<Result<LeadMedScore>> {
   const client = supa();
   if (!client) return EJ_KONFIG;
