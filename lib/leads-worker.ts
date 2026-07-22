@@ -88,8 +88,11 @@ export async function runWorkerBatch(batch = 2): Promise<WorkerSvar> {
     if (anropIdagStart + sokAnrop + detaljAnrop >= budget) break; // budgettak nått mitt i satsen
 
     try {
+      // Svensk term + ort i textfrågan (som gamla flödet "elektriker Luleå") ger bäst lokala
+      // träffar; includedType läggs till som filter för de kategorier Google har en typ för.
       const includedType = combo.query_typ === "includedType" ? combo.query_varde : undefined;
-      const textQuery = includedType ? combo.kommun : `${combo.query_varde} ${combo.kommun}`;
+      const sokterm = combo.query_typ === "text" ? combo.query_varde : combo.kategori_label.split("/")[0].trim();
+      const textQuery = `${sokterm} ${combo.kommun}`;
       const places = await textSearch(textQuery, includedType);
       sokAnrop++;
 
