@@ -61,22 +61,44 @@ export async function enqueueSweep(
 export type SweepStatus = {
   config: { dygns_budget: number; aktiv: boolean };
   idag: { sok_anrop: number; detalj_anrop: number };
+  manad: { sok_anrop: number; detalj_anrop: number; kostnad_kr: number };
   totalt: { kombon: number; klar: number; ko: number; fel: number; leads: number };
   perLan: { lan: string; kombon: number; klar: number; ko: number; fel: number; leads: number }[];
 };
+
+// Grova Places-priser (New, 2026) — ändras; bara en uppskattning. 5000 gratis/mån per SKU.
+const PRIS_SOK_USD = 0.032; // Text Search Pro / anrop
+const PRIS_DETALJ_USD = 0.025; // Place Details (reviews) / anrop
+const GRATIS_PER_SKU = 5000;
+const USD_TILL_KR = 10.5;
+
+function beräknaKostnadKr(sok: number, detalj: number): number {
+  const kr =
+    (Math.max(0, sok - GRATIS_PER_SKU) * PRIS_SOK_USD + Math.max(0, detalj - GRATIS_PER_SKU) * PRIS_DETALJ_USD) * USD_TILL_KR;
+  return Math.round(kr);
+}
 
 export async function getSweepStatus(): Promise<Result<SweepStatus>> {
   const client = supa();
   if (!client) return EJ_KONFIG;
 
-  const [cfgRes, tackRes, dagRes] = await Promise.all([
+  const manadStart = idag().slice(0, 8) + "01";
+  const [cfgRes, tackRes, dagRes, manRes] = await Promise.all([
     client.from("sok_config").select("dygns_budget, aktiv").eq("id", 1).maybeSingle(),
     client.from("sok_tackning").select("*"),
     client.from("sok_dagslogg").select("sok_anrop, detalj_anrop").eq("datum", idag()).maybeSingle(),
+    client.from("sok_dagslogg").select("sok_anrop, detalj_anrop").gte("datum", manadStart),
   ]);
 
   if (cfgRes.error) return { ok: false, reason: "db-error", message: cfgRes.error.message };
   if (tackRes.error) return { ok: false, reason: "db-error", message: tackRes.error.message };
+
+  let manSok = 0;
+  let manDetalj = 0;
+  for (const r of (manRes.data ?? []) as { sok_anrop: number; detalj_anrop: number }[]) {
+    manSok += r.sok_anrop ?? 0;
+    manDetalj += r.detalj_anrop ?? 0;
+  }
 
   const perLanMap = new Map<string, SweepStatus["perLan"][number]>();
   const totalt = { kombon: 0, klar: 0, ko: 0, fel: 0, leads: 0 };
@@ -103,6 +125,7 @@ export async function getSweepStatus(): Promise<Result<SweepStatus>> {
     data: {
       config: { dygns_budget: cfgRes.data?.dygns_budget ?? 400, aktiv: cfgRes.data?.aktiv ?? true },
       idag: { sok_anrop: dagRes.data?.sok_anrop ?? 0, detalj_anrop: dagRes.data?.detalj_anrop ?? 0 },
+      manad: { sok_anrop: manSok, detalj_anrop: manDetalj, kostnad_kr: beräknaKostnadKr(manSok, manDetalj) },
       totalt,
       perLan: [...perLanMap.values()].sort((a, b) => a.lan.localeCompare(b.lan, "sv")),
     },

@@ -8,6 +8,7 @@ type Status = {
   ok: true;
   config: { dygns_budget: number; aktiv: boolean };
   idag: { sok_anrop: number; detalj_anrop: number };
+  manad: { sok_anrop: number; detalj_anrop: number; kostnad_kr: number };
   totalt: { kombon: number; klar: number; ko: number; fel: number; leads: number };
   perLan: { lan: string; kombon: number; klar: number; ko: number; fel: number; leads: number }[];
 };
@@ -158,6 +159,7 @@ export default function SweepPlanner() {
           <div className="sweep-stat"><span className="v">{s.totalt.ko}</span><span className="l">i kö</span></div>
           <div className="sweep-stat"><span className="v">{s.totalt.leads}</span><span className="l">leads totalt</span></div>
           <div className="sweep-stat"><span className="v">{anropIdag}/{s.config.dygns_budget}</span><span className="l">anrop idag</span></div>
+          <div className="sweep-stat"><span className="v" title={`${s.manad.sok_anrop + s.manad.detalj_anrop} anrop denna månad`}>~{s.manad.kostnad_kr} kr</span><span className="l">kostnad ~denna månad</span></div>
         </div>
         <div className="sweep-config">
           <label>
