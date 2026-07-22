@@ -559,3 +559,24 @@ input:-webkit-autofill:active {
 .sweep-est strong { font-family: var(--font-mono); font-size: 16px; color: var(--text-primary); }
 
 .sweep-tree input[type="checkbox"], .sweep-master input, .sweep-kat input, .sweep-grupp-head input, .sweep-kommun input { accent-color: var(--brand); width: 15px; height: 15px; flex: none; cursor: pointer; }
+
+/* leads — bedömnings-knappar i detaljvyn */
+.bedom-grupp { margin-bottom: 11px; }
+.bedom-label { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.bedom-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.bedom-btn {
+  background: var(--fill-secondary); box-shadow: var(--hairline); border: none; color: var(--text-secondary);
+  font-size: 12.5px; padding: 6px 12px; border-radius: var(--radius-control); cursor: pointer;
+  transition: background var(--dur-base), color var(--dur-base), box-shadow var(--dur-base);
+}
+.bedom-btn:hover:not(:disabled) { background: var(--fill-secondary-hover); color: var(--text-primary); }
+.bedom-btn:disabled { opacity: .5; cursor: default; }
+.bedom-btn.on { background: var(--bg-surface-2); box-shadow: inset 0 0 0 1px var(--accent-text); color: var(--text-primary); font-weight: 500; }
+.bedom-btn.ja.on { box-shadow: inset 0 0 0 1px var(--success-text); color: var(--success-text); }
+.bedom-btn.nej.on { box-shadow: inset 0 0 0 1px var(--danger-text); color: var(--danger-text); }
+.bedom-note {
+  width: 100%; min-height: 46px; margin: 4px 0 11px; background: var(--fill-field); box-shadow: var(--hairline);
+  border: none; color: var(--text-secondary); font-family: var(--font-sans); font-size: 12.5px; line-height: 1.5;
+  padding: 9px 11px; border-radius: var(--radius-control); resize: vertical;
+}
+.bedom-note:focus { box-shadow: var(--focus-ring); outline: none; }

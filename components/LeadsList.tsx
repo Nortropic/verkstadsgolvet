@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { LeadMedScore, LeadStatus } from "@/lib/leads-types";
 
 /* human-läsbara etiketter för score-signalerna (för "varför fick den sin poäng") */
@@ -31,27 +31,12 @@ const SIGNAL_LABEL: Record<string, string> = {
 };
 
 const STATUS_BADGE: Record<LeadStatus, string> = {
-  kandidat: "neutral",
-  kvalificerad: "accent",
-  diskvalificerad: "danger",
-  demo_byggd: "accent",
-  kontaktad: "warning",
-  svar: "success",
-  mote: "success",
-  kund: "success",
-  nej: "danger",
+  kandidat: "neutral", kvalificerad: "accent", diskvalificerad: "danger", demo_byggd: "accent",
+  kontaktad: "warning", svar: "success", mote: "success", kund: "success", nej: "danger",
 };
-
 const STATUS_LABEL: Record<LeadStatus, string> = {
-  kandidat: "Kandidat",
-  kvalificerad: "Kvalificerad",
-  diskvalificerad: "Diskvalificerad",
-  demo_byggd: "Demo byggd",
-  kontaktad: "Kontaktad",
-  svar: "Svar",
-  mote: "Möte",
-  kund: "Kund",
-  nej: "Nej",
+  kandidat: "Kandidat", kvalificerad: "Kvalificerad", diskvalificerad: "Diskvalificerad",
+  demo_byggd: "Demo byggd", kontaktad: "Kontaktad", svar: "Svar", mote: "Möte", kund: "Kund", nej: "Nej",
 };
 
 function månaderSedan(iso: string | null): number | null {
@@ -60,7 +45,6 @@ function månaderSedan(iso: string | null): number | null {
   if (Number.isNaN(d)) return null;
   return (Date.now() - d) / (1000 * 60 * 60 * 24 * 30.44);
 }
-
 function färskhetText(iso: string | null): { text: string; cls: string } {
   const m = månaderSedan(iso);
   if (m == null) return { text: "—", cls: "dim" };
@@ -91,27 +75,24 @@ export default function LeadsList() {
     if (ort) q.set("ort", ort);
     fetch(`/api/leads?${q.toString()}`, { credentials: "same-origin" })
       .then((r) => r.json())
-      .then((j: ApiSvar) => {
-        if (alive) {
-          setData(j);
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (alive) {
-          setData({ ok: false, reason: "network", message: "Kunde inte nå servern." });
-          setLoading(false);
-        }
-      });
-    return () => {
-      alive = false;
-    };
+      .then((j: ApiSvar) => { if (alive) { setData(j); setLoading(false); } })
+      .catch(() => { if (alive) { setData({ ok: false, reason: "network", message: "Kunde inte nå servern." }); setLoading(false); } });
+    return () => { alive = false; };
   }, [status, bransch, ort]);
 
   const brancher = useMemo(() => {
     if (!data?.ok) return [];
     return Array.from(new Set(data.leads.map((l) => l.bransch).filter(Boolean))).sort() as string[];
   }, [data]);
+
+  function uppdateraLead(uppdaterad: LeadMedScore) {
+    setData((d) => (d && d.ok ? { ...d, leads: d.leads.map((l) => (l.id === uppdaterad.id ? uppdaterad : l)) } : d));
+  }
+  function nästaLead(nuvarande: string) {
+    if (!data?.ok) return;
+    const i = data.leads.findIndex((l) => l.id === nuvarande);
+    setExpanded(i >= 0 && i < data.leads.length - 1 ? data.leads[i + 1].id : null);
+  }
 
   if (loading && !data) return <div className="panel"><p className="dim">Laddar leads…</p></div>;
 
@@ -121,11 +102,6 @@ export default function LeadsList() {
       <div className="panel" style={{ maxWidth: 720 }}>
         <h2><span className="idx">◆</span> {ejKonfig ? "Väntar på Supabase" : "Kunde inte hämta leads"}</h2>
         <p style={{ color: "var(--text-muted)", marginTop: 10, lineHeight: 1.6 }}>{data.message}</p>
-        {ejKonfig && (
-          <p style={{ color: "var(--text-muted)", marginTop: 8, lineHeight: 1.6 }}>
-            Lägg in <code>SUPABASE_URL</code> och <code>SUPABASE_SERVICE_KEY</code> i Railway → så tänds listan mot dina leads.
-          </p>
-        )}
       </div>
     );
   }
@@ -137,51 +113,37 @@ export default function LeadsList() {
       <div className="leads-toolbar">
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Alla statusar</option>
-          {(Object.keys(STATUS_LABEL) as LeadStatus[]).map((s) => (
-            <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-          ))}
+          {(Object.keys(STATUS_LABEL) as LeadStatus[]).map((s) => (<option key={s} value={s}>{STATUS_LABEL[s]}</option>))}
         </select>
         <select value={bransch} onChange={(e) => setBransch(e.target.value)}>
           <option value="">Alla branscher</option>
-          {brancher.map((b) => (
-            <option key={b} value={b}>{b}</option>
-          ))}
+          {brancher.map((b) => (<option key={b} value={b}>{b}</option>))}
         </select>
         <input placeholder="Ort…" value={ort} onChange={(e) => setOrt(e.target.value)} />
-        <span className="leads-meta">
-          {leads.length} leads{data?.ok ? ` · modell v${data.config.version}` : ""}
-        </span>
+        <span className="leads-meta">{leads.length} leads{data?.ok ? ` · modell v${data.config.version}` : ""}</span>
       </div>
 
       <div className="leads-tablewrap">
         <table className="leads-table">
           <thead>
             <tr>
-              <th className="num">Score</th>
-              <th>Företag</th>
-              <th className="num">Betyg</th>
-              <th className="num">Rec.</th>
-              <th>Senaste rec.</th>
-              <th>Status</th>
+              <th className="num">Score</th><th>Företag</th><th className="num">Betyg</th>
+              <th className="num">Rec.</th><th>Senaste rec.</th><th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {leads.map((l) => {
-              const f = färskhetText(l.senaste_recension_at);
-              const exp = expanded === l.id;
-              return (
-                <FragmentRow
-                  key={l.id}
-                  lead={l}
-                  färskhet={f}
-                  expanded={exp}
-                  onToggle={() => setExpanded(exp ? null : l.id)}
-                />
-              );
-            })}
-            {leads.length === 0 && (
-              <tr><td colSpan={6} style={{ color: "var(--text-muted)", padding: 20 }}>Inga leads matchar filtret.</td></tr>
-            )}
+            {leads.map((l) => (
+              <FragmentRow
+                key={l.id}
+                lead={l}
+                färskhet={färskhetText(l.senaste_recension_at)}
+                expanded={expanded === l.id}
+                onToggle={() => setExpanded(expanded === l.id ? null : l.id)}
+                onUpdate={uppdateraLead}
+                onNext={() => nästaLead(l.id)}
+              />
+            ))}
+            {leads.length === 0 && (<tr><td colSpan={6} style={{ color: "var(--text-muted)", padding: 20 }}>Inga leads matchar filtret.</td></tr>)}
           </tbody>
         </table>
       </div>
@@ -190,28 +152,47 @@ export default function LeadsList() {
 }
 
 function FragmentRow({
-  lead,
-  färskhet,
-  expanded,
-  onToggle,
+  lead, färskhet, expanded, onToggle, onUpdate, onNext,
 }: {
   lead: LeadMedScore;
   färskhet: { text: string; cls: string };
   expanded: boolean;
   onToggle: () => void;
+  onUpdate: (l: LeadMedScore) => void;
+  onNext: () => void;
 }) {
   const b = lead.berakning;
+  const [sparar, setSparar] = useState(false);
+  const [not, setNot] = useState(lead.bedomning_anteckning ?? "");
   const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(`${lead.namn} ${lead.ort ?? ""}`)}`;
+
+  async function patcha(patch: Record<string, unknown>, sedan?: () => void) {
+    setSparar(true);
+    try {
+      const r = await fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(patch),
+      }).then((x) => x.json());
+      if (r.ok) { onUpdate(r.lead); sedan?.(); }
+    } finally {
+      setSparar(false);
+    }
+  }
+
+  const Grupp = ({ label, children }: { label: string; children: ReactNode }) => (
+    <div className="bedom-grupp"><span className="bedom-label">{label}</span><div className="bedom-btns">{children}</div></div>
+  );
+  const Knapp = ({ aktiv, onClick, children, variant }: { aktiv: boolean; onClick: () => void; children: ReactNode; variant?: string }) => (
+    <button type="button" disabled={sparar} className={`bedom-btn${aktiv ? " on" : ""}${variant ? " " + variant : ""}`} onClick={onClick}>{children}</button>
+  );
+
   return (
     <>
       <tr className={`lead-row${expanded ? " exp" : ""}`} onClick={onToggle}>
-        <td className="num">
-          <span className={`score-badge ${b.niva}`}>{b.score}</span>
-        </td>
-        <td>
-          <div className="lead-namn">{lead.namn}</div>
-          <div className="lead-sub">{[lead.bransch, lead.ort].filter(Boolean).join(" · ")}</div>
-        </td>
+        <td className="num"><span className={`score-badge ${b.niva}`}>{b.score}</span></td>
+        <td><div className="lead-namn">{lead.namn}</div><div className="lead-sub">{[lead.bransch, lead.ort].filter(Boolean).join(" · ")}</div></td>
         <td className="num">{lead.betyg ?? "—"}</td>
         <td className="num">{lead.recensioner_antal ?? 0}</td>
         <td><span className={färskhet.cls}>{färskhet.text}</span></td>
@@ -229,25 +210,43 @@ function FragmentRow({
                     <span className={`p ${r.poang >= 0 ? "pos" : "neg"}`}>{r.poang >= 0 ? "+" : ""}{r.poang}</span>
                   </div>
                 ))}
-              </div>
-              <div>
-                <div className="ld-h">Öppna & bedöm</div>
-                <div className="ld-links">
+                <div className="ld-links" style={{ marginTop: 12 }}>
                   {lead.gbp_url && <a className="ld-link" href={lead.gbp_url} target="_blank" rel="noopener noreferrer">Google-profil ↗</a>}
                   <a className="ld-link" href={googleUrl} target="_blank" rel="noopener noreferrer">Google-sök ↗</a>
                   {lead.fb_url && <a className="ld-link" href={lead.fb_url} target="_blank" rel="noopener noreferrer">Facebook ↗</a>}
                   {lead.ig_url && <a className="ld-link" href={lead.ig_url} target="_blank" rel="noopener noreferrer">Instagram ↗</a>}
                 </div>
-                <div className="ld-facts" style={{ marginTop: 14 }}>
-                  <div><span className="k">Telefon:</span> {lead.telefon ?? "—"}</div>
-                  <div><span className="k">Adress:</span> {lead.adress ?? "—"}</div>
-                  <div><span className="k">GBP foton / öppettider / beskrivning:</span>{" "}
-                    {[lead.gbp_har_foton, lead.gbp_har_oppettider, lead.gbp_har_beskrivning].map((x) => (x ? "ja" : "nej")).join(" / ")}
-                  </div>
-                  <div><span className="k">Ägaren svarar på recensioner:</span>{" "}
-                    {lead.agare_svarar_pa_recensioner == null ? "okänd (bedöm manuellt)" : lead.agare_svarar_pa_recensioner ? "ja" : "nej"}
-                  </div>
-                </div>
+              </div>
+
+              <div>
+                <div className="ld-h">Bedöm (sparar direkt)</div>
+                <Grupp label="Bildmaterial">
+                  <Knapp aktiv={lead.bildmaterial_bedomning === "bra"} onClick={() => patcha({ bildmaterial_bedomning: "bra" })}>Bra</Knapp>
+                  <Knapp aktiv={lead.bildmaterial_bedomning === "tunt"} onClick={() => patcha({ bildmaterial_bedomning: "tunt" })}>Tunt</Knapp>
+                  <Knapp aktiv={lead.bildmaterial_bedomning === "saknas"} onClick={() => patcha({ bildmaterial_bedomning: "saknas" })}>Saknas</Knapp>
+                </Grupp>
+                <Grupp label="Ägaren svarar på recensioner">
+                  <Knapp aktiv={lead.agare_svarar_pa_recensioner === true} onClick={() => patcha({ agare_svarar_pa_recensioner: true })}>Ja</Knapp>
+                  <Knapp aktiv={lead.agare_svarar_pa_recensioner === false} onClick={() => patcha({ agare_svarar_pa_recensioner: false })}>Nej</Knapp>
+                  <Knapp aktiv={lead.agare_svarar_pa_recensioner === null} onClick={() => patcha({ agare_svarar_pa_recensioner: null })}>Okänd</Knapp>
+                </Grupp>
+                <Grupp label="FB/IG-aktivitet">
+                  <Knapp aktiv={lead.social_aktivitet === "aktiv"} onClick={() => patcha({ social_aktivitet: "aktiv" })}>Aktiv</Knapp>
+                  <Knapp aktiv={lead.social_aktivitet === "sporadisk"} onClick={() => patcha({ social_aktivitet: "sporadisk" })}>Sporadisk</Knapp>
+                  <Knapp aktiv={lead.social_aktivitet === "dod"} onClick={() => patcha({ social_aktivitet: "dod" })}>Död</Knapp>
+                </Grupp>
+                <textarea
+                  className="bedom-note"
+                  placeholder="Anteckning — varför (matar kalibreringen)…"
+                  value={not}
+                  onChange={(e) => setNot(e.target.value)}
+                  onBlur={() => { if (not !== (lead.bedomning_anteckning ?? "")) patcha({ bedomning_anteckning: not }); }}
+                />
+                <Grupp label="Beslut">
+                  <Knapp variant="ja" aktiv={lead.status === "kvalificerad"} onClick={() => patcha({ status: "kvalificerad" }, onNext)}>Kvalificera</Knapp>
+                  <Knapp variant="nej" aktiv={lead.status === "diskvalificerad"} onClick={() => patcha({ status: "diskvalificerad", diskvalificerings_skal: not || null }, onNext)}>Diskvalificera</Knapp>
+                  <Knapp aktiv={false} onClick={onNext}>Senare →</Knapp>
+                </Grupp>
               </div>
             </div>
           </td>
