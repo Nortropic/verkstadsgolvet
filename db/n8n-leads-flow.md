@@ -5,6 +5,26 @@ leads till Supabase på `place_id`**. Appen räknar `score` (ej n8n). Bygg flöd
 self-hostade n8n (Railway, EU). Places-nyckeln + Supabase service-key ligger i **n8n:s
 credentials** — aldrig i appen.
 
+## Snabbväg: importera `db/n8n-leads-flow.json`
+Importera JSON-filen i n8n (Workflows → ⋯ → Import from File). Noderna kommer in färdigkopplade.
+**Efter import måste du göra fyra saker** (credentials och projekt-URL följer aldrig med en export):
+1. **Skapa credential "Leads webhook secret"** (typ *Header Auth*): Name = `x-webhook-secret`,
+   Value = din långa slumpade `N8N_WEBHOOK_SECRET`. Koppla den på **Webhook**-noden. (Appen skickar
+   samma värde som headern `x-webhook-secret` — det hindrar vem som helst från att posta skräp.)
+2. **Skapa credential "Google Places API key"** (typ *Header Auth*): Name = `X-Goog-Api-Key`,
+   Value = din Places-nyckel (Places API **New** aktiverat). Koppla på **Places Text Search** +
+   **Place Details**.
+3. **Skapa credential "Supabase (Verkstadsgolvet)"** (typ *Supabase API*): host = din
+   `SUPABASE_URL`, Service Role Secret = `SUPABASE_SERVICE_KEY`. Koppla på **Upsert till Supabase**.
+4. **Byt projekt-URL** i **Upsert till Supabase**: ersätt `https://REPLACE-PROJECT.supabase.co`
+   med din riktiga Supabase-URL.
+
+Sätt en **budgetgräns/faktureringslarm i Google Cloud** innan första riktiga körningen — ett
+buggigt flöde som loopar Details-anrop kan bli dyrt. Kör flödet **inaktivt/manuellt först** på
+en (1) bransch och inspektera rådatan (se sista stycket) innan du sätter det aktivt.
+
+Diagrammet nedan beskriver samma flöde nod för nod (referens om du vill bygga/justera för hand).
+
 ## Credentials i n8n
 - `PLACES_KEY` — Google Places API-nyckel (Places API **New** aktiverat).
 - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` — mot Supabase REST.
@@ -13,9 +33,10 @@ credentials** — aldrig i appen.
 ## Noder (i ordning)
 
 ### 1. Webhook (trigger)
-- Metod POST, path t.ex. `/leads-collect`. **Verifiera** att body/headern innehåller rätt
-  `N8N_WEBHOOK_SECRET` → annars 401.
-- Inkommande body från appen: `{ "bransch": "snickare", "ort": "Luleå", "secret": "..." }`.
+- Metod POST, path `leads-collect`. **Authentication = Header Auth** (credential ovan) → n8n
+  avvisar automatiskt anrop utan rätt `x-webhook-secret`-header (401). Ingen manuell koll behövs.
+- Appen (Fas 3) skickar: header `x-webhook-secret: <N8N_WEBHOOK_SECRET>` + body
+  `{ "bransch": "snickare", "ort": "Luleå" }`.
 
 ### 2. (Kostnadskontroll) Har vi redan sökt bransch+ort nyligen?
 - Slå upp i en enkel n8n-datastore / Supabase-tabell om `(bransch, ort)` kördes senaste X dagar.
@@ -74,5 +95,17 @@ Mappa Details → lead-fält:
 
 ## Sammanfattning av kostnadsstrategi
 Text Search på alla · Details bara på (ingen sajt + har recensioner) · cacha bransch+ort ·
-cappa paginering · logga anropsantal. FB/IG och ägarsvar: manuellt i v1, automatisera bara om
-det bevisas vara flaskhalsen.
+cappa paginering · logga anropsantal · **budgetlarm i Google Cloud satt innan skarp körning**.
+Fältmasken styr pris-tiern — de dyra fälten (`reviews`, `photos`) begärs bara i Details, aldrig
+i Text Search. FB/IG och ägarsvar: manuellt i v1, automatisera bara om det bevisas vara flaskhalsen.
+
+## Verifiera rådatan FÖRST (innan Fas 3 byggs vidare)
+Kör flödet manuellt på **en bransch i Luleå** och titta på outputen från **Extrahera signaler**
+innan appens vyer byggs. Kontrollera särskilt att antagandena i specen håller:
+- **`senaste_recension_at`** — får vi ett datum? (färskhet är en av de starkaste signalerna)
+- **`recensioner_senaste_6man`** — rimligt, givet att API:t ofta bara ger ~5 recensioner?
+- **`gbp_har_beskrivning`** — sätts den av `editorialSummary`, eller är den nästan alltid tom?
+- **`agare_svarar_pa_recensioner`** — bekräftat `null` (Places ger inte detta → manuellt i detaljvyn).
+
+Om färskhet/beskrivning inte ser ut som specen antar vill vi veta det NU och justera scoringen
+(vikterna är ju config) innan vi bygger vidare.

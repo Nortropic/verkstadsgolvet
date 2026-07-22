@@ -1,0 +1,137 @@
+{
+  "name": "Leads — insamling & enrichment",
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "nodes": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "leads-collect",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": { "id": "REPLACE_WEBHOOK_SECRET_CRED", "name": "Leads webhook secret" }
+      }
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "Places Text Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://places.googleapis.com/v1/places:searchText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.businessStatus,places.googleMapsUri"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"textQuery\": \"{{ $json.body.bransch }} {{ $json.body.ort }}\",\n  \"languageCode\": \"sv\",\n  \"regionCode\": \"SE\"\n}",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": { "id": "REPLACE_PLACES_KEY_CRED", "name": "Google Places API key (X-Goog-Api-Key)" }
+      }
+    },
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "name": "Filtrera kandidater",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Behåll bara: ingen sajt + har recensioner (kör Details bara på dessa = kostnad)\nconst search = $input.first().json;\nconst bransch = $('Webhook').first().json.body.bransch;\nconst ort = $('Webhook').first().json.body.ort;\nconst places = search.places || [];\nconst out = [];\nfor (const p of places) {\n  const hasSite = !!p.websiteUri;\n  const reviews = p.userRatingCount || 0;\n  if (!hasSite && reviews >= 1) {\n    out.push({ json: { place_id: p.id, bransch, ort } });\n  }\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "name": "Place Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://places.googleapis.com/v1/places/{{ $json.place_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Goog-FieldMask",
+              "value": "id,displayName,formattedAddress,nationalPhoneNumber,websiteUri,rating,userRatingCount,businessStatus,googleMapsUri,reviews,regularOpeningHours,photos,editorialSummary"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": { "id": "REPLACE_PLACES_KEY_CRED", "name": "Google Places API key (X-Goog-Api-Key)" }
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555555",
+      "name": "Extrahera signaler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Mappa Place Details (New) -> leads-rad. Index-paras mot 'Filtrera kandidater'.\nconst src = $('Filtrera kandidater').all();\nconst details = $input.all();\nconst out = [];\nfor (let i = 0; i < details.length; i++) {\n  const d = details[i].json;\n  const s = src[i] ? src[i].json : {};\n  let senaste = null, flode6 = 0;\n  const sixMo = Date.now() - 1000 * 60 * 60 * 24 * 182;\n  for (const r of (d.reviews || [])) {\n    const t = r.publishTime ? new Date(r.publishTime).getTime() : null;\n    if (t && (senaste === null || t > senaste)) senaste = t;\n    if (t && t >= sixMo) flode6++;\n  }\n  out.push({ json: {\n    place_id: s.place_id || d.id || null,\n    bransch: s.bransch || null,\n    ort: s.ort || null,\n    namn: d.displayName ? d.displayName.text : null,\n    adress: d.formattedAddress || null,\n    telefon: d.nationalPhoneNumber || null,\n    gbp_url: d.googleMapsUri || null,\n    har_sajt: !!d.websiteUri,\n    sajt_url: d.websiteUri || null,\n    betyg: (d.rating != null) ? d.rating : null,\n    recensioner_antal: (d.userRatingCount != null) ? d.userRatingCount : null,\n    senaste_recension_at: senaste ? new Date(senaste).toISOString() : null,\n    recensioner_senaste_6man: flode6,\n    gbp_har_foton: Array.isArray(d.photos) && d.photos.length > 0,\n    gbp_har_oppettider: !!d.regularOpeningHours,\n    gbp_har_beskrivning: !!(d.editorialSummary && d.editorialSummary.text),\n    agare_svarar_pa_recensioner: null,\n    fb_url: null,\n    ig_url: null,\n    status: 'kandidat'\n  }});\n}\nreturn out;\n"
+      }
+    },
+    {
+      "id": "66666666-6666-4666-8666-666666666666",
+      "name": "Upsert till Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "https://REPLACE-PROJECT.supabase.co/rest/v1/leads?on_conflict=place_id",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Prefer", "value": "resolution=merge-duplicates,return=minimal" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "credentials": {
+        "supabaseApi": { "id": "REPLACE_SUPABASE_CRED", "name": "Supabase (Verkstadsgolvet)" }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Places Text Search", "type": "main", "index": 0 }]] },
+    "Places Text Search": { "main": [[{ "node": "Filtrera kandidater", "type": "main", "index": 0 }]] },
+    "Filtrera kandidater": { "main": [[{ "node": "Place Details", "type": "main", "index": 0 }]] },
+    "Place Details": { "main": [[{ "node": "Extrahera signaler", "type": "main", "index": 0 }]] },
+    "Extrahera signaler": { "main": [[{ "node": "Upsert till Supabase", "type": "main", "index": 0 }]] }
+  }
+}
