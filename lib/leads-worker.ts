@@ -112,7 +112,8 @@ export async function runWorkerBatch(batch = 2): Promise<WorkerSvar> {
       }
 
       if (records.length > 0) {
-        await client.from("leads").upsert(records, { onConflict: "place_id" });
+        const { error: upErr } = await client.from("leads").upsert(records, { onConflict: "place_id" });
+        if (upErr) throw new Error(`upsert leads: ${upErr.message}`);
         leadsTotal += records.length;
       }
       await client
