@@ -521,3 +521,41 @@ input:-webkit-autofill:active {
 .ld-link:hover { background: var(--fill-secondary-hover); color: var(--text-primary); }
 .ld-facts { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--text-secondary); }
 .ld-facts .k { color: var(--text-muted); }
+
+/* ═══════════════ LEADS — svep-planerare ═══════════════ */
+.sweep-stats { display: flex; flex-wrap: wrap; gap: 26px; margin: 6px 0 16px; }
+.sweep-stat { display: flex; flex-direction: column; }
+.sweep-stat .v { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--text-primary); }
+.sweep-stat .l { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+.sweep-config { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.sweep-config label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+.sweep-config input { width: 120px; background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-mono); font-size: 14px; padding: 8px 11px; border-radius: var(--radius-control); }
+.replay.paused { color: var(--warning-text); }
+
+.sweep-lan { margin-top: 16px; display: flex; flex-direction: column; gap: 5px; }
+.sweep-lan-row { display: grid; grid-template-columns: 160px 1fr 130px; align-items: center; gap: 12px; font-size: 12px; }
+.sweep-lan-row .n { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sweep-lan-row .bar { height: 6px; background: var(--bg-surface-0); box-shadow: var(--hairline); border-radius: 3px; overflow: hidden; }
+.sweep-lan-row .bar span { display: block; height: 100%; background: var(--success-fill); }
+.sweep-lan-row .c { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); text-align: right; }
+
+.sweep-master { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--text-primary); padding: 8px 0 12px; }
+.sweep-tree { display: flex; flex-direction: column; gap: 2px; max-height: 420px; overflow-y: auto; box-shadow: var(--hairline); border-radius: var(--radius-control); padding: 8px; background: var(--bg-surface-1); }
+.sweep-lan-head { display: flex; align-items: center; gap: 9px; }
+.sweep-lan-name { display: flex; align-items: center; gap: 7px; background: none; border: none; color: var(--text-secondary); font: inherit; font-size: 13px; cursor: pointer; padding: 6px 0; text-align: left; flex: 1; }
+.sweep-lan-name:hover { color: var(--text-primary); }
+.sweep-lan-name .nav-caret { color: var(--text-muted); }
+.sweep-kommuner { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 12px; padding: 4px 0 10px 26px; }
+.sweep-kommun { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary); padding: 3px 0; cursor: pointer; }
+
+.sweep-katgrupper { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; margin-top: 6px; }
+.sweep-grupp-head { display: flex; align-items: center; gap: 9px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .5px; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; margin-bottom: 8px; cursor: pointer; }
+.sweep-kats { display: flex; flex-direction: column; gap: 3px; }
+.sweep-kat { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-muted); padding: 3px 0; cursor: pointer; }
+.sweep-kat.on { color: var(--text-secondary); }
+
+.sweep-run { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.sweep-est { font-size: 13px; color: var(--text-secondary); }
+.sweep-est strong { font-family: var(--font-mono); font-size: 16px; color: var(--text-primary); }
+
+.sweep-tree input[type="checkbox"], .sweep-master input, .sweep-kat input, .sweep-grupp-head input, .sweep-kommun input { accent-color: var(--brand); width: 15px; height: 15px; flex: none; cursor: pointer; }
