@@ -100,6 +100,8 @@ export async function listLeads(filter: LeadFilter = {}): Promise<Result<{ leads
 
 export type Kalibrering = {
   version: number;
+  bygg_demo_min: number;
+  kvalificerad_min: number;
   antal_leads: number;
   antal_utfall: number; // kontaktade (status ∈ kontaktad/svar/mote/kund/nej)
   snitt_demo_min: number | null;
@@ -145,6 +147,8 @@ export async function getKalibrering(): Promise<Result<Kalibrering>> {
     ok: true,
     data: {
       version: cfg.data.version,
+      bygg_demo_min: cfg.data.bygg_demo_min,
+      kvalificerad_min: cfg.data.kvalificerad_min,
       antal_leads: (data as Lead[]).length,
       antal_utfall: antalUtfall,
       snitt_demo_min: tider.length ? Math.round(tider.reduce((a, b) => a + b, 0) / tider.length) : null,
@@ -191,6 +195,45 @@ export async function updateLead(id: string, patch: Partial<Lead>): Promise<Resu
 
   const lead = data as Lead;
   return { ok: true, data: { ...lead, berakning: beräknaScore(lead, cfg.data) } };
+}
+
+export type NyVersionInput = {
+  vikter: { signal: string; poang: number; beskrivning?: string | null }[];
+  bygg_demo_min: number;
+  kvalificerad_min: number;
+  kommentar?: string;
+};
+
+/** Skapar en ny score_version med givna vikter/trösklar och aktiverar den (gamla behålls). */
+export async function createScoreVersion(input: NyVersionInput): Promise<Result<{ version: number }>> {
+  const client = supa();
+  if (!client) return EJ_KONFIG;
+
+  const vikter = input.vikter.filter((v) => v.signal && Number.isFinite(v.poang));
+  if (vikter.length === 0) return fel("bad-request", "Inga giltiga vikter.");
+
+  const { data: maxV } = await client.from("score_versioner").select("version").order("version", { ascending: false }).limit(1).maybeSingle();
+  const ny = (maxV?.version ?? 0) + 1;
+
+  const { error: e1 } = await client.from("score_versioner").insert({
+    version: ny,
+    aktiv: false,
+    bygg_demo_min: Math.round(input.bygg_demo_min),
+    kvalificerad_min: Math.round(input.kvalificerad_min),
+    kommentar: input.kommentar?.trim() || `Kalibrerad ${new Date().toISOString().slice(0, 10)}`,
+  });
+  if (e1) return fel("db-error", e1.message);
+
+  const rader = vikter.map((v) => ({ version: ny, signal: v.signal, poang: Math.round(v.poang), beskrivning: v.beskrivning ?? null }));
+  const { error: e2 } = await client.from("score_vikter").insert(rader);
+  if (e2) return fel("db-error", e2.message);
+
+  // aktivera: deaktivera nuvarande (unik-index tillåter bara en aktiv), aktivera nya
+  await client.from("score_versioner").update({ aktiv: false }).eq("aktiv", true);
+  const { error: e3 } = await client.from("score_versioner").update({ aktiv: true }).eq("version", ny);
+  if (e3) return fel("db-error", e3.message);
+
+  return { ok: true, data: { version: ny } };
 }
 
 export { isConfigured };

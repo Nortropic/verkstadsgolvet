@@ -599,3 +599,13 @@ input:-webkit-autofill:active {
 .arb-sms-rad { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .arb-svar-text { width: 100%; margin-top: 8px; background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-sans); font-size: 13px; padding: 9px 11px; border-radius: var(--radius-control); }
 .arb-svar-text:focus { box-shadow: var(--focus-ring); outline: none; }
+
+/* leads — kalibrering (redigera vikter) */
+.kal-troskel { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 14px; }
+.kal-troskel label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; }
+.kal-troskel input { width: 90px; background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-mono); font-size: 14px; padding: 8px 10px; border-radius: var(--radius-control); }
+.kal-poang { width: 70px; text-align: right; background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; padding: 6px 8px; border-radius: var(--radius-control); }
+.kal-troskel input:focus, .kal-poang:focus { box-shadow: var(--focus-ring); outline: none; }
+.kal-spara { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+.kal-spara input { flex: 1; min-width: 220px; background: var(--fill-field); box-shadow: var(--hairline); border: none; color: var(--text-primary); font-family: var(--font-sans); font-size: 13px; padding: 10px 12px; border-radius: var(--radius-control); }
+.kal-spara input:focus { box-shadow: var(--focus-ring); outline: none; }

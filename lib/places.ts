@@ -19,20 +19,39 @@ const DETAILS_MASK =
 
 export type PlaceSok = { id: string; displayName?: { text?: string }; websiteUri?: string };
 
-/** Text Search (Pro). Returnerar upp till 20 träffar (1 sida — v1 pagineras ej). */
-export async function textSearch(textQuery: string, includedType?: string): Promise<PlaceSok[]> {
-  if (!KEY) return [];
-  const body: Record<string, unknown> = { textQuery, languageCode: "sv", regionCode: "SE" };
-  if (includedType) body.includedType = includedType;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-  const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Goog-Api-Key": KEY, "X-Goog-FieldMask": SEARCH_MASK },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`Text Search ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const data = await res.json();
-  return (data.places ?? []) as PlaceSok[];
+/**
+ * Text Search (Pro). Paginerar upp till maxPages sidor (20/sida → upp till 60, Googles tak).
+ * nextPageToken blir giltig först efter ~2s → paus mellan sidor. Returnerar antal anrop
+ * så workern kan logga dem mot dagsbudgeten.
+ */
+export async function textSearch(textQuery: string, includedType?: string, maxPages = 2): Promise<{ places: PlaceSok[]; calls: number }> {
+  if (!KEY) return { places: [], calls: 0 };
+  const places: PlaceSok[] = [];
+  let calls = 0;
+  let pageToken: string | undefined;
+
+  for (let page = 0; page < maxPages; page++) {
+    const body: Record<string, unknown> = { textQuery, languageCode: "sv", regionCode: "SE" };
+    if (includedType) body.includedType = includedType;
+    if (pageToken) body.pageToken = pageToken;
+
+    const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": KEY, "X-Goog-FieldMask": SEARCH_MASK },
+      body: JSON.stringify(body),
+    });
+    calls++;
+    if (!res.ok) throw new Error(`Text Search ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const data = await res.json();
+    for (const p of (data.places ?? []) as PlaceSok[]) places.push(p);
+
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+    await sleep(2100);
+  }
+  return { places, calls };
 }
 
 export type PlaceDetaljer = {

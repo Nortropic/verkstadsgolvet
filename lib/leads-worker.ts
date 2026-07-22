@@ -93,12 +93,20 @@ export async function runWorkerBatch(batch = 2): Promise<WorkerSvar> {
       const includedType = combo.query_typ === "includedType" ? combo.query_varde : undefined;
       const sokterm = combo.query_typ === "text" ? combo.query_varde : combo.kategori_label.split("/")[0].trim();
       const textQuery = `${sokterm} ${combo.kommun}`;
-      const places = await textSearch(textQuery, includedType);
-      sokAnrop++;
+      const { places, calls } = await textSearch(textQuery, includedType);
+      sokAnrop += calls;
 
       const utanSajt = places.filter((p) => !p.websiteUri && p.id);
+      // hoppa över place_id vi redan har → betala inte för Details på kända företag igen
+      let kanda = new Set<string>();
+      if (utanSajt.length > 0) {
+        const { data: fanns } = await client.from("leads").select("place_id").in("place_id", utanSajt.map((p) => p.id));
+        kanda = new Set((fanns ?? []).map((r) => r.place_id as string));
+      }
+      const nya = utanSajt.filter((p) => !kanda.has(p.id));
+
       const records: Record<string, unknown>[] = [];
-      for (const p of utanSajt) {
+      for (const p of nya) {
         if (anropIdagStart + sokAnrop + detaljAnrop >= budget) break;
         try {
           const d = await placeDetails(p.id);
