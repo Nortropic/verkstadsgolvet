@@ -38,28 +38,70 @@ SANDBOX_BYPASS_ALLOWED=NO
 
 PROMOTION_CREDENTIAL_IN_RAILWAY=NO
 GENERIC_GITHUB_WRITE_TO_UI=NO
+MASKINEN_GITHUB_CREDENTIAL=NONE
 SUPABASE_ROLE=TRANSPORT_PROJECTION_QUEUE_ONLY
-CONTROLLER_LOCAL_STATE=AUTHORITY
 DISPLAYED_TRUTH=CONTROLLER_PUBLISHED_SNAPSHOT
+```
+
+## ÄGARBESLUT — LÅSTA I REVISION 2
+
+```text
+VERKSTADSGOLVET_CONTROL_MODEL=READ_OBSERVE_PLUS_NARROW_TYPED_INTENTS
+CONTROLLER_LOCAL_STATE=SOLE_AUTHORITY
+INVARIANT_1_OWNER_DECISION=LOCKED
+
+B1_OWNER=S5+S10                 submission.*-familj, ALDRIG task lifecycle-state
+B2_OWNER=S3+S5                  liveness endast observerbarhet, ALDRIG lease-authority
+B3  EVENT_SEQ_SCOPE=GLOBAL_PER_OPERATIONS_EVENT_STORE
+    EVENT_SEQ_RESETS_PER_RUN=NO
+B4_OWNER=S5                     canonical payload-kontrakt PER event_type, versionsbundet
+B5_OWNER=S10+S13                source_ref opak; CONTROLLERN hashar om och kräver match
+B6_STATUS=DEFERRED_NON_BLOCKING UI_VALUE=—
+B7_OWNER=S5+S8                  candidate_sha + parent_sha i candidate.created
+B8_OWNER=S13                    SNAPSHOT_WINS=YES · EVENT_STREAM_IS_AUTHORITY=NO
+
+BACKEND_CROSS_PLAN_REQUIREMENT_FOR_S13 = FORMULERAT, EJ BYGGT vid 0b3212c9
+REMOTE_INCIDENT_STATUS = RESOLVED (ägarmätt)
 ```
 
 ---
 
 ## DO_NOT_REDESIGN
 
+- **Kontrollmodellen är `READ_OBSERVE_PLUS_NARROW_TYPED_INTENTS`, och den är LÅST.** Den gamla
+  invarianten "LÄS-ONLY. ALLTID." i `VERKSTADSGOLVET-BYGGSPEC.md` är avsiktligt överspelad för
+  Maskinen genom ägarbeslut. Det är **inte** generell styrning. Verkstadsgolvet får ALDRIG direkt:
+  mutera controller-authoritative state · exekvera shell · exekvera generisk Git · skriva eller
+  flytta Git refs · verifiera kandidater · skriva verdict · skriva attestation · promovera main ·
+  manipulera lease · manipulera breaker · redigera godtyckliga filer.
+- **Ett command är endast en intention.** Controllern validerar och får alltid avvisa. Ingen
+  UI-state ändras optimistiskt före controllerbekräftelse.
+- **Maskinen använder INGEN GitHub-credential alls.** GitHub read-token-principen vidgas inte, och
+  `GITHUB_TOKEN_WRITE` får aldrig återanvändas som Maskinens credential. Ingen fil under
+  `app/api/loop/**` eller `lib/loop/**` importerar `lib/github-read.ts` eller `lib/github-write.ts`.
 - **Verkstadsgolvet blir aldrig Git-exekutor, verifierare, attesterare eller promotion-authority.**
   Ingen shell-yta, ingen Git-yta, ingen force, ingen filredigering, ingen direkt attestation- eller
   promotion-skrivning.
-- **SNAPSHOT_WINS.** Auktoritativa fält (task lifecycle-state, attestation, verdict, promotion,
-  `current main`, DONE) renderas **endast** ur controller-publicerad snapshot. Live-tail får bara
-  flytta transienta fasetiketter och skriva rader i eventströmmen. En task blir aldrig DONE av ett
-  tail-event. Detta är svaret på både "två sanningar" och "falskt DONE vid disorder" — bygg inte om
-  det till en klientfold.
+- **SNAPSHOT_WINS · EVENT_STREAM_IS_AUTHORITY=NO.** Auktoritativa fält (task lifecycle-state,
+  attestation, verdict, promotion, `current main`, DONE) renderas **endast** ur en
+  controller-**genererad** snapshot ur controllerns authoritative lokala stores — inte ur en fold
+  av eventströmmen, varken hos controllern eller hos UI:t. Live-tail får bara flytta transienta
+  fasetiketter och skriva rader i strömmen. Ett event-tail gör aldrig ensamt en task `DONE`,
+  `ATTESTED`, `PROMOTED` eller `MAIN_ADVANCED`. Divergens mellan snapshot och tail får
+  **observeras och loggas** men aldrig ändra ett controllerbeslut. Bygg inte om detta till en
+  klientfold.
 - **UI:t slår aldrig upp `origin/main` själv.** `main <sha>` är controllerns bekräftade värde med
   tidsstämpel. Ingen GitHub-läsning mot `nortropic-system`.
-- **Ordning läses ur `seq`, aldrig ur `ts`.** `ts` är wall-clock för människan. Förfluten tid ur
-  `ts` är display-only och används aldrig till sortering eller liveness.
-- **Dedup på `event_id`, inte på `seq`.**
+- **Ordning läses ur `seq` ensamt, aldrig ur `ts`.** `seq` är **globalt monoton i
+  operations-eventbutiken** (`EVENT_SEQ_RESETS_PER_RUN=NO`). `run_id` grupperar men är ingen
+  ordering authority. `ts` är wall-clock för människan; förfluten tid ur `ts` är display-only och
+  används aldrig till sortering eller liveness.
+- **Gap-detektion sker ENDAST på den ofiltrerade butiksströmmen.** En vy filtrerad på `run_id`
+  eller `task_id` har legitima hopp i `seq` — andra runs event ligger emellan. Filtrerade vyer
+  gap-detekterar aldrig. Reconnect-markören är butiksglobal, inte per run.
+- **Dedup på `event_id`, inte på `seq`.** Unikhetsindex ligger på `seq` globalt.
+- **Liveness är endast observerbarhet.** Härled aldrig lease- eller ownershipstatus ur ett
+  heartbeat-event.
 - **Okänd `event_type` renderas rått och flyttar ingen state.** Backenden avvisar okända typer vid
   *skrivning* (S5); UI:t degraderar vid *läsning*. Det är inte samma regel och de motsäger inte
   varandra.
@@ -135,11 +177,13 @@ utvecklingsåtgärd, men lockfilen ska då committas som en egen ändring, inte 
 V1   typade backendkontrakt / schemas + genererade fixturer     ← BÖRJA HÄR, inget beroende
 V2   fixturbaserad Maskinen-shell (/loop, bakom LOOP_ENABLED)   inget beroende
 V3   read model + SNAPSHOT_WINS                                  inget beroende
-V4   live läsyta                                                 KRÄVER nortropic-system S5 + B3 + B8
+V4   live läsyta                                                 KRÄVER S5 (B3,B4) + S13 (B8)
 V5   task inspector                                              KRÄVER S1, S4, S13
 V6   merge-resolution-UX                                         KRÄVER S8 + B7   (sist i praktiken)
-V7   smal kommandoyta                                            KRÄVER S13 + ÄGARBESLUT invariant 1
-V8   Markdown-intake                                             KRÄVER S10 + B5
+V7   smal kommandoyta                                            KRÄVER S13 BYGGD OCH VERIFIERAD
+                                                                 (ägarbeslut invariant 1 = LOCKED,
+                                                                  inte längre en blockerare)
+V8   Markdown-intake                                             KRÄVER S10 + S13 (B5)
 V9   realtid / reconnect / dedup                                 KRÄVER S5
 V10  säkerhetshärdning                                           inget beroende
 V11  responsivt + regressioner                                   inget beroende
@@ -150,21 +194,62 @@ V11  responsivt + regressioner                                   inget beroende
 
 ---
 
-## BLOCKERAT PÅ BACKENDEN — B1..B8
+## B1..B8 — MAPPADE AV ÄGAREN, INGET BYGGT
 
-Dessa saknas i backendkontraktet vid `0b3212c9` och är **spec-radsfrågor i `nortropic-system`**,
-inte något Verkstadsgolvet får lösa själv. Tills de finns renderas berörda fält `—`.
+Ägarskapet är **låst**. Koden finns **inte** vid `0b3212c9`. Detta är spec-radsfrågor i
+`nortropic-system` — inte något Verkstadsgolvet får lösa själv. Tills de är byggda renderas
+berörda fält `—`, och ingen skiva får kallas klar mot ett mappat men obyggt kontrakt.
 
 ```text
-B1  intake.*-eventfamilj saknas (S10 säger DEPENDS_ON S5, men familjelistan har ingen intake.*)
-B2  liveness-/heartbeat-event saknas → "● AUTONOM" kan bara vara eventålder
-B3  seq-monotonicitetens omfattning odefinierad (global vs per run_id)
-B4  payload-kontrakt per event_type saknas → builder/modell, riskklass, budget, SHA:n odefinierade
-B5  source_ref-upplösning för intake.submit odefinierad — var ligger källans bytes?
-B6  tokens/kostnad finns inte som event eller snapshot-fält
-B7  parent-identitet saknas i candidate.created → merge-UX kan inte visa parent(D)=C
-B8  controller-publicerad read-model-snapshot krävs — hela SNAPSHOT_WINS vilar på den
+B1  S5+S10   separat submission.*-familj. INTE task lifecycle-state.
+             UPLOADED/ANALYZING låtsas aldrig vara task-state.
+B2  S3+S5    S3 äger lease-heartbeaten. S5 exponerar den observerande (t.ex. run.heartbeat).
+             ENDAST observerbarhet — aldrig lease-authority, aldrig ownership-beslut.
+B3  S5       EVENT_SEQ_SCOPE=GLOBAL_PER_OPERATIONS_EVENT_STORE
+             EVENT_SEQ_RESETS_PER_RUN=NO   (run_id grupperar, ordnar inte)
+B4  S5       versionsbundet canonical payload-kontrakt PER event_type.
+             "payload": {} räcker INTE som frontendkontrakt.
+             schema.ts pinnas mot kontraktets identitet — hitta aldrig på fält.
+B5  S10+S13  source_ref är en OPAK transportreferens. Controllern resolvar, läser bytes,
+             beräknar SJÄLV SHA-256, kräver match mot source_sha256, skapar S10:s immutabla
+             source snapshot, och startar planner/intake FÖRST därefter.
+             Railway-/Supabase-hash är ALDRIG ensam trust-anchor.
+             Transportens form bestäms i S10/S13 — uppfinn den inte i frontenden.
+B6  —        DEFERRED_NON_BLOCKING. UI_VALUE=—. Ingen ny backend-slice nu. Blockerar inget.
+B7  S5+S8    candidate.created bär candidate_sha + parent_sha (eller exakt motsvarande).
+             S8 måste bevisa candidate=D, parent_sha=C.
+             UI härleder ALDRIG parentskap från GitHub. D ärver aldrig B:s verdict.
+B8  S13      se BACKEND_CROSS_PLAN_REQUIREMENT_FOR_S13 nedan.
 ```
+
+## BACKEND_CROSS_PLAN_REQUIREMENT_FOR_S13
+
+```text
+BACKEND_S13_EVENT_FOLD_CONFLICT = JA
+```
+
+Backendens S13-kriterium säger i dag *"Läsytan svarar ur eventströmmen och kan inte skriva."* Det
+får **INTE** tolkas som att authoritative task-state rekonstrueras genom **event-fold**.
+
+S13 måste när den byggs producera en **versionerad, controller-genererad read-model snapshot ur
+controller-authoritative lokala stores**, som minst semantiskt bär:
+
+```text
+task lifecycle state · verdict/verification identity · attestation · promotion state
+authoritative current main · DONE/completion · breaker/budget där authoritative
+snapshot schema/version · event watermark / last included seq
+```
+
+Eventströmmen används parallellt till **live activity · transient phase display · event inspector
+· evidence references · reconnect/backfill** — och till ingenting annat. Ett event-tail får aldrig
+ensamt göra en task `DONE`, `ATTESTED`, `PROMOTED` eller `MAIN_ADVANCED`. Vid motsägelse:
+`SNAPSHOT_WINS`. Divergensen får observeras och loggas, men aldrig ändra ett controllerbeslut.
+
+```text
+STATUS = FORMULERAT, EJ BYGGT vid 0b3212c991d4227c8df2656465ae2c0252dda39e
+```
+
+Beskriv det aldrig som implementerat.
 
 ---
 
@@ -184,11 +269,18 @@ De skarpaste negativa kontrollerna per skiva:
 V1  ts-baserad sortering som råkar ge rätt svar på testdata
 V2  procentsats eller framstegsstapel någonstans i /loop-trädet (statiskt grep)
 V3  tail-event som gör en task DONE utan snapshot
-V4  appen skriver i loop_events · service_role-nyckel i Railway · UI som läser origin/main
+V4  appen skriver i loop_events · service_role-nyckel i Railway · UI som läser origin/main ·
+    authoritative state rekonstruerat genom event-fold · falsklarm om "lucka" i en
+    run-filtrerad vy (B3: legitima seq-hopp)
 V5  grindtext i DOM (markörsträng-prov) · NOT_RUN som ser grön ut
-V6  B:s PASS renderad som D:s dom · konflikt som ser ut som human-stop
-V7  payload med shell-sträng som skapar kanariefil · samma command_id utfört två gånger
-V8  klientsidig rubrikparsning · sha256 beräknad i klienten och betrodd
+V6  B:s PASS renderad som D:s dom · konflikt som ser ut som human-stop · parentskap härlett
+    från GitHub i stället för ur parent_sha
+V7  payload med shell-sträng som skapar kanariefil · samma command_id utfört två gånger ·
+    kodväg mot lease, breaker, Git-refs, verdict, attestation eller promotion ·
+    import av lib/github-*.ts under app/api/loop/** eller lib/loop/**
+V8  klientsidig rubrikparsning · sha256 beräknad i klienten och betrodd ·
+    Railway-/Supabase-hash behandlad som trust-anchor · manipulerad transportbyte som
+    ändå accepteras av controllern
 V9  reconnect som tappar event · UI som påstår realtid när det pollar
 V10 hemlighet i klientbundlen · /api/loop tillagd i matcher-undantag
 V11 / renderar inte längre identiskt med PLAN_BASE_SHA · Leads brutet av delad CSS
@@ -210,21 +302,22 @@ Planartefakter ligger på `plan/nortropic-control-room-v1` och blandas aldrig me
 
 Stanna och fråga ägaren när något av detta inträffar:
 
-- **Invariant 1 i `VERKSTADSGOLVET-BYGGSPEC.md` säger "LÄS-ONLY. ALLTID. … ingen styrning."**
-  V7 (kommandoytan) bryter mot den som den är skriven. `ÄGARBESLUT_INVARIANT_1` krävs **före V7**.
-  V1–V6 rör den inte. Skriv inte om invarianten själv.
+- **`VERKSTADSGOLVET-BYGGSPEC.md` rad 11 bär fortfarande den GAMLA texten** ("LÄS-ONLY. ALLTID.").
+  Den är ersatt av ägarbeslut (`INVARIANT_1_OWNER_DECISION=LOCKED`), men filen är inte uppdaterad.
+  **Skriv inte om BYGGSPEC själv** — det är ägarhand. Läser du de två texterna som motstridiga:
+  planens `VERKSTADSGOLVET_CONTROL_MODEL` gäller.
+- **V7 är fortfarande blockerad tills S13 är byggd OCH verifierad.** Ägarbeslutet tog bort
+  styrningsfrågan, inte beroendet. En kommandokö utan byggd claimer är en kö utan mottagare.
 - **En backendskiva som en V-skiva beror på är inte byggd och grön.** Bygg inte "live" mot fixturer
-  och kalla det klart.
-- **B1–B8 dyker upp som ett behov mitt i en skiva.** Det är en spec-radsfråga i `nortropic-system`,
-  inte något du löser i frontenden. Rendera `—` och rapportera.
+  och kalla det klart. B1–B8 är **mappade men obyggda** — mappning är inte implementation.
+- **Något i B1–B8 behöver en form som inte är låst.** Det är en spec-radsfråga i `nortropic-system`,
+  inte något du löser i frontenden. Rendera `—` och rapportera. Uppfinn särskilt aldrig
+  intake-transporten (B5) eller payloadfält (B4).
 - **En begränsad Supabase-DB-roll visar sig inte gå att skapa** och enda vägen blir `service_role`.
   Då är rätt svar en proxy hos controllerns S13-yta, inte att ge appen service_role. Fråga.
-- **Backendplangrenen ligger på fel remote.** `Nortropic/verkstadsgolvet` bär i dag
-  `origin/plan/autonomous-loop-v1` med hela `nortropic-system`-trädet, och den lokala klonen
-  `~/nortropic/nortropic-system` har `origin = Nortropic/verkstadsgolvet`. **Ändra ingenting** —
-  det är ägarhand.
 - **`GITHUB_TOKEN_WRITE` är bred** (`Administration: R/W` på alla repon, enligt README). Maskinen
-  ska aldrig röra den. Att smalna den är ett separat ägarärende.
+  ska aldrig röra den — och ska över huvud taget inte ha någon GitHub-credential. Att smalna
+  token är ett separat ägarärende som inte blockerar någon skiva.
 - **Något frestar dig att låta UI:t verifiera, attestera, promovera eller lösa Git-refs.** Stopp.
 - **Två misslyckade fixförsök på samma fel.**
 
@@ -255,3 +348,9 @@ Klart att bygga på, mätt vid `PLAN_BASE_SHA`:
 **Första provet att skriva, före kod:** ordningsprovet. Hundra event med bakåtgående `ts` ska ge
 exakt samma läsordning som med stigande `ts`. Det fäller den vanligaste genvägen — att sortera på
 tid — och det går att skriva innan en enda komponent finns.
+
+**Andra provet, direkt efter:** B3-provet. En butiksström där två runs interfolierar
+(`seq` 1,2,3,4,5,6 fördelade på run A och run B) ska ge (a) korrekt global ordning, (b) **noll**
+gap-larm i den run-filtrerade vyn, och (c) gap-larm när ett `seq` faktiskt saknas i den
+ofiltrerade strömmen. Det provet fäller den näst vanligaste genvägen — att gap-detektera på en
+filtrerad ström — och den genvägen såg helt rimlig ut i revision 1 av denna plan.
