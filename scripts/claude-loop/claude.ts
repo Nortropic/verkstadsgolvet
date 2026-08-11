@@ -14,11 +14,13 @@ function roleBody(cwd: string, role: RoleName): string {
   return m[1].trim();
 }
 
-function definition(cwd: string, role: RoleName, model?: string): AgentDefinition {
+const STRUCTURED_OUTPUT_TOOL = 'StructuredOutput';
+
+export function roleDefinition(cwd: string, role: RoleName, model?: string): AgentDefinition {
   const common = { description: `Claude Factory ${role}`, prompt: roleBody(cwd, role), model: model ?? 'opus', maxTurns: 48 };
-  if (role === 'builder') return { ...common, tools: ['Read','Glob','Grep','Edit','Write','Bash'], permissionMode: 'acceptEdits' };
-  if (role === 'visual-reviewer') return { ...common, tools: ['Read','Glob','Grep'], permissionMode: 'plan' };
-  return { ...common, tools: ['Read','Glob','Grep','Bash'], permissionMode: 'plan' };
+  if (role === 'builder') return { ...common, tools: ['Read','Glob','Grep','Edit','Write','Bash',STRUCTURED_OUTPUT_TOOL], permissionMode: 'acceptEdits' };
+  if (role === 'visual-reviewer') return { ...common, tools: ['Read','Glob','Grep',STRUCTURED_OUTPUT_TOOL], permissionMode: 'plan' };
+  return { ...common, tools: ['Read','Glob','Grep','Bash',STRUCTURED_OUTPUT_TOOL], permissionMode: 'plan' };
 }
 
 export async function runRole(args: {
@@ -35,7 +37,7 @@ export async function runRole(args: {
   const options: Record<string, unknown> = {
     cwd: args.cwd,
     agent: args.role,
-    agents: { [args.role]: definition(args.cwd, args.role, args.model) },
+    agents: { [args.role]: roleDefinition(args.cwd, args.role, args.model) },
     settingSources: ['project'],
     permissionMode: args.role === 'builder' ? 'acceptEdits' : 'plan',
     outputFormat: { type: 'json_schema', schema: roleOutputJsonSchema },
@@ -52,8 +54,13 @@ export async function runRole(args: {
     if (m.type === 'system' && m.subtype === 'init') sessionId = m.session_id || m.data?.session_id || sessionId;
     if (m.type === 'result') {
       subtype = String(m.subtype || '');
-      if (m.subtype === 'success') structured = m.structured_output;
-      else throw new Error(`Claude role ${args.role} failed subtype=${m.subtype}: ${String(m.result || '')}`);
+      if (m.subtype === 'success') {
+        structured = m.structured_output;
+        if (structured === undefined || structured === null) {
+          const raw = String(m.result || '').replace(/\s+/g, ' ').slice(0, 800);
+          throw new Error(`Claude role ${args.role} returned success without structured_output; raw_result=${raw}`);
+        }
+      } else throw new Error(`Claude role ${args.role} failed subtype=${m.subtype}: ${String(m.result || '')}`);
     }
   }
   if (!sessionId) throw new Error(`Claude role ${args.role} did not provide session_id`);
