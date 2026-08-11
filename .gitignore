@@ -33,3 +33,6 @@ yarn-error.log*
 /.claude/worktrees/
 /.claude/.cc-writes
 /.claude/settings.local.json
+
+# TypeScript incremental compiler cache
+/tsconfig.tsbuildinfo
