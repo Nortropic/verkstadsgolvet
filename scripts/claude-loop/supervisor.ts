@@ -10,8 +10,18 @@ import { saveState, loadState } from './state';
 import { Telemetry } from './telemetry';
 import { captureVisualEvidence } from './visual-review';
 import { publish } from './publication';
+import { builderRemediationFindings, reviewDisposition } from './review-policy';
 
-const blocking = (findings: Finding[]) => findings.some((f) => f.severity === 'blocker' || f.severity === 'major');
+function mergeAdvisories(current: Finding[], next: Finding[]): Finding[] {
+  const seen = new Set<string>();
+  const out: Finding[] = [];
+  for (const f of [...current, ...next]) {
+    const key = `${f.id}\u0000${f.severity}\u0000${f.file ?? ''}\u0000${f.line ?? ''}\u0000${f.message}`;
+    if (seen.has(key)) continue;
+    seen.add(key); out.push(f);
+  }
+  return out;
+}
 
 export function loadConfig(repo: string): FactoryConfig {
   const local = path.join(repo, '.claude-loop.json');
@@ -36,7 +46,7 @@ export async function startRun(taskFile: string): Promise<RunState> {
   const runId = `${slug(task.id)}-${nowId()}`;
   const wtRoot = path.join(os.homedir(), 'nortropic', 'worktrees', 'claude-factory');
   const { worktree, branch } = createWorktree(repo, wtRoot, task.id, runId, baseSha);
-  let state: RunState = { version: 1, runId, task, baseSha, branch, worktree, phase: 'ARCHITECT', attempt: 0, candidateSha: null, sessions: { architect: null, builder: null, reviewer: null, visualReviewer: null }, findings: [], prUrl: null, blockedReason: null };
+  let state: RunState = { version: 1, runId, task, baseSha, branch, worktree, phase: 'ARCHITECT', attempt: 0, candidateSha: null, sessions: { architect: null, builder: null, reviewer: null, visualReviewer: null }, findings: [], advisoryFindings: [], prUrl: null, blockedReason: null };
   saveState(repo, state);
   return await execute(repo, config, state);
 }
@@ -57,7 +67,7 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
       const a = await runRole({ role: 'architect', cwd: state.worktree, prompt: `${basePrompt(state.task)}\n\nPlan this implementation. Do not edit files.`, model: config.models.architect });
       state.sessions.architect = a.sessionId; state.phase = 'BUILD'; saveState(repo, state);
       t.emit('architect.completed', { session_id: a.sessionId, outcome: a.result.outcome });
-      if (a.result.outcome === 'BLOCKED') throw new Error(`architect blocked: ${a.result.summary}`);
+      if (a.result.outcome !== 'READY') throw new Error(`architect not READY outcome=${a.result.outcome}: ${a.result.summary}`);
     }
 
     for (let round = state.attempt; round <= config.maxRemediationRounds; round++) {
@@ -70,6 +80,12 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
       state.sessions.builder = b.sessionId; saveState(repo, state);
       t.emit('builder.completed', { session_id: b.sessionId, outcome: b.result.outcome, round });
       if (b.result.outcome === 'BLOCKED') throw new Error(`builder blocked: ${b.result.summary}`);
+      const builderRemediation = builderRemediationFindings(b.result);
+      if (builderRemediation) {
+        state.findings = builderRemediation; saveState(repo, state);
+        t.emit('builder.self_remediation_requested', { round, findings: builderRemediation });
+        continue;
+      }
 
       const files = changedFiles(state.worktree, state.candidateSha ?? state.baseSha);
       const violations = checkWriteScope(files, state.task.allowedWrite, state.task.deniedWrite);
@@ -90,10 +106,13 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
       state.phase = 'REVIEW'; state.findings = []; saveState(repo, state);
       t.emit('review.started', { candidate_sha: state.candidateSha, round });
       const r = await runRole({ role: 'reviewer', cwd: state.worktree, prompt: `${basePrompt(state.task)}\n\nIndependently review candidate ${state.candidateSha} against base ${state.baseSha}. Inspect git diff and tests. Do not edit.`, model: config.models.reviewer });
-      state.sessions.reviewer = r.sessionId; state.findings = r.result.findings; saveState(repo, state);
-      t.emit(blocking(r.result.findings) ? 'review.findings' : 'review.passed', { session_id: r.sessionId, findings: r.result.findings.length, round });
-      if (r.result.outcome === 'BLOCKED') throw new Error(`reviewer blocked: ${r.result.summary}`);
-      if (blocking(r.result.findings)) continue;
+      state.sessions.reviewer = r.sessionId;
+      const rd = reviewDisposition(r.result, 'reviewer');
+      state.advisoryFindings = mergeAdvisories(state.advisoryFindings, rd.advisories);
+      state.findings = rd.actionable; saveState(repo, state);
+      t.emit(rd.action === 'REMEDIATE' ? 'review.findings' : rd.advisories.length ? 'review.passed_with_advisories' : 'review.passed', { session_id: r.sessionId, outcome: r.result.outcome, findings: r.result.findings.length, actionable: rd.actionable, advisories: rd.advisories, round });
+      if (rd.action === 'BLOCK') throw new Error(`reviewer blocked: ${r.result.summary}`);
+      if (rd.action === 'REMEDIATE') continue;
 
       if (state.task.visualReview) {
         state.phase = 'VISUAL_REVIEW'; saveState(repo, state); t.emit('visual.started', { round });
@@ -102,10 +121,13 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
         try {
           const promptV = `${basePrompt(state.task)}\n\nReview these screenshots and the candidate read-only. Files:\n${capture.files.join('\n')}`;
           const v = await runRole({ role: 'visual-reviewer', cwd: state.worktree, prompt: promptV, model: config.models.visualReviewer });
-          state.sessions.visualReviewer = v.sessionId; state.findings = v.result.findings; saveState(repo, state);
-          t.emit(blocking(v.result.findings) ? 'visual.findings' : 'visual.passed', { session_id: v.sessionId, findings: v.result.findings.length, round });
-          if (v.result.outcome === 'BLOCKED') throw new Error(`visual reviewer blocked: ${v.result.summary}`);
-          if (blocking(v.result.findings)) continue;
+          state.sessions.visualReviewer = v.sessionId;
+          const vd = reviewDisposition(v.result, 'visual-reviewer');
+          state.advisoryFindings = mergeAdvisories(state.advisoryFindings, vd.advisories);
+          state.findings = vd.actionable; saveState(repo, state);
+          t.emit(vd.action === 'REMEDIATE' ? 'visual.findings' : vd.advisories.length ? 'visual.passed_with_advisories' : 'visual.passed', { session_id: v.sessionId, outcome: v.result.outcome, findings: v.result.findings.length, actionable: vd.actionable, advisories: vd.advisories, round });
+          if (vd.action === 'BLOCK') throw new Error(`visual reviewer blocked: ${v.result.summary}`);
+          if (vd.action === 'REMEDIATE') continue;
         } finally { capture.stop(); }
       }
 
@@ -118,7 +140,7 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
         const p = publish({ repo, worktree: state.worktree, branch: state.branch, baseSha: state.baseSha, candidateSha: state.candidateSha!, taskId: state.task.id, autoMerge: config.publish.autoMerge });
         state.prUrl = p.prUrl; t.emit(p.mergedMain ? 'publication.completed' : 'pr.created', { pr: p.prUrl, main: p.mergedMain ?? null });
       }
-      state.phase = 'DONE'; state.findings = []; saveState(repo, state); t.emit('run.completed', { task: state.task.id, candidate_sha: state.candidateSha, pr: state.prUrl });
+      state.phase = 'DONE'; state.findings = []; saveState(repo, state); t.emit('run.completed', { task: state.task.id, candidate_sha: state.candidateSha, pr: state.prUrl, advisory_findings: state.advisoryFindings });
       return state;
     }
     throw new Error(`remediation budget exhausted after ${config.maxRemediationRounds + 1} rounds`);

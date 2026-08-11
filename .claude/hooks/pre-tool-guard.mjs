@@ -23,6 +23,13 @@ if (tool === 'Bash') {
     /\b(curl|wget|scp|ssh)\b/i,
   ];
   if (forbidden.some((r) => r.test(cmd))) block(`forbidden Bash command: ${cmd.slice(0, 240)}`);
+  const secretRefs = [
+    /(^|[^A-Za-z0-9_])\.env(?:\.[A-Za-z0-9_.-]+)?(?:$|[^A-Za-z0-9_.-])/i,
+    /~\/\.ssh(?:\/|$)/i, /~\/\.aws(?:\/|$)/i, /~\/\.config\/gh(?:\/|$)/i,
+    /~\/\.claude\/\.credentials\.json/i,
+    /\b(?:AUTH_SECRET|AUTH_USERNAME|AUTH_PASSWORD|GITHUB_TOKEN|GH_TOKEN|GITHUB_TOKEN_READ|GITHUB_TOKEN_WRITE|SUPABASE_SERVICE_KEY|N8N_WEBHOOK_SECRET|PLACES_API_KEY|RESEND_API_KEY|FAL_KEY)\b/,
+  ];
+  if (secretRefs.some((r) => r.test(cmd))) block(`secret reference in Bash command: ${cmd.slice(0, 240)}`);
 }
 
 if (tool === 'Edit' || tool === 'Write') {

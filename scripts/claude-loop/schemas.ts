@@ -64,6 +64,7 @@ export const RunStateSchema = z.object({
   candidateSha: z.string().nullable(),
   sessions: z.object({ architect: z.string().nullable(), builder: z.string().nullable(), reviewer: z.string().nullable(), visualReviewer: z.string().nullable() }),
   findings: z.array(FindingSchema),
+  advisoryFindings: z.array(FindingSchema).default([]),
   prUrl: z.string().nullable(),
   blockedReason: z.string().nullable(),
 });

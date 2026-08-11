@@ -27,7 +27,7 @@ Start from `.claude-loop.example-task.json`. A task defines exact allowed-write 
 A blocked run preserves its Git worktree and run state. Re-run:
 
 ```bash
-npm run claude:run -- --resume <run-id>
+npm run claude:resume -- <run-id>
 ```
 
 Do not reset/rebase/amend a blocked worktree. The supervisor resumes from recorded facts and existing immutable candidate commits.
@@ -35,3 +35,7 @@ Do not reset/rebase/amend a blocked worktree. The supervisor resumes from record
 ## Visual review
 
 For UI tasks, the supervisor starts `visual.previewCommand`, waits for `visual.previewUrl`, captures configured viewports with Playwright, and asks the independent `visual-reviewer` to inspect those PNGs. Browser screenshots are evidence for workflow review, not Nortropic trust authority.
+
+## Pre-publication runtime checks
+
+After dependency/security changes, run the production build and `npx tsx scripts/claude-loop/auth-runtime-smoke.ts`. The auth smoke starts the built app with disposable credentials, proves anonymous redirect, failed credentials, a real successful Credentials session, middleware-authorized navigation and session reload. Build warnings are not treated as runtime PASS by themselves.

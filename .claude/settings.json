@@ -16,8 +16,8 @@
       "Bash(node *)"
     ],
     "deny": [
-      "Read(.env)",
-      "Read(.env.*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(~/.ssh/**)",
@@ -56,12 +56,76 @@
         "~/.ssh",
         "~/.aws",
         "~/.config/gh",
-        "~/.claude/.credentials.json"
+        "~/.claude/.credentials.json",
+        "./.env",
+        "./.env.*"
       ]
     },
     "network": {
       "allowedDomains": [
         "registry.npmjs.org"
+      ]
+    },
+    "credentials": {
+      "files": [
+        {
+          "path": "./.env",
+          "mode": "deny"
+        },
+        {
+          "path": "./.env.*",
+          "mode": "deny"
+        }
+      ],
+      "envVars": [
+        {
+          "name": "AUTH_SECRET",
+          "mode": "deny"
+        },
+        {
+          "name": "AUTH_USERNAME",
+          "mode": "deny"
+        },
+        {
+          "name": "AUTH_PASSWORD",
+          "mode": "deny"
+        },
+        {
+          "name": "GITHUB_TOKEN",
+          "mode": "deny"
+        },
+        {
+          "name": "GH_TOKEN",
+          "mode": "deny"
+        },
+        {
+          "name": "GITHUB_TOKEN_READ",
+          "mode": "deny"
+        },
+        {
+          "name": "GITHUB_TOKEN_WRITE",
+          "mode": "deny"
+        },
+        {
+          "name": "SUPABASE_SERVICE_KEY",
+          "mode": "deny"
+        },
+        {
+          "name": "N8N_WEBHOOK_SECRET",
+          "mode": "deny"
+        },
+        {
+          "name": "PLACES_API_KEY",
+          "mode": "deny"
+        },
+        {
+          "name": "RESEND_API_KEY",
+          "mode": "deny"
+        },
+        {
+          "name": "FAL_KEY",
+          "mode": "deny"
+        }
       ]
     }
   },

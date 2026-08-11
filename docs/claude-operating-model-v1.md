@@ -46,7 +46,7 @@ Read-only. Produce a concrete implementation plan, risks, files expected to chan
 Works in the task worktree. It may read, edit and run local build/test commands. It does not push, merge, amend, reset, rebase, deploy or declare its work authoritative. The supervisor derives changed files and candidate SHA from Git.
 
 ### Reviewer
-Independent fresh context. Read-only. Reviews the candidate and returns structured findings. Any blocker/major finding routes back to the builder session for remediation and then receives a fresh review.
+Independent fresh context. Read-only. Reviews the candidate and returns structured findings. Any blocker/major/minor finding or explicit `NEEDS_REMEDIATION` routes back to the builder session for remediation and then receives a fresh review. `note` findings are advisory only and remain recorded in final run evidence.
 
 ### Visual reviewer
 Independent fresh context. Read-only. Reviews actual screenshots at configured desktop/tablet/mobile viewports. Findings route back to the builder and trigger recapture plus fresh visual review.
@@ -66,7 +66,7 @@ Publication support exists in v1 but defaults off. When enabled, push is ordinar
 
 ## Telemetry
 
-Workflow telemetry is append-only JSONL under the Git common directory and may later be projected into Verkstadsgolvet. It is observability only. Events include role starts/completions, session IDs, attempts, candidate SHA, finding counts, gate outcomes, PR creation, publication, blocks and run completion.
+Workflow telemetry is append-only JSONL under the Git common directory and may later be projected into Verkstadsgolvet. It is observability only. Events include role starts/completions, session IDs, attempts, candidate SHA, full independent finding/advisory evidence, gate outcomes, PR creation, publication, blocks and run completion.
 
 ## Empirical rule
 

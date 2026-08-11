@@ -48,6 +48,7 @@ export async function empiricalSmoke(): Promise<void> {
     const state = await startRun(taskPath);
     taskWorktree = state.worktree;
     if (state.phase !== 'DONE' || !state.candidateSha) throw new Error(`empirical run not DONE: phase=${state.phase}`);
+    if (state.findings.length) throw new Error(`empirical run retained actionable findings: ${JSON.stringify(state.findings)}`);
     const value = fs.readFileSync(path.join(state.worktree, 'fixture-output.txt'), 'utf8');
     if (value !== 'CLAUDE_FACTORY_EMPIRICAL_OK\n') throw new Error('empirical candidate content mismatch');
     const files = sh('git', ['diff-tree', '--no-commit-id', '--name-only', '-r', state.candidateSha], state.worktree).out.trim().split('\n').filter(Boolean);
@@ -58,6 +59,7 @@ export async function empiricalSmoke(): Promise<void> {
     console.log(`ARCHITECT_SESSION=${state.sessions.architect}`);
     console.log(`BUILDER_SESSION=${state.sessions.builder}`);
     console.log(`REVIEWER_SESSION=${state.sessions.reviewer}`);
+    console.log(`ADVISORY_FINDINGS=${JSON.stringify(state.advisoryFindings)}`);
   } finally {
     process.chdir(oldCwd);
     if (taskWorktree && fs.existsSync(repo)) gitRun(repo, ['worktree', 'remove', taskWorktree], true);
