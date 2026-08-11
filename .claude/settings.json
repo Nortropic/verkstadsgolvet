@@ -1,0 +1,176 @@
+{
+  "permissions": {
+    "defaultMode": "dontAsk",
+    "disableBypassPermissionsMode": "disable",
+    "disableAutoMode": "disable",
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git log *)",
+      "Bash(git rev-parse *)",
+      "Bash(git ls-files *)",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(npx playwright *)",
+      "Bash(node *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.claude/.credentials.json)",
+      "Edit(/CLAUDE.md)",
+      "Edit(/.claude/**)",
+      "Edit(/docs/claude-operating-model-v1.md)",
+      "Edit(/docs/nortropic-control-room-plan-v1.md)",
+      "Edit(/docs/nortropic-control-room-codex-handoff.md)",
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(git rebase *)",
+      "Bash(git clean *)",
+      "Bash(git commit --amend *)",
+      "Bash(gh *)",
+      "Bash(sudo *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(vercel *)",
+      "Bash(railway *)",
+      "Bash(supabase *)",
+      "Bash(npm publish *)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": [
+        "~/.ssh",
+        "~/.aws",
+        "~/.config/gh",
+        "~/.claude/.credentials.json",
+        "./.env",
+        "./.env.*"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "registry.npmjs.org"
+      ]
+    },
+    "credentials": {
+      "files": [
+        {
+          "path": "./.env",
+          "mode": "deny"
+        },
+        {
+          "path": "./.env.*",
+          "mode": "deny"
+        }
+      ],
+      "envVars": [
+        {
+          "name": "AUTH_SECRET",
+          "mode": "deny"
+        },
+        {
+          "name": "AUTH_USERNAME",
+          "mode": "deny"
+        },
+        {
+          "name": "AUTH_PASSWORD",
+          "mode": "deny"
+        },
+        {
+          "name": "GITHUB_TOKEN",
+          "mode": "deny"
+        },
+        {
+          "name": "GH_TOKEN",
+          "mode": "deny"
+        },
+        {
+          "name": "GITHUB_TOKEN_READ",
+          "mode": "deny"
+        },
+        {
+          "name": "GITHUB_TOKEN_WRITE",
+          "mode": "deny"
+        },
+        {
+          "name": "SUPABASE_SERVICE_KEY",
+          "mode": "deny"
+        },
+        {
+          "name": "N8N_WEBHOOK_SECRET",
+          "mode": "deny"
+        },
+        {
+          "name": "PLACES_API_KEY",
+          "mode": "deny"
+        },
+        {
+          "name": "RESEND_API_KEY",
+          "mode": "deny"
+        },
+        {
+          "name": "FAL_KEY",
+          "mode": "deny"
+        }
+      ]
+    }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pre-tool-guard.mjs"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/post-tool-evidence.mjs"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/post-tool-evidence.mjs"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/post-tool-evidence.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}

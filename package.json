@@ -6,20 +6,37 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "claude:doctor": "tsx scripts/claude-loop/cli.ts doctor",
+    "claude:selftest": "tsx scripts/claude-loop/cli.ts selftest",
+    "claude:live-smoke": "tsx scripts/claude-loop/cli.ts live-smoke",
+    "claude:empirical-smoke": "tsx scripts/claude-loop/cli.ts empirical-smoke",
+    "claude:status": "tsx scripts/claude-loop/cli.ts status",
+    "claude:watch": "tsx scripts/claude-loop/cli.ts watch",
+    "claude:run": "tsx scripts/claude-loop/cli.ts run",
+    "claude:resume": "tsx scripts/claude-loop/cli.ts resume",
+    "claude:test": "node --import tsx --test tests/claude-loop/*.test.ts"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.228",
     "@octokit/rest": "^21.1.1",
     "@supabase/supabase-js": "^2.45.4",
     "next": "^15.1.6",
-    "next-auth": "5.0.0-beta.25",
+    "next-auth": "5.0.0-beta.32",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
+    "playwright": "1.62.1",
+    "tsx": "4.23.12",
     "typescript": "^5.7.3"
+  },
+  "overrides": {
+    "postcss": "8.5.23",
+    "sharp": "0.35.3"
   }
 }

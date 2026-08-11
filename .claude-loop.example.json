@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "maxRemediationRounds": 3,
+  "models": {
+    "architect": "opus",
+    "builder": "opus",
+    "reviewer": "opus",
+    "visualReviewer": "opus"
+  },
+  "publish": {
+    "enabled": false,
+    "autoMerge": false,
+    "mergeMethod": "rebase"
+  }
+}
