@@ -27,3 +27,9 @@ yarn-error.log*
 
 # vercel / railway lokala artefakter
 .vercel
+
+# Claude Factory runtime
+/.claude-loop/
+/.claude/worktrees/
+/.claude/.cc-writes
+/.claude/settings.local.json

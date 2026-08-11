@@ -1,0 +1,21 @@
+{
+  "id": "V1",
+  "title": "Typed backend contracts and schema validation",
+  "description": "Implement V1 exactly as defined by docs/nortropic-control-room-plan-v1.md. Do not invent live backend fields.",
+  "allowedWrite": [
+    "lib/loop/**",
+    "tests/loop/**",
+    "package.json",
+    "package-lock.json"
+  ],
+  "deniedWrite": [
+    ".claude/**",
+    "CLAUDE.md",
+    "docs/nortropic-control-room-plan-v1.md"
+  ],
+  "gates": [
+    ["npx", "tsc", "--noEmit"],
+    ["npm", "run", "build"]
+  ],
+  "visualReview": false
+}
