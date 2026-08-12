@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { chromium } from 'playwright';
-import type { TaskSpec } from './schemas';
+import { describePreviewOrigin, isLoopbackPreviewTarget, type TaskSpec } from './schemas';
 
 const LOGIN_PATH = '/login';
 const LOGIN_TIMEOUT_MS = 30_000;
@@ -37,6 +37,37 @@ function describeTarget(url: string): string {
   return safe.href;
 }
 
+/**
+ * Runtime barrier. `authenticatePreviewPage` is an exported callable boundary, so it re-proves the
+ * loopback policy itself instead of trusting that a TaskSchema parse happened upstream. Shares the
+ * single URL-policy definition with the schema barrier.
+ */
+function assertLoopbackAuthTarget(target: URL): void {
+  if (isLoopbackPreviewTarget(target)) return;
+  throw new Error(
+    `authenticated visual review refused: ${describePreviewOrigin(target)} is not a loopback preview origin `
+      + '(allowed: http/https on localhost, 127.0.0.1 or [::1])',
+  );
+}
+
+/**
+ * Post-navigation origin barrier. The requested login URL proves nothing once the response can
+ * redirect, so the actual browser location is compared against the expected loopback origin.
+ */
+function assertActualOriginIsExpected(actualUrl: string, expectedOrigin: string): void {
+  let actual: URL;
+  try {
+    actual = new URL(actualUrl);
+  } catch {
+    throw new Error('authenticated visual review refused: the login navigation ended on an unparsable location');
+  }
+  if (actual.origin !== expectedOrigin) {
+    throw new Error(
+      `authenticated visual review refused: the login navigation left the preview origin and landed on ${describePreviewOrigin(actual)}`,
+    );
+  }
+}
+
 /** Reads a required runtime credential. The value is never included in errors or logs. */
 function requiredCredential(name: 'AUTH_USERNAME' | 'AUTH_PASSWORD'): string {
   const value = process.env[name];
@@ -52,12 +83,18 @@ function requiredCredential(name: 'AUTH_USERNAME' | 'AUTH_PASSWORD'): string {
  */
 export async function authenticatePreviewPage(page: PreviewAuthPage, previewUrl: string): Promise<void> {
   const target = new URL(previewUrl);
+  // Fail closed on a non-loopback credential-bearing target before the runtime credentials are
+  // even read, and before any goto/fill/click reaches the browser.
+  assertLoopbackAuthTarget(target);
   const loginUrl = new URL(LOGIN_PATH, target.origin).href;
   // Fail closed before any navigation when a runtime credential is absent or empty.
   const username = requiredCredential('AUTH_USERNAME');
   const password = requiredCredential('AUTH_PASSWORD');
 
   await page.goto(loginUrl, { waitUntil: 'networkidle' });
+  // A redirect can move the browser off the requested loopback origin, so the credentials are only
+  // typed once the actual post-navigation location is proven to still be that origin.
+  assertActualOriginIsExpected(page.url(), target.origin);
   await page.fill('#username', username);
   await page.fill('#password', password);
   await page.click('button[type="submit"]');

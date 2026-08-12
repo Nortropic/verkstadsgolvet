@@ -20,6 +20,41 @@ export const RoleResultSchema = z.object({
 });
 export type RoleResult = z.infer<typeof RoleResultSchema>;
 
+/**
+ * Loopback-only policy for credential-bearing preview targets.
+ *
+ * An authenticated visual review types the real runtime AUTH_USERNAME/AUTH_PASSWORD values into
+ * the preview origin, so that origin must be the operator's own machine and never a
+ * task-controlled remote host. The decision is made purely on the WHATWG-normalized protocol and
+ * hostname of the parsed URL, by exact set membership: never substring/prefix/suffix matching,
+ * never a lookalike-admitting regex, never DNS resolution, never a network call.
+ *
+ * Only credential-bearing previews are restricted; anonymous remote visual review is untouched.
+ */
+const CREDENTIAL_BEARING_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:']);
+const LOOPBACK_HOSTNAMES: ReadonlySet<string> = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+function parseUrlOrNull(value: string | URL): URL | null {
+  if (value instanceof URL) return value;
+  try { return new URL(value); } catch { return null; }
+}
+
+/** True only for http/https on the exact normalized loopback hosts. Unparsable input fails closed. */
+export function isLoopbackPreviewTarget(value: string | URL): boolean {
+  const url = parseUrlOrNull(value);
+  if (!url) return false;
+  return CREDENTIAL_BEARING_PROTOCOLS.has(url.protocol) && LOOPBACK_HOSTNAMES.has(url.hostname);
+}
+
+/**
+ * Renders `protocol//host[:port]` for security errors. `host` never contains URL userinfo, so a
+ * credential embedded in the target cannot be echoed back into a message or log line.
+ */
+export function describePreviewOrigin(value: string | URL): string {
+  const url = parseUrlOrNull(value);
+  return url ? `${url.protocol}//${url.host}` : 'an unparsable preview URL';
+}
+
 export const VisualConfigSchema = z.object({
   previewCommand: z.array(z.string().min(1)).min(1),
   previewUrl: z.string().url(),
@@ -31,6 +66,16 @@ export const VisualConfigSchema = z.object({
     { name: 'tablet', width: 900, height: 1000 },
     { name: 'mobile', width: 390, height: 844 },
   ]),
+}).superRefine((visual, ctx) => {
+  // Schema barrier: a task may not even declare a credential-bearing preview against a remote
+  // origin. Anonymous previews (authenticated=false, the default) keep accepting any URL.
+  if (visual.authenticated !== true) return;
+  if (isLoopbackPreviewTarget(visual.previewUrl)) return;
+  ctx.addIssue({
+    code: 'custom',
+    path: ['previewUrl'],
+    message: `authenticated visual review is restricted to loopback preview origins (http/https on localhost, 127.0.0.1 or [::1]); ${describePreviewOrigin(visual.previewUrl)} is not loopback`,
+  });
 }).optional();
 
 export const TaskSchema = z.object({
