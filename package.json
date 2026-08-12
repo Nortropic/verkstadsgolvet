@@ -15,7 +15,9 @@
     "claude:watch": "tsx scripts/claude-loop/cli.ts watch",
     "claude:run": "tsx scripts/claude-loop/cli.ts run",
     "claude:resume": "tsx scripts/claude-loop/cli.ts resume",
-    "claude:test": "node --import tsx --test tests/claude-loop/*.test.ts"
+    "claude:test": "node --import tsx --test tests/claude-loop/*.test.ts",
+    "loop:fixtures": "node --import tsx lib/loop/fixtures/generate.ts",
+    "loop:test": "node --import tsx --test tests/loop/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.3.228",
