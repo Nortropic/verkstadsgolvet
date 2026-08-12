@@ -1,11 +1,94 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { chromium } from 'playwright';
 import { describePreviewOrigin, isLoopbackPreviewTarget, type TaskSpec } from './schemas';
 
 const LOGIN_PATH = '/login';
 const LOGIN_TIMEOUT_MS = 30_000;
+
+/**
+ * Explicit allowlist of non-secret execution-context variables that may cross from the supervisor
+ * into the preview child. The preview command is candidate/task-controlled code from the task
+ * worktree, so the child environment is built by enumeration: anything not named here is denied by
+ * default, including supervisor variables this file has never heard of. This is deliberately not a
+ * secret blacklist — a new supervisor secret is denied without any change to this list.
+ *
+ * Only process-execution basics are listed. `PATH` (plus the Windows `PATHEXT`/`SystemRoot`/
+ * `ComSpec` equivalents) keeps ordinary preview commands resolvable; `HOME` and the temp-directory
+ * names keep toolchains that need a writable scratch/config location working; the locale, `TERM`
+ * and `TZ` entries keep output formatting stable; `NODE_ENV` and `CI` are ordinary non-secret build
+ * mode switches. No credential, token, API key or connection string belongs in this list.
+ */
+const PREVIEW_EXECUTION_ENV_ALLOWLIST = [
+  'PATH',
+  'PATHEXT',
+  'SystemRoot',
+  'ComSpec',
+  'HOME',
+  'TMPDIR',
+  'TMP',
+  'TEMP',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'TERM',
+  'TZ',
+  'NODE_ENV',
+  'CI',
+] as const;
+
+/**
+ * A freshly constructed preview child environment. Deliberately a plain string record rather than
+ * `NodeJS.ProcessEnv`, so it can never be satisfied by handing back `process.env` itself.
+ */
+export type PreviewChildEnv = Record<string, string>;
+
+/** A disposable, preview-only credential bundle. Never the supervisor's own credentials. */
+export interface PreviewCredentials {
+  username: string;
+  password: string;
+  authSecret: string;
+}
+
+/**
+ * Mints a fresh preview-only credential bundle from cryptographically secure randomness. No
+ * constants, no shared module-global bundle: every call returns unrelated high-entropy values, so a
+ * bundle handed to one preview child is worthless anywhere else.
+ */
+function createPreviewCredentials(): PreviewCredentials {
+  return {
+    username: `preview-${randomBytes(12).toString('base64url')}`,
+    password: randomBytes(32).toString('base64url'),
+    authSecret: randomBytes(32).toString('base64url'),
+  };
+}
+
+/**
+ * Builds the environment for the preview child process. Pure: it reads the supplied supervisor
+ * environment, never mutates it, never returns or spreads it, and never copies a name outside the
+ * execution allowlist.
+ *
+ * Auth variables are injected only from an explicit disposable bundle. Without a bundle (anonymous
+ * preview) the child receives no AUTH_* values at all, even when the supervisor has them.
+ */
+export function buildPreviewChildEnv(
+  supervisorEnv: NodeJS.ProcessEnv,
+  previewCredentials?: PreviewCredentials,
+): PreviewChildEnv {
+  const childEnv: PreviewChildEnv = {};
+  for (const name of PREVIEW_EXECUTION_ENV_ALLOWLIST) {
+    const value = supervisorEnv[name];
+    if (typeof value === 'string') childEnv[name] = value;
+  }
+  if (previewCredentials) {
+    childEnv.AUTH_USERNAME = previewCredentials.username;
+    childEnv.AUTH_PASSWORD = previewCredentials.password;
+    childEnv.AUTH_SECRET = previewCredentials.authSecret;
+  }
+  return childEnv;
+}
 
 /** Minimal structural contract of the browser page used by the authenticated preview flow. */
 export interface PreviewAuthPage {
@@ -68,11 +151,10 @@ function assertActualOriginIsExpected(actualUrl: string, expectedOrigin: string)
   }
 }
 
-/** Reads a required runtime credential. The value is never included in errors or logs. */
-function requiredCredential(name: 'AUTH_USERNAME' | 'AUTH_PASSWORD'): string {
-  const value = process.env[name];
+/** Validates a required credential. The value is never included in errors or logs. */
+function requiredCredential(name: 'AUTH_USERNAME' | 'AUTH_PASSWORD', value: string | undefined, origin: string): string {
   if (typeof value !== 'string' || value.trim() === '') {
-    throw new Error(`authenticated visual review requires ${name} to be set in the runtime environment`);
+    throw new Error(`authenticated visual review requires ${name} to be set in ${origin}`);
   }
   return value;
 }
@@ -80,16 +162,27 @@ function requiredCredential(name: 'AUTH_USERNAME' | 'AUTH_PASSWORD'): string {
 /**
  * Signs the preview page in through the real same-origin Credentials form and leaves the page
  * on the exact requested preview target. No cookie fabrication and no auth bypass.
+ *
+ * `previewCredentials` is the disposable bundle that was handed to the preview child process, so
+ * the browser types exactly the credentials that child accepts. When it is omitted the helper keeps
+ * its established direct-invocation behavior and fails closed on a missing runtime credential.
  */
-export async function authenticatePreviewPage(page: PreviewAuthPage, previewUrl: string): Promise<void> {
+export async function authenticatePreviewPage(
+  page: PreviewAuthPage,
+  previewUrl: string,
+  previewCredentials?: PreviewCredentials,
+): Promise<void> {
   const target = new URL(previewUrl);
-  // Fail closed on a non-loopback credential-bearing target before the runtime credentials are
-  // even read, and before any goto/fill/click reaches the browser.
+  // Fail closed on a non-loopback credential-bearing target before the credentials are even read,
+  // and before any goto/fill/click reaches the browser.
   assertLoopbackAuthTarget(target);
   const loginUrl = new URL(LOGIN_PATH, target.origin).href;
-  // Fail closed before any navigation when a runtime credential is absent or empty.
-  const username = requiredCredential('AUTH_USERNAME');
-  const password = requiredCredential('AUTH_PASSWORD');
+  // Fail closed before any navigation when a credential is absent or empty.
+  const supplied = previewCredentials
+    ? { username: previewCredentials.username, password: previewCredentials.password, origin: 'the disposable preview credential bundle' }
+    : { username: process.env.AUTH_USERNAME, password: process.env.AUTH_PASSWORD, origin: 'the runtime environment' };
+  const username = requiredCredential('AUTH_USERNAME', supplied.username, supplied.origin);
+  const password = requiredCredential('AUTH_PASSWORD', supplied.password, supplied.origin);
 
   await page.goto(loginUrl, { waitUntil: 'networkidle' });
   // A redirect can move the browser off the requested loopback origin, so the credentials are only
@@ -129,8 +222,20 @@ async function waitFor(url: string, timeoutMs: number): Promise<void> {
 export async function captureVisualEvidence(task: TaskSpec, cwd: string, outDir: string): Promise<{ files: string[]; stop: () => void }> {
   if (!task.visualReview || !task.visual) throw new Error('visual review requested but task.visual is missing');
   fs.mkdirSync(outDir, { recursive: true });
+  // One disposable bundle per capture: every viewport page authenticates against the same preview
+  // server process, and the next independent capture mints an unrelated bundle.
+  const previewCredentials = task.visual.authenticated === true ? createPreviewCredentials() : undefined;
   const [command, ...args] = task.visual.previewCommand;
-  const child: ChildProcess = spawn(command, args, { cwd, env: process.env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  // The preview command is candidate-controlled code, so it is started with an allowlisted child
+  // environment instead of the supervisor's process.env.
+  const child: ChildProcess = spawn(command, args, {
+    cwd,
+    // The cast only bridges the Next.js `ProcessEnv` augmentation (a required readonly NODE_ENV);
+    // the value stays an allowlisted plain record.
+    env: buildPreviewChildEnv(process.env, previewCredentials) as NodeJS.ProcessEnv,
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
   const stop = () => {
     if (!child.pid) return;
     try { process.kill(-child.pid, 'SIGTERM'); } catch {}
@@ -144,8 +249,9 @@ export async function captureVisualEvidence(task: TaskSpec, cwd: string, outDir:
       for (const vp of task.visual.viewports) {
         const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height } });
         if (task.visual.authenticated === true) {
-          // Per-page (per-context) login: no shared global auth state across viewports.
-          await authenticatePreviewPage(page, task.visual.previewUrl);
+          // Per-page (per-context) login: no shared global auth state across viewports. The browser
+          // types the same disposable credentials the preview child was started with.
+          await authenticatePreviewPage(page, task.visual.previewUrl, previewCredentials);
         } else {
           await page.goto(task.visual.previewUrl, { waitUntil: 'networkidle' });
         }
