@@ -1,0 +1,33 @@
+[
+  {
+    "verb": "intake.submit",
+    "payload": {
+      "source_ref": "source-ref-fixture-0001",
+      "source_sha256": "8b8d9d7b613b618a2749c3620ac969d1f77f6dcd9cd1c9172c636f8193b354dc"
+    }
+  },
+  {
+    "verb": "run.start",
+    "payload": {
+      "config_ref": "config-ref-fixture-0001"
+    }
+  },
+  {
+    "verb": "run.pause_at_safe_boundary",
+    "payload": {
+      "run_id": "run-fixture-a"
+    }
+  },
+  {
+    "verb": "run.resume",
+    "payload": {
+      "run_id": "run-fixture-a"
+    }
+  },
+  {
+    "verb": "inspect",
+    "payload": {
+      "task_id": "p-200"
+    }
+  }
+]

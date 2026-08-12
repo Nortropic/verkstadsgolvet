@@ -1,0 +1,38 @@
+[
+  {
+    "schema_version": "1.0.0",
+    "run_id": "run-fixture-a",
+    "task_id": null,
+    "attempt_id": null,
+    "payload": {},
+    "evidence_refs": [],
+    "event_id": "evt-unknown-0001",
+    "seq": 9001,
+    "ts": "2026-01-01T02:30:01.000Z",
+    "event_type": "kvantfluktuation.uppstod"
+  },
+  {
+    "schema_version": "1.0.0",
+    "run_id": "run-fixture-a",
+    "task_id": null,
+    "attempt_id": null,
+    "payload": {},
+    "evidence_refs": [],
+    "event_id": "evt-unknown-0002",
+    "seq": 9002,
+    "ts": "2026-01-01T02:30:02.000Z",
+    "event_type": "run.heartbeat"
+  },
+  {
+    "schema_version": "2.0.0",
+    "run_id": "run-fixture-a",
+    "task_id": null,
+    "attempt_id": null,
+    "payload": {},
+    "evidence_refs": [],
+    "event_id": "evt-unknown-0003",
+    "seq": 9003,
+    "ts": "2026-01-01T02:30:03.000Z",
+    "event_type": "run.started"
+  }
+]

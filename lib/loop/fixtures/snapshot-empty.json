@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "run-fixture-b",
+  "seq_watermark": 0,
+  "published_ts": "2026-01-01T00:00:00.000Z",
+  "run": {
+    "state": null,
+    "breaker": null,
+    "budget": null
+  },
+  "current_main": {
+    "sha": null,
+    "confirmed_ts": null
+  },
+  "current_task": null,
+  "backlog": [],
+  "completed": []
+}

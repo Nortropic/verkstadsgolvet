@@ -1,0 +1,453 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "run-fixture-a",
+  "seq_watermark": 23,
+  "published_ts": "2026-01-01T00:00:23.000Z",
+  "run": {
+    "state": null,
+    "breaker": null,
+    "budget": null
+  },
+  "current_main": {
+    "sha": "c7527c5a0859bd022c483aa5d73952a065b3569b",
+    "confirmed_ts": "2026-01-01T00:00:23.000Z"
+  },
+  "current_task": {
+    "task_id": "p-205",
+    "title": "Fixturuppgift p-205",
+    "state": "WORKING",
+    "source": {
+      "source_id": "src-005",
+      "sha256": "b38257c4828626a0ec8e2df0e94e14139d0653d30c8eeece3a61de750c998368",
+      "locator": null
+    },
+    "attempt": {
+      "n": 1,
+      "budget": null
+    },
+    "phase": "BUILD",
+    "builder": {
+      "agent": null,
+      "model": null
+    },
+    "risk_class": null,
+    "base_sha": "a9b22f2acea2fadcf38cc78487aa39201c8fb8f4",
+    "candidate_sha": null,
+    "first_seen_ts": "2026-01-01T00:00:05.000Z",
+    "policy": "NOT_RUN",
+    "verification": "NOT_RUN",
+    "task_gate": {
+      "verdict": "NOT_RUN",
+      "grind_id": null,
+      "grind_sha256": null
+    },
+    "evaluation": {
+      "required": null,
+      "verdict": "NOT_RUN",
+      "findings": null
+    },
+    "attestation": null,
+    "merge": null,
+    "promotion": null,
+    "evidence_refs": []
+  },
+  "backlog": [
+    {
+      "task_id": "p-200",
+      "title": "Fixturuppgift p-200",
+      "state": "RAW",
+      "source": {
+        "source_id": "src-000",
+        "sha256": "d3b1a48d2d7b0c190f1f0c4c10869504e63df20ea3a0caf8da66c8b228ee3a60",
+        "locator": "backlog-aug.md"
+      },
+      "attempt": {
+        "n": null,
+        "budget": null
+      },
+      "phase": null,
+      "builder": {
+        "agent": null,
+        "model": null
+      },
+      "risk_class": null,
+      "base_sha": null,
+      "candidate_sha": null,
+      "first_seen_ts": "2026-01-01T00:00:00.000Z",
+      "policy": "NOT_RUN",
+      "verification": "NOT_RUN",
+      "task_gate": {
+        "verdict": "NOT_RUN",
+        "grind_id": null,
+        "grind_sha256": null
+      },
+      "evaluation": {
+        "required": null,
+        "verdict": "NOT_RUN",
+        "findings": null
+      },
+      "attestation": null,
+      "merge": null,
+      "promotion": null,
+      "evidence_refs": []
+    },
+    {
+      "task_id": "p-201",
+      "title": "Fixturuppgift p-201",
+      "state": "PLANNING",
+      "source": {
+        "source_id": "src-001",
+        "sha256": "73fe6f75c18596fc5f3036e421bb1e9f2489ec4d202c96ac1d73c3f4a55de1fc",
+        "locator": null
+      },
+      "attempt": {
+        "n": null,
+        "budget": null
+      },
+      "phase": null,
+      "builder": {
+        "agent": null,
+        "model": null
+      },
+      "risk_class": null,
+      "base_sha": "d08f7886b7dfd24019d0062fb0d772194ebc97b5",
+      "candidate_sha": null,
+      "first_seen_ts": "2026-01-01T00:00:01.000Z",
+      "policy": "NOT_RUN",
+      "verification": "NOT_RUN",
+      "task_gate": {
+        "verdict": "NOT_RUN",
+        "grind_id": null,
+        "grind_sha256": null
+      },
+      "evaluation": {
+        "required": null,
+        "verdict": "NOT_RUN",
+        "findings": null
+      },
+      "attestation": null,
+      "merge": null,
+      "promotion": null,
+      "evidence_refs": []
+    },
+    {
+      "task_id": "p-202",
+      "title": "Fixturuppgift p-202",
+      "state": "NEEDS_SPEC",
+      "source": {
+        "source_id": "src-002",
+        "sha256": "18bd93abdfc21005e2fad41a2bbed01cf2356a28f097b6b0129837aef9919796",
+        "locator": "backlog-aug.md"
+      },
+      "attempt": {
+        "n": 1,
+        "budget": null
+      },
+      "phase": null,
+      "builder": {
+        "agent": null,
+        "model": null
+      },
+      "risk_class": null,
+      "base_sha": "d007965801be4366fe55f70deab816aa62f2d48e",
+      "candidate_sha": null,
+      "first_seen_ts": "2026-01-01T00:00:02.000Z",
+      "policy": "NOT_RUN",
+      "verification": "NOT_RUN",
+      "task_gate": {
+        "verdict": "NOT_RUN",
+        "grind_id": null,
+        "grind_sha256": null
+      },
+      "evaluation": {
+        "required": null,
+        "verdict": "NOT_RUN",
+        "findings": null
+      },
+      "attestation": null,
+      "merge": null,
+      "promotion": null,
+      "evidence_refs": []
+    },
+    {
+      "task_id": "p-203",
+      "title": "Fixturuppgift p-203",
+      "state": "READY",
+      "source": {
+        "source_id": "src-003",
+        "sha256": "f8780a3fdb050b0b734aa14d02bee66c6e58eacaa924d17495ce17330d1f949a",
+        "locator": null
+      },
+      "attempt": {
+        "n": 1,
+        "budget": null
+      },
+      "phase": null,
+      "builder": {
+        "agent": null,
+        "model": null
+      },
+      "risk_class": null,
+      "base_sha": "c743509dddb46eb5c02570329aeeae88fc13eaf2",
+      "candidate_sha": null,
+      "first_seen_ts": "2026-01-01T00:00:03.000Z",
+      "policy": "NOT_RUN",
+      "verification": "NOT_RUN",
+      "task_gate": {
+        "verdict": "NOT_RUN",
+        "grind_id": null,
+        "grind_sha256": null
+      },
+      "evaluation": {
+        "required": null,
+        "verdict": "NOT_RUN",
+        "findings": null
+      },
+      "attestation": null,
+      "merge": null,
+      "promotion": null,
+      "evidence_refs": []
+    },
+    {
+      "task_id": "p-204",
+      "title": "Fixturuppgift p-204",
+      "state": "QUEUED",
+      "source": {
+        "source_id": "src-004",
+        "sha256": "e008dc404572d1abcba78a77c1373c4fccda14c45610ee640056dc8ad9175979",
+        "locator": "backlog-aug.md"
+      },
+      "attempt": {
+        "n": 1,
+        "budget": null
+      },
+      "phase": null,
+      "builder": {
+        "agent": null,
+        "model": null
+      },
+      "risk_class": null,
+      "base_sha": "de6deec7f0ae5278fe0e79095074b3f1826516ae",
+      "candidate_sha": null,
+      "first_seen_ts": "2026-01-01T00:00:04.000Z",
+      "policy": "NOT_RUN",
+      "verification": "NOT_RUN",
+      "task_gate": {
+        "verdict": "NOT_RUN",
+        "grind_id": null,
+        "grind_sha256": null
+      },
+      "evaluation": {
+        "required": null,
+        "verdict": "NOT_RUN",
+        "findings": null
+      },
+      "attestation": null,
+      "merge": null,
+      "promotion": null,
+      "evidence_refs": []
+    },
+    {
+      "task_id": "p-206",
+      "title": "Fixturuppgift p-206",
+      "state": "VERIFYING",
+      "source": {
+        "source_id": "src-006",
+        "sha256": "9d8d63c15109e8f53b66a000b9d2b8e18eec1334ea860194bcb46fba14628415",
+        "locator": "backlog-aug.md"
+      },
+      "attempt": {
+        "n": 1,
+        "budget": null
+      },
+      "phase": null,
+      "builder": {
+        "agent": null,
+        "model": null
+      },
+      "risk_class": null,
+      "base_sha": "52d3bcdd4a15f7d0ceb061ad40a16bf2c182fee2",
+      "candidate_sha": null,
+      "first_seen_ts": "2026-01-01T00:00:06.000Z",
+      "policy": "NOT_RUN",
+      "verification": "NOT_RUN",
+      "task_gate": {
+        "verdict": "NOT_RUN",
+        "grind_id": null,
+        "grind_sha256": null
+      },
+      "evaluation": {
+        "required": null,
+        "verdict": "NOT_RUN",
+        "findings": null
+      },
+      "attestation": null,
+      "merge": null,
+      "promotion": null,
+      "evidence_refs": []
+    },
+    {
+      "task_id": "p-207",
+      "title": "Fixturuppgift p-207",
+      "state": "REVIEWING",
+      "source": {
+        "source_id": "src-007",
+        "sha256": "3c3752810c13bd4d8963ecdc547dd3a73607f8f1968e0da68c25c3aaaaebf32f",
+        "locator": null
+      },
+      "attempt": {
+        "n": 1,
+        "budget": null
+      },
+      "phase": null,
+      "builder": {
+        "agent": null,
+        "model": null
+      },
+      "risk_class": null,
+      "base_sha": "4f87890d6a3e5b5fe177c6b61ff87e580d6a2adc",
+      "candidate_sha": "78ab81b261eb3b0b873bcabade80b006d0d1349f",
+      "first_seen_ts": "2026-01-01T00:00:07.000Z",
+      "policy": "NOT_RUN",
+      "verification": "NOT_RUN",
+      "task_gate": {
+        "verdict": "NOT_RUN",
+        "grind_id": null,
+        "grind_sha256": null
+      },
+      "evaluation": {
+        "required": null,
+        "verdict": "NOT_RUN",
+        "findings": null
+      },
+      "attestation": null,
+      "merge": null,
+      "promotion": null,
+      "evidence_refs": []
+    },
+    {
+      "task_id": "p-208",
+      "title": "Fixturuppgift p-208",
+      "state": "MERGING",
+      "source": {
+        "source_id": "src-008",
+        "sha256": "0a8f2de7673a48ff4d99fe8d98391a6d0830c238888fd959679212f549671715",
+        "locator": "backlog-aug.md"
+      },
+      "attempt": {
+        "n": 1,
+        "budget": null
+      },
+      "phase": null,
+      "builder": {
+        "agent": null,
+        "model": null
+      },
+      "risk_class": null,
+      "base_sha": "6fd20611c641a0035defbeb1bd468312ea70906f",
+      "candidate_sha": "c50cca889949ea21bd6e8bb756f66fb87a6d1975",
+      "first_seen_ts": "2026-01-01T00:00:08.000Z",
+      "policy": "NOT_RUN",
+      "verification": "NOT_RUN",
+      "task_gate": {
+        "verdict": "NOT_RUN",
+        "grind_id": null,
+        "grind_sha256": null
+      },
+      "evaluation": {
+        "required": null,
+        "verdict": "NOT_RUN",
+        "findings": null
+      },
+      "attestation": null,
+      "merge": null,
+      "promotion": null,
+      "evidence_refs": []
+    },
+    {
+      "task_id": "p-210",
+      "title": "Fixturuppgift p-210",
+      "state": "STOPPED",
+      "source": {
+        "source_id": "src-010",
+        "sha256": "d2434e319be932f4265cb408cb7af9234045c44483ccceac16b10aba490867ac",
+        "locator": "backlog-aug.md"
+      },
+      "attempt": {
+        "n": 1,
+        "budget": null
+      },
+      "phase": null,
+      "builder": {
+        "agent": null,
+        "model": null
+      },
+      "risk_class": null,
+      "base_sha": "a41f87dd11db3784a82783062be58baae6ae31af",
+      "candidate_sha": null,
+      "first_seen_ts": "2026-01-01T00:00:10.000Z",
+      "policy": "NOT_RUN",
+      "verification": "NOT_RUN",
+      "task_gate": {
+        "verdict": "NOT_RUN",
+        "grind_id": null,
+        "grind_sha256": null
+      },
+      "evaluation": {
+        "required": null,
+        "verdict": "NOT_RUN",
+        "findings": null
+      },
+      "attestation": null,
+      "merge": null,
+      "promotion": null,
+      "evidence_refs": []
+    }
+  ],
+  "completed": [
+    {
+      "task_id": "p-209",
+      "title": "Fixturuppgift p-209",
+      "state": "DONE",
+      "source": {
+        "source_id": "src-009",
+        "sha256": "c48699e5dd4d1133df3c6103591f86f9f2ec7e9bfe290200d615d7a6e78393ce",
+        "locator": null
+      },
+      "attempt": {
+        "n": 1,
+        "budget": null
+      },
+      "phase": null,
+      "builder": {
+        "agent": null,
+        "model": null
+      },
+      "risk_class": null,
+      "base_sha": "ebfa96316e533d2a9c4c7583f85175135ff22f5e",
+      "candidate_sha": "a1093e36cda88860996c06ee35dca1b5e7e5256e",
+      "first_seen_ts": "2026-01-01T00:00:09.000Z",
+      "policy": "PASS",
+      "verification": "PASS",
+      "task_gate": {
+        "verdict": "PASS",
+        "grind_id": "grind-009",
+        "grind_sha256": "28cc738fbc9b8413052be45b8eba390158994a1b8531b7eb70cb5be9693f405d"
+      },
+      "evaluation": {
+        "required": null,
+        "verdict": "NOT_RUN",
+        "findings": null
+      },
+      "attestation": {
+        "exists": true,
+        "promotion_eligible": true
+      },
+      "merge": null,
+      "promotion": null,
+      "evidence_refs": [
+        "evidence-ref-task-p-209"
+      ]
+    }
+  ]
+}
