@@ -1,6 +1,7 @@
 {
   "version": 1,
   "maxRemediationRounds": 3,
+  "maxBuilderContinuationResumes": 6,
   "models": {
     "architect": "opus",
     "builder": "opus",

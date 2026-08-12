@@ -94,6 +94,15 @@ export type TaskSpec = z.infer<typeof TaskSchema>;
 export const ConfigSchema = z.object({
   version: z.literal(1),
   maxRemediationRounds: z.number().int().min(0).max(10).default(3),
+  /**
+   * Bounded budget for automatic builder self-resume segments after `error_max_turns`.
+   *
+   * This is a TOTAL-PER-RUN budget for continuing the SAME builder session across bounded
+   * Claude segments. It is orthogonal to `maxRemediationRounds`: a continuation is the same
+   * builder turn continuing, never a new remediation round. Legacy configs without the field
+   * parse to the empirically chosen default of 6.
+   */
+  maxBuilderContinuationResumes: z.number().int().min(0).max(20).default(6),
   models: z.object({ architect: z.string(), builder: z.string(), reviewer: z.string(), visualReviewer: z.string() }),
   publish: z.object({ enabled: z.boolean(), autoMerge: z.boolean(), mergeMethod: z.enum(['rebase']) }),
 });
@@ -111,6 +120,14 @@ export const RunStateSchema = z.object({
   candidateSha: z.string().nullable(),
   sessions: z.object({ architect: z.string().nullable(), builder: z.string().nullable(), reviewer: z.string().nullable(), visualReviewer: z.string().nullable() }),
   ownerRemediationExtensionRounds: z.number().int().min(0).max(10).default(0),
+  /**
+   * Automatic builder continuation segments already consumed by this run, TOTAL PER RUN.
+   *
+   * Never reset on builder success and never reset between remediation rounds: it is the
+   * persisted audit trail of how much bounded self-resume the run has spent. Legacy state
+   * files without the field parse as 0.
+   */
+  builderContinuationResumesUsed: z.number().int().nonnegative().default(0),
   findings: z.array(FindingSchema),
   advisoryFindings: z.array(FindingSchema).default([]),
   prUrl: z.string().nullable(),

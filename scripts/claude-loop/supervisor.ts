@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ConfigSchema, TaskSchema, type FactoryConfig, type Finding, type RunState, type TaskSpec } from './schemas';
+import { ConfigSchema, TaskSchema, type FactoryConfig, type Finding, type RoleResult, type RunState, type TaskSpec } from './schemas';
 import { repoRoot, readJson, nowId, slug, checkWriteScope, git } from './util';
 import { originMain, createWorktree, changedFiles, commitCandidate, clean } from './git';
 import { ClaudeRoleFailure, runRole } from './claude';
@@ -25,6 +25,104 @@ function mergeAdvisories(current: Finding[], next: Finding[]): Finding[] {
 
 export function recoverableBuilderSession(error: unknown): string | null {
   return error instanceof ClaudeRoleFailure && error.role === 'builder' ? error.sessionId : null;
+}
+
+/** The single failure subtype that a builder may continue from without operator involvement. */
+export const BUILDER_CONTINUATION_SUBTYPE = 'error_max_turns';
+
+/** Stable prefix of the persisted blocked reason written when the continuation budget is spent. */
+export const BUILDER_CONTINUATION_BUDGET_BLOCK_PREFIX = 'builder continuation budget exhausted after ';
+
+export function builderContinuationBudgetBlockedReason(sessionId: string, used: number): string {
+  return `${BUILDER_CONTINUATION_BUDGET_BLOCK_PREFIX}${used} automatic continuation${used === 1 ? '' : 's'}; builder session ${sessionId} is retained and can continue only if maxBuilderContinuationResumes is raised above ${used}`;
+}
+
+/**
+ * True only for a builder `error_max_turns` failure that still carries a usable session identity.
+ *
+ * Every other Claude failure — any other subtype, any other role, or a lost builder session —
+ * stays an ordinary immediate blocker.
+ */
+export function isBuilderContinuationFailure(error: unknown): error is ClaudeRoleFailure {
+  return error instanceof ClaudeRoleFailure
+    && error.role === 'builder'
+    && error.subtype === BUILDER_CONTINUATION_SUBTYPE
+    && typeof error.sessionId === 'string'
+    && error.sessionId.length > 0;
+}
+
+/** Continuations left under the CURRENT config; a raised limit re-opens an exhausted run. */
+export function builderContinuationsRemaining(config: FactoryConfig, state: RunState): number {
+  return Math.max(0, config.maxBuilderContinuationResumes - state.builderContinuationResumesUsed);
+}
+
+/**
+ * Resume gate for a run blocked purely because the continuation budget ran out.
+ *
+ * Fails closed while the configured limit still sits at or below the persisted used count, and
+ * re-opens the SAME persisted builder session once an operator raises the configured limit.
+ */
+export function builderContinuationResumeBlocked(config: FactoryConfig, state: RunState): boolean {
+  return state.phase === 'BLOCKED'
+    && !!state.blockedReason?.startsWith(BUILDER_CONTINUATION_BUDGET_BLOCK_PREFIX)
+    && builderContinuationsRemaining(config, state) === 0;
+}
+
+export type BuilderSegmentResult = { sessionId: string; result: RoleResult };
+
+/** Production-used seam: one bounded Claude builder segment, resumed from `resume` when present. */
+export type BuilderContinuationDeps = {
+  runBuilderSegment: (args: { prompt: string; resume: string | null; round: number }) => Promise<BuilderSegmentResult>;
+  persist: (state: RunState) => void;
+  emit: (event: string, fields: Record<string, unknown>) => void;
+};
+
+/**
+ * Runs the builder for one remediation round as a sequence of bounded Claude segments.
+ *
+ * `error_max_turns` is not a builder defect, it is an exhausted segment. Rather than handing the
+ * run to an operator, this composes the next bounded segment on the EXACT same builder session,
+ * same worktree, same round, same prompt and same remediation findings. A continuation never
+ * touches `state.attempt`, `maxRemediationRounds` or `ownerRemediationExtensionRounds`, never
+ * creates a candidate and never runs gates or reviewers between segments; the returned success
+ * re-enters the ordinary gates/candidate/reviewer path unchanged.
+ *
+ * The persisted counter is incremented and saved BEFORE the next segment starts, so a crash mid
+ * segment can never make the budget look cheaper than it was. When the budget is spent the loop
+ * fails closed WITHOUT invoking another model segment, retaining the session identity.
+ */
+export async function runBuilderWithContinuation(args: {
+  state: RunState;
+  config: FactoryConfig;
+  round: number;
+  prompt: string;
+  deps: BuilderContinuationDeps;
+}): Promise<BuilderSegmentResult> {
+  const { state, config, round, prompt, deps } = args;
+  for (;;) {
+    try {
+      const b = await deps.runBuilderSegment({ prompt, resume: state.sessions.builder, round });
+      return b;
+    } catch (error) {
+      const recovered = recoverableBuilderSession(error);
+      if (recovered) {
+        // A different session id means the transcript we intended to continue is gone: blocker.
+        if (state.sessions.builder && state.sessions.builder !== recovered) throw new Error(`builder session identity changed: ${state.sessions.builder} -> ${recovered}`);
+        state.sessions.builder = recovered; deps.persist(state);
+        const failure = error as ClaudeRoleFailure;
+        deps.emit('builder.session_preserved_after_error', { session_id: recovered, subtype: failure.subtype, num_turns: failure.numTurns, round });
+      }
+      if (!isBuilderContinuationFailure(error) || !recovered) throw error;
+
+      if (builderContinuationsRemaining(config, state) === 0) {
+        deps.emit('builder.continuation_budget_exhausted', { session_id: recovered, round, continuations_used: state.builderContinuationResumesUsed, max_continuations: config.maxBuilderContinuationResumes });
+        throw new Error(builderContinuationBudgetBlockedReason(recovered, state.builderContinuationResumesUsed));
+      }
+      // Persist the spent continuation BEFORE the next segment is started.
+      state.builderContinuationResumesUsed += 1; deps.persist(state);
+      deps.emit('builder.continuation_started', { session_id: recovered, round, subtype: error.subtype, num_turns: error.numTurns, continuations_used: state.builderContinuationResumesUsed, max_continuations: config.maxBuilderContinuationResumes });
+    }
+  }
 }
 
 export function nextRoundAfterRemediation(round: number): number { return round + 1; }
@@ -78,7 +176,7 @@ export async function startRun(taskFile: string): Promise<RunState> {
   const runId = `${slug(task.id)}-${nowId()}`;
   const wtRoot = path.join(os.homedir(), 'nortropic', 'worktrees', 'claude-factory');
   const { worktree, branch } = createWorktree(repo, wtRoot, task.id, runId, baseSha);
-  let state: RunState = { version: 1, runId, task, baseSha, branch, worktree, phase: 'ARCHITECT', attempt: 0, candidateSha: null, sessions: { architect: null, builder: null, reviewer: null, visualReviewer: null }, ownerRemediationExtensionRounds: 0, findings: [], advisoryFindings: [], prUrl: null, blockedReason: null };
+  let state: RunState = { version: 1, runId, task, baseSha, branch, worktree, phase: 'ARCHITECT', attempt: 0, candidateSha: null, sessions: { architect: null, builder: null, reviewer: null, visualReviewer: null }, ownerRemediationExtensionRounds: 0, builderContinuationResumesUsed: 0, findings: [], advisoryFindings: [], prUrl: null, blockedReason: null };
   saveState(repo, state);
   return await execute(repo, config, state);
 }
@@ -88,6 +186,11 @@ export async function resumeRun(runId: string): Promise<RunState> {
   const config = loadConfig(repo);
   const state = loadState(repo, runId);
   if (!fs.existsSync(state.worktree)) throw new Error(`recorded worktree missing: ${state.worktree}`);
+  // Fail before any Claude segment while the continuation budget is still spent under the
+  // CURRENT config; raising maxBuilderContinuationResumes re-opens the same persisted session.
+  if (builderContinuationResumeBlocked(config, state)) {
+    throw new Error(`builder continuation budget exhausted (${state.builderContinuationResumesUsed}/${config.maxBuilderContinuationResumes}); raise maxBuilderContinuationResumes above ${state.builderContinuationResumesUsed} before resume`);
+  }
   const maxRound = allowedMaxRound(config, state);
   const legacyExhausted = state.ownerRemediationExtensionRounds === 0 && state.attempt === config.maxRemediationRounds;
   if (state.phase === 'BLOCKED' && state.blockedReason?.startsWith('remediation budget exhausted after ') && (legacyExhausted || state.attempt > maxRound)) {
@@ -129,19 +232,18 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
       const prompt = round === 0
         ? `${basePrompt(state.task)}\n\nImplement the task now in this worktree. You are not allowed to publish. Run useful local checks.\n\n${supervisorGateHandoff}`
         : `${basePrompt(state.task)}\n\nRemediate these independent findings, then rerun relevant checks:\n${JSON.stringify(state.findings, null, 2)}\n\n${supervisorGateHandoff}`;
-      let b: Awaited<ReturnType<typeof runRole>>;
-      try {
-        b = await runRole({ role: 'builder', cwd: state.worktree, prompt, resume: state.sessions.builder, model: config.models.builder });
-      } catch (error) {
-        const recovered = recoverableBuilderSession(error);
-        if (recovered) {
-          if (state.sessions.builder && state.sessions.builder !== recovered) throw new Error(`builder session identity changed: ${state.sessions.builder} -> ${recovered}`);
-          state.sessions.builder = recovered; saveState(repo, state);
-          const failure = error as ClaudeRoleFailure;
-          t.emit('builder.session_preserved_after_error', { session_id: recovered, subtype: failure.subtype, num_turns: failure.numTurns, round });
-        }
-        throw error;
-      }
+      const b = await runBuilderWithContinuation({
+        state,
+        config,
+        round,
+        prompt,
+        deps: {
+          // maxTurns per segment stays the claude.ts default: this composes bounded segments.
+          runBuilderSegment: (seg) => runRole({ role: 'builder', cwd: state.worktree, prompt: seg.prompt, resume: seg.resume, model: config.models.builder }),
+          persist: (s) => saveState(repo, s),
+          emit: (event, fields) => t.emit(event, fields),
+        },
+      });
       state.sessions.builder = b.sessionId; saveState(repo, state);
       t.emit('builder.completed', { session_id: b.sessionId, outcome: b.result.outcome, round });
       if (b.result.outcome === 'BLOCKED') throw new Error(`builder blocked: ${b.result.summary}`);
