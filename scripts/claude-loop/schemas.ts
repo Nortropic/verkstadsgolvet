@@ -24,6 +24,8 @@ export const VisualConfigSchema = z.object({
   previewCommand: z.array(z.string().min(1)).min(1),
   previewUrl: z.string().url(),
   readyTimeoutMs: z.number().int().positive().default(60000),
+  // Opt-in only. Anonymous visual review remains the default and never requires credentials.
+  authenticated: z.boolean().default(false),
   viewports: z.array(z.object({ name: z.string(), width: z.number().int().positive(), height: z.number().int().positive() })).default([
     { name: 'desktop', width: 1440, height: 1000 },
     { name: 'tablet', width: 900, height: 1000 },
