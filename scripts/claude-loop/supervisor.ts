@@ -44,6 +44,17 @@ export function extendRemediationState(state: RunState, config: FactoryConfig, r
   return { ...state, attempt: nextAttempt, ownerRemediationExtensionRounds: state.ownerRemediationExtensionRounds + rounds };
 }
 
+/**
+ * Pure successful-completion transition.
+ *
+ * A terminal success must not carry stale blocking metadata from an earlier BLOCKED
+ * state, so `blockedReason` is cleared here and only here. Every other field is
+ * preserved and the input prestate is never mutated.
+ */
+export function completeRunState(state: RunState): RunState {
+  return { ...state, phase: 'DONE', findings: [], blockedReason: null };
+}
+
 export function loadConfig(repo: string): FactoryConfig {
   const local = path.join(repo, '.claude-loop.json');
   const example = path.join(repo, '.claude-loop.example.json');
@@ -195,8 +206,9 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
         const p = publish({ repo, worktree: state.worktree, branch: state.branch, baseSha: state.baseSha, candidateSha: state.candidateSha!, taskId: state.task.id, autoMerge: config.publish.autoMerge });
         state.prUrl = p.prUrl; t.emit(p.mergedMain ? 'publication.completed' : 'pr.created', { pr: p.prUrl, main: p.mergedMain ?? null });
       }
-      state.phase = 'DONE'; state.findings = []; saveState(repo, state); t.emit('run.completed', { task: state.task.id, candidate_sha: state.candidateSha, pr: state.prUrl, advisory_findings: state.advisoryFindings });
-      return state;
+      const completed = completeRunState(state);
+      saveState(repo, completed); t.emit('run.completed', { task: completed.task.id, candidate_sha: completed.candidateSha, pr: completed.prUrl, advisory_findings: completed.advisoryFindings });
+      return completed;
     }
     throw new Error(`remediation budget exhausted after ${maxRound + 1} rounds`);
   } catch (e) {
