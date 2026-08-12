@@ -30,7 +30,13 @@ A blocked run preserves its Git worktree and run state. Re-run:
 npm run claude:resume -- <run-id>
 ```
 
-Do not reset/rebase/amend a blocked worktree. The supervisor resumes from recorded facts and existing immutable candidate commits.
+Do not reset/rebase/amend a blocked worktree. The supervisor resumes from recorded facts and existing immutable candidate commits. Terminal builder errors preserve the recoverable builder session ID in run state. A remediation-budget block does NOT gain another model round by repeated `resume`; it requires an explicit owner extension:
+
+```bash
+npx tsx scripts/claude-loop/cli.ts extend-remediation <run-id> 1
+```
+
+An extension is runtime workflow state, not publication or trust authority. Keep it bounded and owner-reviewed.
 
 ## Visual review
 

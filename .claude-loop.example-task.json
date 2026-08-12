@@ -15,7 +15,8 @@
   ],
   "gates": [
     ["npx", "tsc", "--noEmit"],
-    ["npm", "run", "build"]
+    ["npm", "run", "build"],
+    ["npm", "run", "loop:test"]
   ],
   "visualReview": false
 }
