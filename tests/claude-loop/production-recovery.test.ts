@@ -2,8 +2,9 @@ import fs from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ClaudeRoleFailure } from '../../scripts/claude-loop/claude';
+import * as supervisor from '../../scripts/claude-loop/supervisor';
 import { allowedMaxRound, extendRemediationState, nextRoundAfterRemediation, recoverableBuilderSession } from '../../scripts/claude-loop/supervisor';
-import { ConfigSchema, RunStateSchema, TaskSchema } from '../../scripts/claude-loop/schemas';
+import { ConfigSchema, RunStateSchema, TaskSchema, type RunState } from '../../scripts/claude-loop/schemas';
 
 const config = ConfigSchema.parse(JSON.parse(fs.readFileSync('.claude-loop.example.json', 'utf8')));
 const task = TaskSchema.parse(JSON.parse(fs.readFileSync('.claude-loop.example-task.json', 'utf8')));
@@ -77,4 +78,31 @@ test('builder hands sandbox-blocked required gates back to supervisor', () => {
   const builder = fs.readFileSync('.claude/agents/builder.md', 'utf8');
   assert.match(builder, /cannot run inside the Claude sandbox/);
   assert.match(builder, /supervisor can execute `task\.gates` mechanically/);
+});
+
+test('successful completion clears stale blocking metadata and preserves valid run state', () => {
+  const completeRunState = (supervisor as typeof supervisor & {
+    completeRunState?: (state: RunState) => RunState;
+  }).completeRunState;
+  assert.equal(typeof completeRunState, 'function', 'supervisor must expose the pure successful-completion transition');
+
+  const before = RunStateSchema.parse({
+    ...legacyBudgetState(),
+    runId: 'v1-20260811225005-synthetic',
+    phase: 'BLOCKED',
+    attempt: 5,
+    candidateSha: '36c18a06bd41cb1497270c1786eb0bb46dd5ca17',
+    sessions: { architect: 'arch-session', builder: 'builder-session', reviewer: 'reviewer-session', visualReviewer: 'visual-session' },
+    ownerRemediationExtensionRounds: 2,
+    findings: [{ id: 'old-blocker', severity: 'major', message: 'resolved before completion' }],
+    advisoryFindings: [{ id: 'advisory', severity: 'note', message: 'retain this valid advisory' }],
+    prUrl: 'https://example.test/pull/17',
+    blockedReason: 'remediation budget exhausted after 5 rounds',
+  });
+  const snapshot = structuredClone(before);
+
+  const after = completeRunState!(before);
+
+  assert.deepEqual(after, { ...before, phase: 'DONE', blockedReason: null, findings: [] });
+  assert.deepEqual(before, snapshot, 'pure completion transition must not mutate its BLOCKED prestate');
 });
