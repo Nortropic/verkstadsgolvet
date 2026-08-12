@@ -61,7 +61,10 @@ export const LOOP_CSS = `
 .mk-mono { font-family: var(--font-mono); font-size: 11.5px; }
 .mk-missing { color: var(--text-disabled); }
 .mk-liveness { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-secondary); }
-.mk-liveness-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--text-disabled);
+/* Ihålig ring = planens "○ OKÄNT". Den FYLLDA punkten är reserverad för "● AUTONOM" och
+   får bara användas av en skiva som har en FAKTISK liveness-signal (B2). Formen — inte bara
+   färgen och etiketten — ska skilja de två lägena åt vid en snabb blick. */
+.mk-liveness-dot { width: 7px; height: 7px; border-radius: 999px; background: transparent;
   box-shadow: inset 0 0 0 1px var(--border-strong); flex: none; }
 
 .mk-cols { display: grid; gap: var(--gap-md); align-items: start;

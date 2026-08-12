@@ -30,7 +30,7 @@ import PhaseRail, { activePhaseFromSnapshot } from "../../components/loop/PhaseR
 import { splitCompleted } from "../../components/loop/CompletedColumn";
 import { groupByState } from "../../components/loop/BacklogColumn";
 import { isLoopEnabled } from "../../components/loop/flag";
-import { shortSha } from "../../components/loop/ui";
+import { LOOP_CSS, shortSha } from "../../components/loop/ui";
 import MaskinenPage from "../../app/(app)/loop/page";
 import { FIXTURE_MODE, RAW_FIXTURES, fixtureSnapshot } from "../../lib/loop/fixtures";
 import {
@@ -59,6 +59,15 @@ function snapshotOrThrow(): LoopSnapshot {
 
 function renderShell(snapshot: LoopSnapshot | null, fixture = true): string {
   return renderToStaticMarkup(createElement(MaskinShell, { snapshot, fixture }));
+}
+
+/**
+ * Markupen utan stilarket. Påståenden om vad UI:t SÄGER ska mätas på det som syns, inte på
+ * CSS-regler och deras kommentarer. De negativa kontrollerna läser tvärtom hela markupen,
+ * stilarket inkluderat — där är just CSS:en det som ska granskas.
+ */
+function withoutStyles(html: string): string {
+  return html.replace(/<style[^>]*>[\s\S]*?<\/style>/g, "");
 }
 
 /** Alla <article>-kort i markupen. Korten nästlas aldrig i varandra. */
@@ -217,7 +226,28 @@ test("V2-DATA: skalet renderar tre kolumner och snapshotens egna värden, inte p
   assert.ok(html.includes("FIXTUR"), "fixturläget märks inte ut i UI:t");
   // Ingen liveness-signal finns i den här skivan → aldrig AUTONOM.
   assert.ok(html.includes('data-liveness="unknown"'));
-  assert.ok(!/AUTONOM/.test(html), "UI:t påstod AUTONOM utan liveness-signal");
+  assert.ok(
+    !/AUTONOM/.test(withoutStyles(html)),
+    "UI:t påstod AUTONOM utan liveness-signal",
+  );
+
+  /**
+   * Planen skiljer glyferna åt: "● AUTONOM" endast med faktisk signal, annars "○ OKÄNT".
+   * Formen får därför inte vara densamma i de två lägena. Utan signal ska punkten vara
+   * IHÅLIG — en fylld punkt bredvid OKÄNT läses vid en snabb blick som en liveness-markör
+   * även när färg och etikett är ärliga.
+   */
+  assert.match(
+    LOOP_CSS,
+    /\.mk-liveness-dot\s*\{[^}]*background:\s*transparent/,
+    "punkten för okänd liveness är fylld — samma form som live-signalens markör",
+  );
+  assert.match(
+    LOOP_CSS,
+    /\.mk-liveness-dot\s*\{[^}]*box-shadow:\s*inset 0 0 0 1px var\(--border-strong\)/,
+    "den ihåliga punkten saknar ring och syns inte",
+  );
+  assert.ok(html.includes(LOOP_CSS), "stilarket når aldrig markupen");
 
   // Varje kort i markupen motsvarar en task ur snapshoten — inga extra, inga uppfunna.
   const ids = cards(html).map((card) => attr(card, "data-task-id"));
