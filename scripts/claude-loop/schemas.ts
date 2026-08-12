@@ -63,6 +63,7 @@ export const RunStateSchema = z.object({
   attempt: z.number().int().nonnegative(),
   candidateSha: z.string().nullable(),
   sessions: z.object({ architect: z.string().nullable(), builder: z.string().nullable(), reviewer: z.string().nullable(), visualReviewer: z.string().nullable() }),
+  ownerRemediationExtensionRounds: z.number().int().min(0).max(10).default(0),
   findings: z.array(FindingSchema),
   advisoryFindings: z.array(FindingSchema).default([]),
   prUrl: z.string().nullable(),

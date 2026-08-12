@@ -4,7 +4,7 @@ import path from 'node:path';
 import { doctor } from './doctor';
 import { liveSmoke } from './smoke';
 import { empiricalSmoke } from './empirical-smoke';
-import { startRun, resumeRun } from './supervisor';
+import { extendRemediationBudget, startRun, resumeRun } from './supervisor';
 import { repoRoot, commonGitDir } from './util';
 
 async function main(): Promise<void> {
@@ -21,6 +21,11 @@ async function main(): Promise<void> {
     const id = args[0]; if (!id) throw new Error('resume requires run-id');
     const s = await resumeRun(id); console.log(JSON.stringify(s, null, 2)); return;
   }
+  if (cmd === 'extend-remediation') {
+    const id = args[0]; const rounds = Number(args[1]);
+    if (!id || !Number.isInteger(rounds) || rounds < 1) throw new Error('extend-remediation requires run-id and positive integer rounds');
+    const s = extendRemediationBudget(id, rounds); console.log(JSON.stringify(s, null, 2)); return;
+  }
   if (cmd === 'status') {
     const repo = repoRoot(); const root = path.join(commonGitDir(repo), 'claude-factory', 'runs');
     if (!fs.existsSync(root)) { console.log('NO_RUNS'); return; }
@@ -34,7 +39,7 @@ async function main(): Promise<void> {
     console.log(`Watch ${root}; Ctrl-C to stop.`);
     let last=''; setInterval(() => { if (!fs.existsSync(root)) return; const rows:string[]=[]; for (const d of fs.readdirSync(root).sort()) { const p=path.join(root,d,'state.json'); if(fs.existsSync(p)){const s=JSON.parse(fs.readFileSync(p,'utf8')); rows.push(`${s.runId}\t${s.task?.id}\t${s.phase}\t${s.candidateSha ?? '-'}`);}} const v=rows.join('\n'); if(v!==last){console.clear();console.log(v||'NO_RUNS');last=v;} }, 1500); return;
   }
-  throw new Error('usage: cli.ts doctor|selftest|live-smoke|empirical-smoke|status|watch|run --task <file>|resume <run-id>');
+  throw new Error('usage: cli.ts doctor|selftest|live-smoke|empirical-smoke|status|watch|run --task <file>|resume <run-id>|extend-remediation <run-id> <rounds>');
 }
 
 main().catch((e) => { console.error(`CLAUDE_FACTORY_BLOCKED: ${e instanceof Error ? e.stack || e.message : String(e)}`); process.exitCode = 2; });

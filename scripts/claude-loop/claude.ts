@@ -16,6 +16,20 @@ function roleBody(cwd: string, role: RoleName): string {
 
 const STRUCTURED_OUTPUT_TOOL = 'StructuredOutput';
 
+export class ClaudeRoleFailure extends Error {
+  constructor(
+    public readonly role: RoleName,
+    public readonly subtype: string,
+    public readonly sessionId: string | null,
+    public readonly numTurns: number | null,
+    result: string,
+  ) {
+    const compact = result.replace(/\s+/g, ' ').slice(0, 800);
+    super(`Claude role ${role} failed subtype=${subtype} session_id=${sessionId ?? 'UNKNOWN'} num_turns=${numTurns ?? 'UNKNOWN'}: ${compact}`);
+    this.name = 'ClaudeRoleFailure';
+  }
+}
+
 export function roleDefinition(cwd: string, role: RoleName, model?: string): AgentDefinition {
   const common = { description: `Claude Factory ${role}`, prompt: roleBody(cwd, role), model: model ?? 'opus', maxTurns: 48 };
   if (role === 'builder') return { ...common, tools: ['Read','Glob','Grep','Edit','Write','Bash',STRUCTURED_OUTPUT_TOOL], permissionMode: 'acceptEdits' };
@@ -54,13 +68,18 @@ export async function runRole(args: {
     if (m.type === 'system' && m.subtype === 'init') sessionId = m.session_id || m.data?.session_id || sessionId;
     if (m.type === 'result') {
       subtype = String(m.subtype || '');
+      const resultSession = typeof m.session_id === 'string' && m.session_id ? m.session_id : sessionId;
+      if (resultSession) sessionId = resultSession;
+      const numTurns = Number.isInteger(m.num_turns) ? Number(m.num_turns) : null;
       if (m.subtype === 'success') {
         structured = m.structured_output;
         if (structured === undefined || structured === null) {
           const raw = String(m.result || '').replace(/\s+/g, ' ').slice(0, 800);
           throw new Error(`Claude role ${args.role} returned success without structured_output; raw_result=${raw}`);
         }
-      } else throw new Error(`Claude role ${args.role} failed subtype=${m.subtype}: ${String(m.result || '')}`);
+      } else {
+        throw new ClaudeRoleFailure(args.role, subtype, sessionId || null, numTurns, String(m.result || ''));
+      }
     }
   }
   if (!sessionId) throw new Error(`Claude role ${args.role} did not provide session_id`);
