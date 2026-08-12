@@ -21,6 +21,22 @@ function isLoginLocation(url: URL): boolean {
   return pathname === LOGIN_PATH;
 }
 
+/**
+ * URL-normalized comparison form of a navigation target. Comparing `href` preserves and enforces
+ * protocol, hostname, effective port, pathname, query string and fragment in a single check.
+ */
+function normalizedTarget(url: string): string {
+  return new URL(url).href;
+}
+
+/** Renders a target for error messages with any embedded userinfo removed, so no credential leaks. */
+function describeTarget(url: string): string {
+  const safe = new URL(url);
+  safe.username = '';
+  safe.password = '';
+  return safe.href;
+}
+
 /** Reads a required runtime credential. The value is never included in errors or logs. */
 function requiredCredential(name: 'AUTH_USERNAME' | 'AUTH_PASSWORD'): string {
   const value = process.env[name];
@@ -52,8 +68,15 @@ export async function authenticatePreviewPage(page: PreviewAuthPage, previewUrl:
   }
   // Evidence must show the requested protected target, not a default post-login landing page.
   await page.goto(previewUrl, { waitUntil: 'networkidle' });
-  if (isLoginLocation(new URL(page.url()))) {
-    throw new Error(`authenticated visual review failed: ${LOGIN_PATH} was served instead of the requested preview target`);
+  // The final browser location is the evidence target: any redirect or fallback elsewhere fails closed.
+  const expectedTarget = normalizedTarget(previewUrl);
+  const actualTarget = normalizedTarget(page.url());
+  if (actualTarget !== expectedTarget) {
+    throw new Error(
+      isLoginLocation(new URL(actualTarget))
+        ? `authenticated visual review failed: ${LOGIN_PATH} was served instead of the requested preview target ${describeTarget(expectedTarget)}`
+        : `authenticated visual review failed: preview navigation ended on ${describeTarget(actualTarget)} instead of the exact requested target ${describeTarget(expectedTarget)}`,
+    );
   }
 }
 
