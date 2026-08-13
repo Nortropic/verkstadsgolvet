@@ -410,8 +410,24 @@ test("V4 exit 4 · ingen /api/loop-route finns i middleware-matcherns undantag",
   );
 });
 
+/**
+ * V4:s LÄSROUTAR. V7 lade till app/api/loop/command — en POST-yta för typade intentioner —
+ * och den är per definition inte en läsroute. Djupförsvaret (auth · LOOP_ENABLED · ingen
+ * cachning) gäller ALLA handlers under app/api/loop och mäts nedan för hela mängden; endast
+ * metodkravet (GET, aldrig en skrivmetod) är läsytans eget och mäts på den här delmängden.
+ * Kommandoytans egna metodgränser mäts av tests/loop/v7-command-surface.test.ts.
+ */
+const LOOP_READ_API_FILES = LOOP_API_FILES.filter(
+  (file) => !file.endsWith(path.join("command", "route.ts")),
+);
+
 test("V4 exit 4 · varje /api/loop-handler anropar auth() SJÄLV, före varje läsning", () => {
   assert.ok(LOOP_API_FILES.length >= 3, "förväntade minst snapshot-, events- och task-routen");
+  assert.equal(
+    LOOP_API_FILES.length - LOOP_READ_API_FILES.length,
+    1,
+    "kommandoytan hittades inte — delmängden mäter då fel routar",
+  );
 
   for (const file of LOOP_API_FILES) {
     const relative = path.relative(REPO, file);
@@ -433,7 +449,17 @@ test("V4 exit 4 · varje /api/loop-handler anropar auth() SJÄLV, före varje l�
     assert.ok(text.includes("isLoopEnabled()"), `${relative} saknar LOOP_ENABLED-grinden`);
     assert.ok(text.includes("status: 404"), `${relative} saknar 404-vägen`);
 
-    // Läsyta = läsyta. Ingen handler får ta emot en skrivmetod (kommandon är V7).
+    assert.ok(
+      text.includes("no-store") || /LOOP_READ_HEADERS|COMMAND_HEADERS/.test(text),
+      `${relative} cachar`,
+    );
+  }
+
+  for (const file of LOOP_READ_API_FILES) {
+    const relative = path.relative(REPO, file);
+    const text = source(file);
+
+    // Läsyta = läsyta. Ingen LÄSROUTE får ta emot en skrivmetod (kommandon är V7:s egen route).
     for (const verb of ["POST", "PUT", "PATCH", "DELETE"]) {
       assert.ok(
         !new RegExp(`export\\s+(async\\s+)?function\\s+${verb}\\b`).test(text),
@@ -441,7 +467,6 @@ test("V4 exit 4 · varje /api/loop-handler anropar auth() SJÄLV, före varje l�
       );
     }
     assert.ok(/export\s+async\s+function\s+GET\b/.test(text), `${relative} saknar GET`);
-    assert.ok(text.includes("no-store") || text.includes("LOOP_READ_HEADERS"), `${relative} cachar`);
   }
 });
 

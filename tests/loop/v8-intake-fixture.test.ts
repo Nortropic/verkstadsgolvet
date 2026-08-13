@@ -218,23 +218,24 @@ test("V8*-FIXTUR: läget märks ut synligt och maskinläsbart — skivan påstå
 /* ── 2 · Ingen transport, ingen route, ingen hash, ingen markdown-tolkning ─── */
 
 /**
- * V4 byggde LÄSYTAN (app/api/loop/{snapshot,events,task}). Provet mäter därför inte längre
- * att app/api/loop saknas, utan det som fortfarande gäller: katalogen får innehålla EXAKT
- * V4:s tre läsroutar. Ingen intake-route (V8 live, blockerad på S10 + S13), inget kommando
- * (V7) och ingen ström (V9) har smugit in.
+ * V4 byggde LÄSYTAN (app/api/loop/{snapshot,events,task}) och V7 den SMALA KOMMANDOYTAN
+ * (app/api/loop/command). Provet mäter därför inte att app/api/loop saknas, utan det som
+ * fortfarande gäller för DEN HÄR skivan: katalogen får innehålla exakt de fyra byggda
+ * routarna. Ingen intake-route (V8 live, blockerad på S10 + S13) och ingen ström (V9) har
+ * smugit in — och kommandoytans egna gränser mäts av tests/loop/v7-command-surface.test.ts.
  */
-const ALLOWED_LOOP_API_ROUTES = ["events", "snapshot", "task"];
+const ALLOWED_LOOP_API_ROUTES = ["command", "events", "snapshot", "task"];
 
-test("V8*-NEG: app/api/loop innehåller EXAKT V4:s läsroutar — ingen intake-, kommando- eller strömväg", () => {
+test("V8*-NEG: app/api/loop innehåller EXAKT de byggda routarna — ingen intake- eller strömväg", () => {
   const loopApi = path.join(REPO_ROOT, "app/api/loop");
   const present = existsSync(loopApi) ? readdirSync(loopApi).sort() : [];
   assert.deepEqual(
     present,
     ALLOWED_LOOP_API_ROUTES,
-    "app/api/loop har en route utanför V4:s läsyta",
+    "app/api/loop har en route utanför läsytan och kommandoytan",
   );
 
-  for (const forbidden of ["intake", "command", "stream"]) {
+  for (const forbidden of ["intake", "stream"]) {
     assert.equal(
       existsSync(path.join(loopApi, forbidden, "route.ts")),
       false,
