@@ -23,7 +23,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as React from "react";
@@ -217,13 +217,30 @@ test("V8*-FIXTUR: läget märks ut synligt och maskinläsbart — skivan påstå
 
 /* ── 2 · Ingen transport, ingen route, ingen hash, ingen markdown-tolkning ─── */
 
-test("V8*-NEG: app/api/loop/intake finns INTE — och ingen loop-route har smugit in i app/api", () => {
-  assert.equal(existsSync(path.join(REPO_ROOT, "app/api/loop")), false, "app/api/loop finns");
-  assert.equal(
-    existsSync(path.join(REPO_ROOT, "app/api/loop/intake/route.ts")),
-    false,
-    "intake-routen finns — den skivan är V8 live och blockerad på S10 + S13",
+/**
+ * V4 byggde LÄSYTAN (app/api/loop/{snapshot,events,task}). Provet mäter därför inte längre
+ * att app/api/loop saknas, utan det som fortfarande gäller: katalogen får innehålla EXAKT
+ * V4:s tre läsroutar. Ingen intake-route (V8 live, blockerad på S10 + S13), inget kommando
+ * (V7) och ingen ström (V9) har smugit in.
+ */
+const ALLOWED_LOOP_API_ROUTES = ["events", "snapshot", "task"];
+
+test("V8*-NEG: app/api/loop innehåller EXAKT V4:s läsroutar — ingen intake-, kommando- eller strömväg", () => {
+  const loopApi = path.join(REPO_ROOT, "app/api/loop");
+  const present = existsSync(loopApi) ? readdirSync(loopApi).sort() : [];
+  assert.deepEqual(
+    present,
+    ALLOWED_LOOP_API_ROUTES,
+    "app/api/loop har en route utanför V4:s läsyta",
   );
+
+  for (const forbidden of ["intake", "command", "stream"]) {
+    assert.equal(
+      existsSync(path.join(loopApi, forbidden, "route.ts")),
+      false,
+      `${forbidden}-routen finns — den skivan är inte byggd här`,
+    );
+  }
 });
 
 test("V8*-NEG: ingen transportväg, ingen hashning och ingen semantisk markdown-tolkning", () => {
