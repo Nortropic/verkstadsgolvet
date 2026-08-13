@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -6,6 +7,7 @@ import {
   BacklogSchema,
   CANONICAL_BACKLOG_FILE,
   ExternalMeasurementSchema,
+  assertMaterializesToTask,
   evaluateBacklog,
   evaluatePrerequisite,
   loadBacklog,
@@ -15,9 +17,11 @@ import {
   selectNextItem,
   validateBacklog,
   type Backlog,
+  type BacklogItem,
   type EvaluationContext,
   type ExternalMeasurement,
 } from '../../scripts/claude-loop/backlog';
+import { TaskSchema, isLoopbackPreviewTarget } from '../../scripts/claude-loop/schemas';
 import { PROTECTED_AUTHORITY_PATHS } from '../../scripts/claude-loop/scope';
 import { LedgerSchema, ledgerCompletedIds, ledgerOccupiedIds } from '../../scripts/claude-loop/ledger';
 
@@ -293,6 +297,160 @@ test('structural integrity is enforced, so a malformed backlog cannot schedule a
   const evidenceFreeDone = base();
   evidenceFreeDone.items = evidenceFreeDone.items.map((i) => (i.id === 'V1' ? { ...i, completionEvidence: [] } : i));
   assert.throws(() => validateBacklog(evidenceFreeDone), /claims DONE without completionEvidence/);
+});
+
+/* --------------------------------------------------------- visual configuration, before any run */
+
+/**
+ * The preview configuration proven by the persisted successful V2 Factory run: `/usr/bin/env`
+ * carries `LOOP_ENABLED=true` into `npm run dev`, whose own `--` separator forwards the host/port
+ * argv to Next.js. It is an argv array, so no shell ever interprets it.
+ */
+const PROVEN_VISUAL = {
+  previewCommand: ['/usr/bin/env', 'LOOP_ENABLED=true', 'npm', 'run', 'dev', '--', '--hostname', '127.0.0.1', '--port', '4317'],
+  previewUrl: 'http://127.0.0.1:4317/loop',
+  readyTimeoutMs: 120000,
+  authenticated: true,
+  viewports: [
+    { name: 'desktop', width: 1440, height: 1000 },
+    { name: 'tablet', width: 900, height: 1000 },
+    { name: 'mobile', width: 390, height: 844 },
+  ],
+};
+
+type RawBacklog = { items: Array<{ id: string; task: Record<string, unknown> }> };
+
+const canonicalJson = (): RawBacklog => JSON.parse(fs.readFileSync(path.join(process.cwd(), CANONICAL_BACKLOG_FILE), 'utf8')) as RawBacklog;
+
+/** Loads a mutated copy of the canonical backlog through the REAL production load path. */
+function loadMutatedCanonical(id: string, mutate: (task: Record<string, unknown>) => void): Backlog {
+  const json = canonicalJson();
+  const item = json.items.find((i) => i.id === id);
+  assert.ok(item, `${id} must exist in the canonical backlog`);
+  mutate(item.task);
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'claude-backlog-')), 'control-room-v1.json');
+  fs.writeFileSync(file, JSON.stringify(json, null, 2), 'utf8');
+  return loadBacklog(file);
+}
+
+const visualItems = (): BacklogItem[] => backlog.items.filter((i) => i.task.visualReview);
+
+test('every canonical visualReview slice carries a TaskSchema-valid preview configuration', () => {
+  const ids = visualItems().map((i) => i.id);
+  assert.ok(ids.includes('V8-FIXTURE'), 'the visual slices must include V8-FIXTURE');
+  assert.deepEqual(ids, ['V5', 'V8-FIXTURE', 'V8', 'V11', 'V6'], `visual slices changed: ${ids.join(',')}`);
+
+  for (const item of visualItems()) {
+    assert.ok(item.task.visual, `${item.id} declares visual review and must declare how the preview is started`);
+    const visual = item.task.visual!;
+    // The materialized task — what the supervisor actually runs — carries it verbatim.
+    const task = materializeTask(item, { baseSha: null, authorityClass: item.authorityClass });
+    assert.equal(TaskSchema.safeParse(task).success, true, `${item.id} must materialize into a TaskSchema-valid task`);
+    assert.equal(task.visualReview, true);
+    assert.deepEqual(task.visual, visual, `${item.id} preview configuration must survive materialization unchanged`);
+    // argv semantics: a list of arguments, never a shell string handed to a shell.
+    assert.ok(Array.isArray(visual.previewCommand) && visual.previewCommand.length >= 1);
+    for (const arg of visual.previewCommand) assert.equal(typeof arg === 'string' && arg.length > 0, true);
+    assert.equal(new URL(visual.previewUrl).protocol.startsWith('http'), true);
+    assert.ok(visual.readyTimeoutMs > 0);
+    assert.deepEqual(visual.viewports.map((v) => v.name), ['desktop', 'tablet', 'mobile'], `${item.id} must capture all three viewports`);
+    // Credential-bearing previews are loopback-only, everywhere in the canonical backlog.
+    if (visual.authenticated) assert.equal(isLoopbackPreviewTarget(visual.previewUrl), true, `${item.id} may only type credentials into a loopback origin`);
+  }
+});
+
+test('V8-FIXTURE carries exactly the preview configuration proven by the successful V2 Factory run', () => {
+  // Asserted against the tracked FILE, so the proof is about repository data and not about defaults.
+  const raw = canonicalJson().items.find((i) => i.id === 'V8-FIXTURE')!;
+  assert.deepEqual(raw.task.visual, PROVEN_VISUAL);
+
+  const item = backlog.items.find((i) => i.id === 'V8-FIXTURE')!;
+  assert.equal(item.task.visualReview, true);
+  assert.deepEqual(item.task.visual, PROVEN_VISUAL);
+  const task = materializeTask(item, { baseSha: null, authorityClass: 'ordinary' });
+  assert.deepEqual(task.visual, PROVEN_VISUAL, 'the run receives the proven configuration, not a default');
+  assert.deepEqual(task.visual!.previewCommand, PROVEN_VISUAL.previewCommand, 'the env/npm/-- argv semantics are preserved element by element');
+  assert.equal(task.visual!.previewUrl, 'http://127.0.0.1:4317/loop');
+  assert.equal(task.visual!.readyTimeoutMs, 120000);
+  assert.equal(task.visual!.authenticated, true);
+  assert.equal(isLoopbackPreviewTarget(task.visual!.previewUrl), true);
+  assert.deepEqual(task.visual!.viewports, [
+    { name: 'desktop', width: 1440, height: 1000 },
+    { name: 'tablet', width: 900, height: 1000 },
+    { name: 'mobile', width: 390, height: 844 },
+  ]);
+});
+
+test('visualReview=false never requires a preview configuration', () => {
+  const ordinary = backlog.items.filter((i) => !i.task.visualReview);
+  assert.ok(ordinary.length > 0);
+  for (const item of ordinary) {
+    assert.equal(item.task.visual, undefined, `${item.id} does not do visual review and declares no preview`);
+    const task = materializeTask(item, { baseSha: null, authorityClass: item.authorityClass });
+    assert.equal(task.visualReview, false);
+    assert.equal(task.visual, undefined);
+    assertMaterializesToTask(item); // and it validates without one
+  }
+  // Turning visual review OFF for a slice with no preview keeps the canonical backlog valid.
+  const loaded = loadMutatedCanonical('V8-FIXTURE', (task) => { task.visualReview = false; delete task.visual; });
+  assert.equal(loaded.items.find((i) => i.id === 'V8-FIXTURE')?.task.visualReview, false);
+});
+
+test('a visual slice without preview configuration fails canonical backlog validation, before any run or claim', () => {
+  // The real production load path: `loadBacklog` refuses the file outright.
+  assert.throws(
+    () => loadMutatedCanonical('V8-FIXTURE', (task) => { delete task.visual; }),
+    /backlog item V8-FIXTURE sets visualReview=true but declares no task\.visual preview configuration/,
+  );
+  // Nothing about that defect can be reached later: the loaded backlog object never exists, so no
+  // evaluation, no selection, no claim and no ledger entry can be derived from it.
+  assert.throws(() => loadMutatedCanonical('V5', (task) => { delete task.visual; }), /V5/);
+  assert.throws(() => loadMutatedCanonical('V6', (task) => { delete task.visual; }), /never discovered after a run has been claimed and started/);
+
+  // The same refusal applies to an already-parsed backlog object, so a mutated in-memory backlog is
+  // not a way around it either.
+  const stripped = BacklogSchema.parse(JSON.parse(JSON.stringify(backlog)));
+  stripped.items = stripped.items.map((i) => (i.id === 'V8-FIXTURE' ? { ...i, task: { ...i.task, visual: undefined } } : i));
+  assert.throws(() => validateBacklog(stripped), /sets visualReview=true but declares no task\.visual/);
+  assert.throws(() => assertMaterializesToTask(stripped.items.find((i) => i.id === 'V8-FIXTURE')!), /V8-FIXTURE/);
+});
+
+test('an unusable or unsafe preview configuration fails canonical backlog validation too', () => {
+  const cases: Array<{ label: string; visual: Record<string, unknown>; expect: RegExp }> = [
+    { label: 'empty argv', visual: { ...PROVEN_VISUAL, previewCommand: [] }, expect: /previewCommand|too_small|at least/i },
+    { label: 'shell string instead of argv', visual: { ...PROVEN_VISUAL, previewCommand: 'npm run dev' }, expect: /previewCommand|expected array/i },
+    { label: 'unparsable url', visual: { ...PROVEN_VISUAL, previewUrl: 'not-a-url' }, expect: /previewUrl|url/i },
+    { label: 'zero-size viewport', visual: { ...PROVEN_VISUAL, viewports: [{ name: 'desktop', width: 0, height: 1000 }] }, expect: /width|greater than/i },
+    { label: 'negative ready timeout', visual: { ...PROVEN_VISUAL, readyTimeoutMs: -1 }, expect: /readyTimeoutMs|greater than/i },
+    // The loopback-only barrier for credential-bearing previews, enforced on canonical data.
+    { label: 'authenticated remote origin', visual: { ...PROVEN_VISUAL, previewUrl: 'https://example.com/loop' }, expect: /loopback/ },
+    { label: 'authenticated lookalike host', visual: { ...PROVEN_VISUAL, previewUrl: 'http://127.0.0.1.evil.example/loop' }, expect: /loopback/ },
+  ];
+  for (const c of cases) {
+    assert.throws(() => loadMutatedCanonical('V8-FIXTURE', (task) => { task.visual = c.visual; }), c.expect, `${c.label} must fail canonical validation`);
+  }
+});
+
+test('anonymous remote visual review is still permitted; only credential-bearing previews are restricted', () => {
+  const loaded = loadMutatedCanonical('V8-FIXTURE', (task) => {
+    task.visual = { previewCommand: ['npm', 'run', 'dev'], previewUrl: 'https://staging.example.com/loop', authenticated: false };
+  });
+  const item = loaded.items.find((i) => i.id === 'V8-FIXTURE')!;
+  assert.equal(item.task.visual?.authenticated, false);
+  assert.equal(item.task.visual?.previewUrl, 'https://staging.example.com/loop');
+  // Defaults still apply to an anonymous preview, so it is complete without repeating them.
+  assert.equal(item.task.visual?.readyTimeoutMs, 60000);
+  assert.equal(item.task.visual?.viewports.length, 3);
+});
+
+test('the visual invariant does not touch ordinary builder scope or gates', () => {
+  for (const item of backlog.items) {
+    const before = { allowedWrite: item.task.allowedWrite, deniedWrite: item.task.deniedWrite, gates: item.task.gates };
+    const task = materializeTask(item, { baseSha: null, authorityClass: item.authorityClass });
+    assert.deepEqual(task.allowedWrite, before.allowedWrite, `${item.id} allowed-write scope is unchanged by the visual repair`);
+    assert.deepEqual(task.deniedWrite, before.deniedWrite, `${item.id} denied-write scope is unchanged by the visual repair`);
+    assert.deepEqual(task.gates, before.gates, `${item.id} mechanical gates are unchanged by the visual repair`);
+  }
 });
 
 test('materialized tasks carry the exact declared scope and mechanical gates', () => {

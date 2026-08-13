@@ -5,10 +5,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { ConfigSchema, RunStateSchema, type FactoryConfig, type RunState, type TaskSpec } from '../../scripts/claude-loop/schemas';
-import { BacklogSchema, materializeTask, type Backlog, type ExternalMeasurement } from '../../scripts/claude-loop/backlog';
+import { BacklogSchema, loadBacklog, materializeTask, type Backlog, type ExternalMeasurement } from '../../scripts/claude-loop/backlog';
 import { autopilotRecover, autopilotStatus, runAutopilot, type AutopilotDeps } from '../../scripts/claude-loop/autopilot';
 import { acquireClaim, currentClaim, heartbeatClaim, isClaimStale, listClaims, recoverStaleClaims, releaseClaim } from '../../scripts/claude-loop/claims';
-import { autopilotDir, ledgerEntryDir, ledgerPath, loadLedger, saveLedger, writeLedgerEntry, type Ledger } from '../../scripts/claude-loop/ledger';
+import { autopilotDir, ledgerEntryDir, ledgerPath, ledgerOccupiedIds, loadLedger, saveLedger, writeLedgerEntry, type Ledger } from '../../scripts/claude-loop/ledger';
 import { commonGitDir } from '../../scripts/claude-loop/util';
 import type { AuthorityClass, AuthoritySelection } from '../../scripts/claude-loop/authority';
 
@@ -467,6 +467,102 @@ test('a supervisor whose claim was taken over stops instead of writing the slice
   assert.equal(currentClaim(repo, 'task', 'A')?.owner, 'supervisor-B', 'the new owner is untouched');
   assert.ok(h.events.some((e) => e.event === 'autopilot.claim_lost'));
   assert.ok(h.events.some((e) => e.event === 'autopilot.task_abandoned'));
+});
+
+/* -------------------------------------------------- visual configuration is a pre-run invariant */
+
+/** The preview configuration proven by the persisted successful V2 Factory run. */
+const PROVEN_VISUAL = {
+  previewCommand: ['/usr/bin/env', 'LOOP_ENABLED=true', 'npm', 'run', 'dev', '--', '--hostname', '127.0.0.1', '--port', '4317'],
+  previewUrl: 'http://127.0.0.1:4317/loop',
+  readyTimeoutMs: 120000,
+  authenticated: true,
+  viewports: [
+    { name: 'desktop', width: 1440, height: 1000 },
+    { name: 'tablet', width: 900, height: 1000 },
+    { name: 'mobile', width: 390, height: 844 },
+  ],
+};
+
+/** Writes a backlog FILE so it is loaded through the real production `loadBacklog` path. */
+function backlogFile(visual: Record<string, unknown> | null): string {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'claude-visual-backlog-')), 'backlog.json');
+  fs.writeFileSync(file, JSON.stringify({
+    version: 1,
+    plan: 'docs/nortropic-control-room-plan-v1.md',
+    planBaseSha: 'ae9d250240e47c40eccf72ff045198f8f5f054ea',
+    note: 'synthetic backlog for visual pre-run validation',
+    items: [{
+      id: 'A', order: 1, title: 'a visual slice', summary: 'visual', planSection: 'synthetic',
+      declaredStatus: 'PENDING', dependsOn: [], prerequisites: [],
+      task: {
+        description: 'synthetic visual slice',
+        allowedWrite: ['components/loop/**'],
+        gates: [['npx', 'tsc', '--noEmit']],
+        visualReview: true,
+        ...(visual ? { visual } : {}),
+      },
+    }],
+  }, null, 2), 'utf8');
+  return file;
+}
+
+test('a visual slice without preview configuration stops the pass before any claim, ledger entry or run', async () => {
+  const repo = disposableRepo();
+  const defective = backlogFile(null);
+  const h = harness(repo, { main: BASE_A, run: async () => { throw new Error('no run may start from an invalid backlog'); } });
+  // The production load path, unchanged: the scheduler re-reads and validates the backlog first.
+  h.deps.loadBacklog = () => loadBacklog(defective);
+
+  await assert.rejects(
+    () => runAutopilot({ config: config({ maxTasks: 1 }), deps: h.deps, selection: EMPTY_SELECTION }),
+    /sets visualReview=true but declares no task\.visual preview configuration/,
+    'canonical validation fails before scheduling, not inside the run',
+  );
+
+  assert.deepEqual(h.starts.map((s) => s.taskId), [], 'no Claude run is started');
+  assert.deepEqual(loadLedger(repo).entries, [], 'no ledger entry is written for a task that could never run');
+  assert.equal(fs.existsSync(ledgerEntryDir(repo)), false, 'not even the ledger directory is created');
+  assert.deepEqual(listClaims(repo, NOW), [], 'no claim is taken and no claim epoch advances');
+  assert.equal(currentClaim(repo, 'task', 'A'), null);
+});
+
+test('a correctly configured visual slice reaches the run with its proven preview configuration intact', async () => {
+  const repo = disposableRepo();
+  const configured = backlogFile(PROVEN_VISUAL);
+  const h = harness(repo, { main: BASE_A, run: async (call) => doneState({ task: call.task, baseSha: call.baseSha, candidateSha: CANDIDATE_A, authorityClass: call.authorityClass }) });
+  h.deps.loadBacklog = () => loadBacklog(configured);
+
+  await runAutopilot({ config: config({ maxTasks: 1 }), deps: h.deps, selection: EMPTY_SELECTION });
+
+  assert.deepEqual(h.starts.map((s) => s.taskId), ['A'], 'ordinary visual work is not blocked by the stricter validation');
+  const started = h.starts[0].task;
+  assert.equal(started.visualReview, true);
+  assert.deepEqual(started.visual, PROVEN_VISUAL, 'the supervisor receives exactly the declared preview, argv included');
+  assert.deepEqual(started.visual!.previewCommand, PROVEN_VISUAL.previewCommand, 'previewCommand stays an argv array, element by element');
+  assert.equal(loadLedger(repo).entries.find((e) => e.taskId === 'A')?.status, 'AWAITING_PUBLICATION');
+});
+
+test('the persisted V8-FIXTURE record carries no Factory run or candidate, and this repair creates none', () => {
+  const repo = process.cwd();
+  // Everything this test does is READ-ONLY against the real runtime state; the snapshot proves it.
+  const snapshot = () => JSON.stringify({ ledger: loadLedger(repo), claims: listClaims(repo, NOW) });
+  const before = snapshot();
+
+  const entry = loadLedger(repo).entries.find((e) => e.taskId === 'V8-FIXTURE');
+  if (entry) {
+    assert.equal(entry.runId, null, 'the discovered defect stopped V8-FIXTURE before any Factory run existed');
+    assert.equal(entry.candidateSha, null, 'no V8-FIXTURE candidate was ever produced');
+    assert.equal(entry.mergedMain, null, 'nothing about V8-FIXTURE was ever merged into main');
+    assert.notEqual(entry.status, 'DONE', 'the slice is not complete and this repair does not claim it is');
+    assert.equal(ledgerOccupiedIds(loadLedger(repo)).has('V8-FIXTURE'), true, 'the persisted entry keeps V8-FIXTURE unschedulable until an operator clears it deliberately');
+  }
+
+  // Loading, validating and materializing the canonical backlog is a pure read: it starts no run,
+  // writes no ledger entry, takes no claim and clears nothing.
+  const canonical = loadBacklog(repo);
+  for (const item of canonical.items) materializeTask(item, { baseSha: null, authorityClass: item.authorityClass });
+  assert.equal(snapshot(), before, 'validating the canonical backlog mutated no persisted autopilot state');
 });
 
 test('the materialized task carries the exact backlog scope into the run', async () => {
