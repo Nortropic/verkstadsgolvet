@@ -104,7 +104,15 @@ export const ConfigSchema = z.object({
    */
   maxBuilderContinuationResumes: z.number().int().min(0).max(20).default(6),
   models: z.object({ architect: z.string(), builder: z.string(), reviewer: z.string(), visualReviewer: z.string() }),
-  publish: z.object({ enabled: z.boolean(), autoMerge: z.boolean(), mergeMethod: z.enum(['rebase']) }),
+  /**
+   * Publication switches. Both gates default off in the shipped example configuration.
+   *
+   * `mergeMethod` accepts ONLY the normal GitHub merge commit. A configuration asking for
+   * 'rebase' or 'squash' fails validation here instead of being silently downgraded to a
+   * supported method: rebase/squash would publish a NEW commit rather than the exact commit an
+   * independent reviewer read.
+   */
+  publish: z.object({ enabled: z.boolean(), autoMerge: z.boolean(), mergeMethod: z.enum(['merge']) }),
 });
 export type FactoryConfig = z.infer<typeof ConfigSchema>;
 
