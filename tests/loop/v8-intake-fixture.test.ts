@@ -487,6 +487,32 @@ test("V8*-I2: antalsgränsen fälls FAIL-CLOSED — ingen fil accepteras tyst ur
   // Den egna formella domen står kvar — filerna är felfria, det är urvalet som fälls.
   assert.equal((html.match(/data-accepted="true"/g) ?? []).length, many.length);
 
+  /*
+    Orsaken bärs EN gång, av banneret. Tjugoen identiska meningar hade inte gjort avslaget
+    tydligare — bara längre. Men varje fil ska fortfarande stå i listan: ingen faller bort tyst.
+  */
+  assert.equal(
+    (html.match(/data-file-name="/g) ?? []).length,
+    many.length,
+    "en fil utelämnades ur listan",
+  );
+  assert.equal(
+    (html.match(/mk-file-reason/g) ?? []).length,
+    0,
+    "raden upprepar en orsak som redan står i banneret",
+  );
+  assert.equal(
+    (html.match(/data-selection-rejection="/g) ?? []).length,
+    1,
+    "urvalets orsak ska stå exakt en gång",
+  );
+  assert.ok(html.includes("mk-list-dense"), "de orsakslösa raderna står inte tätare");
+  assert.match(
+    LOOP_CSS,
+    /@media \(min-width: 960px\) \{\s*\.mk-list-dense \{[^}]*grid-template-columns/,
+    "tätare listan saknar sin flerspaltsregel",
+  );
+
   // Exakt vid gränsen går allt igenom — gränsen är inte "en till för säkerhets skull".
   const exact = validateIntakeSelection(many.slice(0, INTAKE_MAX_FILES));
   assert.equal(exact.selection_rejection, null);
@@ -745,8 +771,40 @@ test("V8*-STIL: intakens klasser finns faktiskt i stilarket — ingen klass utan
   // Kontrollernas namn ska läsas som namn, inte som kapitälrubrik.
   assert.ok(html.includes('class="mk-control-label"'));
   assert.match(LOOP_CSS, /\.mk-control-label\s*\{[^}]*font-size:\s*12\.5px/);
-  // Webbläsarens filknapp bär husets färger i stället för systemets ljusa default.
-  assert.match(LOOP_CSS, /\.mk-file-input::file-selector-button\s*\{[^}]*background:\s*var\(--bg-surface-2\)/);
+});
+
+test("V8*-SPRAK: filväljaren visar SVENSK knapptext — värdens egen krom är dold, inte borttagen", () => {
+  const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+
+  // Kontrollen finns kvar i DOM:en, med id och etikett — bara visuellt dold.
+  assert.ok(/<input[^>]*id="intake-filvaljare"[^>]*type="file"/.test(html), "filkontrollen togs bort");
+  assert.ok(/<input[^>]*class="mk-sr-only"/.test(html), "kontrollen döljs inte visuellt");
+  assert.ok(
+    /<label[^>]*class="mk-file-label"[^>]*for="intake-filvaljare"[^>]*>Välj Markdown-filer<\/label>/.test(
+      html,
+    ),
+    "etiketten är inte den synliga knappen",
+  );
+
+  // Den dolda kontrollen måste stå FÖRE etiketten: syskonregeln som målar fokusringen kräver det.
+  assert.ok(
+    html.indexOf('id="intake-filvaljare"') < html.indexOf('class="mk-file-label"'),
+    "ordningen input → label är bruten, så fokusringen kan inte målas på etiketten",
+  );
+
+  // display:none hade tagit kontrollen ur tabbordningen — den får aldrig användas här.
+  assert.match(LOOP_CSS, /\.mk-sr-only\s*\{[^}]*position:\s*absolute/);
+  assert.ok(
+    !/\.mk-sr-only\s*\{[^}]*display:\s*none/.test(LOOP_CSS),
+    "den dolda kontrollen är borttagen ur tabbordningen",
+  );
+  // Fokus måste synas trots att kontrollen inte gör det.
+  assert.match(
+    LOOP_CSS,
+    /\.mk-sr-only:focus-visible \+ \.mk-file-label\s*\{[^}]*box-shadow:\s*var\(--focus-ring\)/,
+    "tangentbordsfokus syns inte när filkontrollen är dold",
+  );
+  assert.match(LOOP_CSS, /\.mk-file-label\s*\{[^}]*background:\s*var\(--bg-surface-2\)/);
 });
 
 test("V8*-I5-NEG: avslaget läses ALDRIG fältvis — ett annat nyckelnamn renderas lika ordagrant", () => {

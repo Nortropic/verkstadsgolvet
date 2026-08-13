@@ -83,7 +83,7 @@ export function SelectionReport({ selection }: { selection: IntakeSelection | nu
   const selectionFell = selection.selection_rejection !== null;
 
   return (
-    <div className="mk-list" data-selection="report" data-selection-fell={selectionFell ? "true" : "false"}>
+    <div className="mk-group" data-selection="report" data-selection-fell={selectionFell ? "true" : "false"}>
       {selection.selection_rejection && (
         <p
           className="mk-note mk-tone-warning"
@@ -93,37 +93,47 @@ export function SelectionReport({ selection }: { selection: IntakeSelection | nu
         </p>
       )}
 
-      {selection.verdicts.map((verdict, index) => {
+      {/*
+        Fälls hela urvalet bär banneret ovan orsaken EN gång. Att upprepa exakt samma mening på
+        var och en av tjugoen rader hade inte gjort avslaget tydligare — det hade dränkt den
+        information som faktiskt skiljer sig åt. Raderna står då tätare, och ingen fil utelämnas.
+      */}
+      <div className={selectionFell ? "mk-list mk-list-dense" : "mk-list"} data-selection-rows="true">
+        {selection.verdicts.map((verdict, index) => {
         /*
           `verdict.accepted` är filens EGNA formella dom. Att den domen är grön betyder inte att
           filen skulle lämnas in: fälls hela urvalet på antalsgränsen lämnas ingen fil in alls
           (validateIntakeSelection tömmer `accepted` fail-closed). Raden får då varken grön färg
           eller texten "godkänd" — annars svarar ytan två olika saker på samma fråga.
         */
-        const included = verdict.accepted && !selectionFell;
-        const tone = !verdict.accepted ? "mk-tone-danger" : included ? "mk-tone-success" : "";
-        return (
-          <div
-            className={tone === "" ? "mk-file" : `mk-file ${tone}`}
-            key={`${verdict.candidate.file_name}-${index}`}
-            data-file-name={verdict.candidate.file_name}
-            data-accepted={verdict.accepted ? "true" : "false"}
-            data-included={included ? "true" : "false"}
-            data-rejection-code={verdict.accepted ? undefined : verdict.code}
-          >
-            <span className="mk-file-name">
-              {verdict.candidate.file_name} · {groupDigits(verdict.candidate.byte_size)} byte
-            </span>
-            <span className="mk-file-reason">
-              {!verdict.accepted
-                ? verdict.message
-                : included
-                  ? "Formellt godkänd. Inget skickas i fixturläge."
-                  : "Formellt felfri, men hela urvalet fälldes på antalsgränsen — ingen fil lämnas in."}
-            </span>
-          </div>
-        );
-      })}
+          const included = verdict.accepted && !selectionFell;
+          const tone = !verdict.accepted ? "mk-tone-danger" : included ? "mk-tone-success" : "";
+          /*
+            Egen orsak per rad så snart raden HAR en egen orsak. En formellt felfri fil i ett
+            fällt urval har ingen — dess orsak är urvalets, och den står redan i banneret.
+          */
+          const reason = !verdict.accepted
+            ? verdict.message
+            : included
+              ? "Formellt godkänd. Inget skickas i fixturläge."
+              : null;
+          return (
+            <div
+              className={tone === "" ? "mk-file" : `mk-file ${tone}`}
+              key={`${verdict.candidate.file_name}-${index}`}
+              data-file-name={verdict.candidate.file_name}
+              data-accepted={verdict.accepted ? "true" : "false"}
+              data-included={included ? "true" : "false"}
+              data-rejection-code={verdict.accepted ? undefined : verdict.code}
+            >
+              <span className="mk-file-name">
+                {verdict.candidate.file_name} · {groupDigits(verdict.candidate.byte_size)} byte
+              </span>
+              {reason !== null && <span className="mk-file-reason">{reason}</span>}
+            </div>
+          );
+        })}
+      </div>
 
       <p className="mk-hint" data-accepted-count={selection.accepted.length}>
         {selectionFell
@@ -184,12 +194,19 @@ export default function IntakeDropzone() {
           Endast {INTAKE_ACCEPTED_EXTENSIONS.join(" och ")} · högst {INTAKE_MAX_FILES} filer per
           inlämning · högst {groupDigits(INTAKE_MAX_FILE_BYTES)} byte per fil
         </span>
-        {/* Riktig <label htmlFor> — husets form för formulärkontroller (OnboardingForm, DocPanel). */}
-        <label className="mk-control-label" htmlFor={IDS.filePicker}>
-          Välj Markdown-filer
-        </label>
+        {/*
+          Den nativa filkontrollen ritar värdens EGEN krom på värdens EGET språk ("Choose Files",
+          "No file chosen") — strängar som CSS inte når. I ett svenskt kontrollrum blir det både
+          främmande och dubblerat: filnamnsstatusen bärs redan av SelectionReport nedanför.
+
+          Kontrollen ligger därför kvar i DOM:en, med sitt id och sin etikett, men döljs VISUELLT
+          (klipp-rektangel — aldrig display:none, som hade tagit bort den ur tabbordningen). Den
+          synliga knappen är etiketten, som öppnar samma väljare vid klick. Fokusringen målas på
+          etiketten via syskonregeln i LOOP_CSS, så tangentbordsfokus syns även när kontrollen
+          inte gör det. Ordningen input → label är vad den regeln kräver.
+        */}
         <input
-          className="mk-file-input"
+          className="mk-sr-only"
           id={IDS.filePicker}
           type="file"
           multiple
@@ -198,6 +215,9 @@ export default function IntakeDropzone() {
           data-file-picker="true"
           onChange={(event) => classify(Array.from(event.target.files ?? []))}
         />
+        <label className="mk-file-label" htmlFor={IDS.filePicker}>
+          Välj Markdown-filer
+        </label>
       </div>
 
       <SelectionReport selection={selection} />

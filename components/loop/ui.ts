@@ -147,18 +147,28 @@ export const LOOP_CSS = `
 /* Namnet PÅ en kontroll, inte en sektionsrubrik: .mk-label:s versala 9.5px-mono läses som
    kapitälrubrik och gör kontrollens namn otydligt. Egen klass, samma tokens. */
 .mk-control-label { font-size: 12.5px; line-height: 17px; font-weight: 600; color: var(--text-primary); }
-.mk-file-input { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-secondary); }
-/* Webbläsarens egen filknapp bär värdens chrome (och engelsk text). Den kan inte översättas
-   från CSS, men den ska åtminstone bära husets färger i stället för systemets ljusa default. */
-.mk-file-input::file-selector-button { height: 28px; padding: 0 12px; margin-right: 10px; border: 0;
+/* Kvar för hjälpmedel, borta för ögat. ALDRIG display:none — det hade tagit kontrollen ur
+   tabbordningen. Inga procentmått (t.ex. clip-path: inset(50…)) används: /loop-trädet är fritt
+   från procenttecken, och en 1×1-ruta med inset(1px) är lika osynlig. */
+.mk-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; white-space: nowrap; clip: rect(0 0 0 0); clip-path: inset(1px); }
+/* Etiketten ÄR den synliga knappen: svensk text, husets färger, öppnar samma filväljare. */
+.mk-file-label { display: inline-flex; align-items: center; height: 30px; padding: 0 14px;
   border-radius: var(--radius-control); font-family: var(--font-mono); font-size: 11.5px;
   letter-spacing: 0.6px; background: var(--bg-surface-2); color: var(--text-primary);
   box-shadow: inset 0 0 0 1px var(--border-strong); cursor: pointer; }
-.mk-file-input::file-selector-button:hover { background: var(--bg-surface-3); }
+.mk-file-label:hover { background: var(--bg-surface-3); }
+/* Tangentbordsfokus måste synas trots att kontrollen är dold — ringen målas på etiketten. */
+.mk-sr-only:focus-visible + .mk-file-label { box-shadow: var(--focus-ring); }
 .mk-textarea { font-family: var(--font-mono); font-size: 12px; line-height: 18px; color: var(--text-primary);
   background: var(--bg-surface-0); box-shadow: inset 0 0 0 1px var(--border-strong);
   border: 0; border-radius: var(--radius-control); padding: 10px 11px; resize: vertical; min-height: 120px; }
 .mk-list { display: flex; flex-direction: column; gap: 6px; }
+/* Ett fällt urval listar fortfarande VARJE fil — ingen faller bort tyst — men raderna bär då
+   ingen egen orsak och kan därför stå i flera spalter på breda vyer. */
+@media (min-width: 960px) {
+  .mk-list-dense { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 .mk-file { display: flex; flex-direction: column; gap: 3px; background: var(--bg-surface-1);
   box-shadow: var(--hairline); border-radius: var(--radius-control); padding: 9px 11px; min-width: 0; }
 .mk-file.mk-tone-danger { background: var(--tint-danger-bg); box-shadow: inset 0 0 0 1px var(--tint-danger-border); }
