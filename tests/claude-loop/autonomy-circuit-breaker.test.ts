@@ -243,6 +243,28 @@ test('finding fingerprints are phrasing-tolerant and deliberately blind to revie
   assert.match(findingSetFingerprint([a]), /^[0-9a-f]{64}$/);
 });
 
+test('fingerprint parts cannot collide across fields, and the Factory sources stay reviewable text', () => {
+  // A delimiter that can occur inside a field would make two DIFFERENT findings fingerprint the
+  // same, which is a false no-progress block on genuinely different work.
+  const split = finding({ id: 'a', message: 'c', file: 'work/a b' });
+  const shifted = finding({ id: 'a', message: 'b c', file: 'work/a' });
+  assert.notEqual(findingSetFingerprint([split]), findingSetFingerprint([shifted]), 'field boundaries must be unambiguous');
+  const gateSplit = { command: ['npm', 'run', 'x y'], output: 'z' };
+  const gateShifted = { command: ['npm', 'run', 'x'], output: 'y z' };
+  assert.notEqual(gateFailureSetFingerprint([gateSplit]), gateFailureSetFingerprint([gateShifted]));
+
+  // And the encoding must not smuggle control characters into the source: a NUL byte makes Git
+  // classify a tracked file as BINARY, which would hand the independent reviewer an unreadable
+  // diff of the very module that decides when a run may continue.
+  for (const dir of ['scripts/claude-loop', 'tests/claude-loop']) {
+    for (const entry of fs.readdirSync(dir)) {
+      if (!entry.endsWith('.ts')) continue;
+      const bytes = fs.readFileSync(path.join(dir, entry));
+      assert.equal(bytes.includes(0), false, `${dir}/${entry} must be reviewable text, not a binary blob`);
+    }
+  }
+});
+
 test('gate fingerprints are the exact argv plus the first non-empty normalized output line', () => {
   const one = { command: ['npm', 'run', 'claude:test'], output: '\n\n  FAIL tests/x.test.ts line 12\nmore noise\n' };
   const two = { command: ['npm', 'run', 'claude:test'], output: 'fail   tests/x.test.ts LINE 987654\ncompletely different tail\n' };
