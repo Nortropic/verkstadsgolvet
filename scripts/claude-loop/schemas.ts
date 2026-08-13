@@ -96,6 +96,21 @@ export const TaskSchema = z.object({
    * selection, and a `owner-author` declaration without that selection fails the run closed.
    */
   authorityClass: AuthorityClassSchema.default('ordinary'),
+}).superRefine((task, ctx) => {
+  // Completeness barrier for a visual slice. A task that ASKS for visual review but carries no
+  // preview configuration cannot ever produce screenshots, so it is invalid task DATA — not a
+  // condition to be discovered once a run, a worktree and a claim already exist. Making it a
+  // schema failure means every parse site (task file, materialized backlog item, persisted run
+  // state) refuses it at the same point, before any run starts.
+  //
+  // The reverse is deliberately NOT an error: `visualReview=false` never requires `visual`, and an
+  // ordinary non-visual task keeps parsing exactly as before.
+  if (task.visualReview !== true || task.visual) return;
+  ctx.addIssue({
+    code: 'custom',
+    path: ['visual'],
+    message: 'visualReview=true requires a task.visual preview configuration (at least previewCommand and previewUrl); a visual task must be fully configured before a run starts',
+  });
 });
 export type TaskSpec = z.infer<typeof TaskSchema>;
 

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import { commonGitDir, readJson, sh } from './util';
-import { TaskSchema, type TaskSpec } from './schemas';
+import { TaskSchema, VisualConfigSchema, type TaskSpec } from './schemas';
 import type { AuthorityClass, AuthoritySelection } from './authority';
 import { isSupervisorSelected } from './authority';
 
@@ -51,6 +51,17 @@ export const BacklogTaskSchema = z.object({
   deniedWrite: z.array(z.string().min(1)).default([]),
   gates: z.array(z.array(z.string().min(1)).min(1)).min(1),
   visualReview: z.boolean().default(false),
+  /**
+   * Preview configuration for a visual slice, in the SAME shape the supervisor consumes.
+   *
+   * It is validated by the shared `VisualConfigSchema`, so the canonical backlog cannot declare an
+   * unusable preview (empty argv, unparsable URL, zero-size viewport) and cannot declare a
+   * credential-bearing preview against a non-loopback origin. `previewCommand` stays an argv array:
+   * never a shell string, so nothing here is interpreted by a shell.
+   *
+   * Required exactly when `visualReview` is true; see `assertMaterializesToTask`.
+   */
+  visual: VisualConfigSchema,
 });
 
 export const BacklogItemSchema = z.object({
@@ -156,6 +167,7 @@ export function validateBacklog(backlog: Backlog): Backlog {
     if (item.liveCounterpart && !ids.has(item.liveCounterpart)) {
       throw new Error(`backlog item ${item.id} names unknown liveCounterpart ${item.liveCounterpart}`);
     }
+    assertMaterializesToTask(item);
   }
   detectCycles(backlog);
   return backlog;
@@ -342,14 +354,9 @@ export function readyItems(evaluations: readonly ItemEvaluation[]): ItemEvaluati
   return evaluations.filter((e) => e.status === 'READY');
 }
 
-/**
- * Materializes one backlog item into a validated TaskSpec.
- *
- * The effective authority class is passed in by the supervisor after resolution; the backlog's own
- * `authorityClass` is only echoed as a declaration so an escalation attempt stays visible.
- */
-export function materializeTask(item: BacklogItem, args: { baseSha?: string | null; authorityClass: AuthorityClass }): TaskSpec {
-  return TaskSchema.parse({
+/** The exact TaskSchema input one backlog item produces. Pure: it reads data and writes nothing. */
+function taskSpecInput(item: BacklogItem, args: { baseSha?: string | null; authorityClass: AuthorityClass }): Record<string, unknown> {
+  return {
     id: item.id,
     title: item.title,
     description: `${item.summary}\n\n${item.task.description}\n\nPlan section: ${item.planSection}${item.fixtureOnly ? `\n\nFIXTURE-ONLY SLICE: satisfy the exit criteria against generated fixtures. Never describe this slice as live-complete; the live counterpart is ${item.liveCounterpart}.` : ''}`,
@@ -358,8 +365,47 @@ export function materializeTask(item: BacklogItem, args: { baseSha?: string | nu
     deniedWrite: item.task.deniedWrite,
     gates: item.task.gates,
     visualReview: item.task.visualReview,
+    // Carried through verbatim, so the preview the backlog declares is the preview the supervisor
+    // starts. Absent for a non-visual slice, which never needs one.
+    ...(item.task.visual ? { visual: item.task.visual } : {}),
     authorityClass: args.authorityClass,
-  });
+  };
+}
+
+/**
+ * Canonical PRE-RUN validation of one backlog item.
+ *
+ * Every tracked item must already materialize into a TaskSchema-valid task while the backlog is
+ * being loaded — before any slice is selected, before a claim is taken, before a ledger entry is
+ * written and long before a Claude session or a preview browser exists. A visual slice that carries
+ * no preview configuration is a defect in repository DATA; discovering it inside `startRunFromTask`
+ * would mean a claim and a `RUNNING` ledger entry already exist for a task that could never run.
+ *
+ * This tightens data validation only. It changes nothing about ordinary builder scope enforcement
+ * and weakens no preview safety rule: the loopback-only barrier for credential-bearing previews is
+ * the SAME `VisualConfigSchema` check, simply applied earlier as well.
+ */
+export function assertMaterializesToTask(item: BacklogItem): void {
+  if (item.task.visualReview && !item.task.visual) {
+    throw new Error(
+      `backlog item ${item.id} sets visualReview=true but declares no task.visual preview configuration; `
+        + 'a visual slice must be fully configured in the canonical backlog, never discovered after a run has been claimed and started',
+    );
+  }
+  const parsed = TaskSchema.safeParse(taskSpecInput(item, { baseSha: null, authorityClass: item.authorityClass }));
+  if (parsed.success) return;
+  const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ');
+  throw new Error(`backlog item ${item.id} does not materialize into a valid task: ${issues}`);
+}
+
+/**
+ * Materializes one backlog item into a validated TaskSpec.
+ *
+ * The effective authority class is passed in by the supervisor after resolution; the backlog's own
+ * `authorityClass` is only echoed as a declaration so an escalation attempt stays visible.
+ */
+export function materializeTask(item: BacklogItem, args: { baseSha?: string | null; authorityClass: AuthorityClass }): TaskSpec {
+  return TaskSchema.parse(taskSpecInput(item, args));
 }
 
 /** Production local-test runner for prerequisites: mechanical, bounded, never a model claim. */

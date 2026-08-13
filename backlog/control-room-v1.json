@@ -2,7 +2,7 @@
   "version": 1,
   "plan": "docs/nortropic-control-room-plan-v1.md",
   "planBaseSha": "ae9d250240e47c40eccf72ff045198f8f5f054ea",
-  "note": "Canonical backlog for the control-room slices, derived from IMPLEMENTATION_SLICES and IMPLEMENTATION_ORDER in the plan. Order follows the plan's IMPLEMENTATION_ORDER verbatim. declaredStatus is a CLAIM that is believed only when its completionEvidence exists on disk; dependencies and prerequisites are evaluated mechanically by scripts/claude-loop/backlog.ts. External prerequisites name backend slices in Nortropic/nortropic-system, which this repository is not the authority for and cannot measure: they stay unmet until an owner records a measurement in the runtime evidence file under the Git common directory. No slice here is described as live-complete against fixtures.",
+  "note": "Canonical backlog for the control-room slices, derived from IMPLEMENTATION_SLICES and IMPLEMENTATION_ORDER in the plan. Order follows the plan's IMPLEMENTATION_ORDER verbatim. declaredStatus is a CLAIM that is believed only when its completionEvidence exists on disk; dependencies and prerequisites are evaluated mechanically by scripts/claude-loop/backlog.ts. External prerequisites name backend slices in Nortropic/nortropic-system, which this repository is not the authority for and cannot measure: they stay unmet until an owner records a measurement in the runtime evidence file under the Git common directory. No slice here is described as live-complete against fixtures. Every item with visualReview=true carries the task.visual preview configuration the supervisor consumes; scripts/claude-loop/backlog.ts refuses to load this file when a visual item is missing or misconfigures it, so such a defect is caught before a slice is claimed and started. previewCommand is an argv array, never a shell string, and a credential-bearing preview (authenticated=true) is restricted to loopback origins.",
   "items": [
     {
       "id": "V1",
@@ -132,7 +132,18 @@
         "allowedWrite": ["app/(app)/loop/**", "components/loop/**", "lib/loop/**", "app/api/loop/**", "tests/loop/**"],
         "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**"],
         "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
-        "visualReview": true
+        "visualReview": true,
+        "visual": {
+          "previewCommand": ["/usr/bin/env", "LOOP_ENABLED=true", "npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "4317"],
+          "previewUrl": "http://127.0.0.1:4317/loop",
+          "readyTimeoutMs": 120000,
+          "authenticated": true,
+          "viewports": [
+            { "name": "desktop", "width": 1440, "height": 1000 },
+            { "name": "tablet", "width": 900, "height": 1000 },
+            { "name": "mobile", "width": 390, "height": 844 }
+          ]
+        }
       }
     },
     {
@@ -158,7 +169,18 @@
         "allowedWrite": ["app/(app)/loop/mata/**", "components/loop/**", "lib/loop/**", "tests/loop/**"],
         "deniedWrite": ["app/api/**", "middleware.ts", ".claude/**", "CLAUDE.md", "docs/**", "lib/github-read.ts", "lib/github-write.ts"],
         "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
-        "visualReview": true
+        "visualReview": true,
+        "visual": {
+          "previewCommand": ["/usr/bin/env", "LOOP_ENABLED=true", "npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "4317"],
+          "previewUrl": "http://127.0.0.1:4317/loop",
+          "readyTimeoutMs": 120000,
+          "authenticated": true,
+          "viewports": [
+            { "name": "desktop", "width": 1440, "height": 1000 },
+            { "name": "tablet", "width": 900, "height": 1000 },
+            { "name": "mobile", "width": 390, "height": 844 }
+          ]
+        }
       }
     },
     {
@@ -205,7 +227,18 @@
         "allowedWrite": ["app/(app)/loop/mata/**", "app/api/loop/intake/**", "lib/loop/**", "components/loop/**", "tests/loop/**"],
         "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**", "lib/github-read.ts", "lib/github-write.ts"],
         "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
-        "visualReview": true
+        "visualReview": true,
+        "visual": {
+          "previewCommand": ["/usr/bin/env", "LOOP_ENABLED=true", "npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "4317"],
+          "previewUrl": "http://127.0.0.1:4317/loop",
+          "readyTimeoutMs": 120000,
+          "authenticated": true,
+          "viewports": [
+            { "name": "desktop", "width": 1440, "height": 1000 },
+            { "name": "tablet", "width": 900, "height": 1000 },
+            { "name": "mobile", "width": 390, "height": 844 }
+          ]
+        }
       }
     },
     {
@@ -274,7 +307,18 @@
         "allowedWrite": ["app/globals.css", "app/(app)/loop/**", "components/loop/**", "tests/loop/**"],
         "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**"],
         "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
-        "visualReview": true
+        "visualReview": true,
+        "visual": {
+          "previewCommand": ["/usr/bin/env", "LOOP_ENABLED=true", "npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "4317"],
+          "previewUrl": "http://127.0.0.1:4317/loop",
+          "readyTimeoutMs": 120000,
+          "authenticated": true,
+          "viewports": [
+            { "name": "desktop", "width": 1440, "height": 1000 },
+            { "name": "tablet", "width": 900, "height": 1000 },
+            { "name": "mobile", "width": 390, "height": 844 }
+          ]
+        }
       }
     },
     {
@@ -297,7 +341,18 @@
         "allowedWrite": ["components/loop/**", "lib/loop/**", "tests/loop/**"],
         "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**"],
         "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
-        "visualReview": true
+        "visualReview": true,
+        "visual": {
+          "previewCommand": ["/usr/bin/env", "LOOP_ENABLED=true", "npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "4317"],
+          "previewUrl": "http://127.0.0.1:4317/loop",
+          "readyTimeoutMs": 120000,
+          "authenticated": true,
+          "viewports": [
+            { "name": "desktop", "width": 1440, "height": 1000 },
+            { "name": "tablet", "width": 900, "height": 1000 },
+            { "name": "mobile", "width": 390, "height": 844 }
+          ]
+        }
       }
     },
     {
