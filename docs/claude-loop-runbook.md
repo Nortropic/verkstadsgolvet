@@ -44,7 +44,7 @@ Today `V1`–`V3` are `DONE`, `V8-FIXTURE` is the only `READY` slice — the int
 
 `npm run claude:autopilot` schedules backlog work. It is disarmed in the shipped configuration (`autopilot.enabled=false`) and then touches nothing at all: no fetch, no claim, no ledger write. `--force` runs a single explicit operator-driven pass.
 
-Each iteration re-reads `origin/main`, the backlog, the owner evidence, the claims and the ledger **from disk**, picks the lowest-`order` `READY` slice, takes an atomic claim, records `RUNNING` before the run starts, and then runs the ordinary supervised pipeline: architect → write role → post-write exact scope validation → mechanical gates → immutable candidate → independent review → bounded remediation.
+Each iteration re-reads `origin/main`, the backlog, the owner evidence, the claims and the ledger **from disk**, picks the lowest-`order` `READY` slice, takes an atomic claim, records `RUNNING` before the run starts, and then runs the ordinary supervised pipeline: architect → write role → post-write exact scope validation → mechanical gates → immutable candidate → independent review → [progress-gated remediation](#remediation-circuit-breaker).
 
 Because every decision is a pure function of files, a killed and restarted autopilot makes the same next decision instead of duplicating work. Chat context, model summaries and terminal output are never operational state.
 
@@ -53,7 +53,7 @@ Afterwards the scheduler re-reads `origin/main` and decides mechanically:
 - **merged** — `origin/main` moved and Git proves it is a two-parent merge of the frozen base and the exact reviewed candidate. The ledger records `DONE`, and the next slice is based on that merged main (`autopilot.continueAfterMerge`).
 - **unmerged** — `origin/main` is unchanged. The ledger records `AWAITING_PUBLICATION` and the pass stops rather than stacking candidates on a base that lacks the previous one. Slices depending on it stay unschedulable.
 - **base drift** — `origin/main` moved to something that is not this candidate's merge. The ledger records `BLOCKED` and the pass stops. Nothing is published, rewritten or retried.
-- **blocked run** — including an exhausted remediation budget. The ledger records `BLOCKED` with the reason and the pass stops. A restart never retries it and never widens the budget; that needs an explicit owner decision.
+- **blocked run** — including a [no-progress circuit-breaker](#remediation-circuit-breaker) stop. The ledger records `BLOCKED` with the reason and the pass stops. A restart never retries it and never manufactures fresh remediation entitlement; that needs an explicit owner decision.
 - **claim lost** — this supervisor was taken over while running. It records nothing for the slice and stops; the outcome belongs to whoever holds the claim now.
 
 The autopilot never publishes and never moves `main`. Its entire Git vocabulary is `fetch`, `rev-parse` and `rev-list`; publication stays behind the unchanged Publication v2 guards below.
@@ -166,13 +166,54 @@ npm run claude:resume -- <run-id> --owner-author <taskId>   # only for an owner-
 
 A resume takes an atomic **run claim** and keeps it heartbeating for the whole resume, so two operators cannot put two model sessions on the same recorded run and the same candidate however long the resume takes; a second resume is refused with the current owner's identity. If a resume is killed, its claim stops beating and becomes recoverable through `npm run claude:autopilot-recover`.
 
-Do not reset/rebase/amend a blocked worktree. The supervisor resumes from recorded facts and existing immutable candidate commits. Terminal builder errors preserve the recoverable builder session ID in run state. A remediation-budget block does NOT gain another model round by repeated `resume`; it requires an explicit owner extension:
+Do not reset/rebase/amend a blocked worktree. The supervisor resumes from recorded facts and existing immutable candidate commits. Terminal builder errors preserve the recoverable builder session ID in run state. A circuit-breaker block does NOT gain another model round by repeated `resume`; it requires an explicit owner re-open:
 
 ```bash
 npx tsx scripts/claude-loop/cli.ts extend-remediation <run-id> 1
 ```
 
 An extension is runtime workflow state, not publication or trust authority. Keep it bounded and owner-reviewed.
+
+## Remediation circuit breaker
+
+The remediation loop is bounded by **progress**, not by a round count. A run that keeps genuinely closing work continues on its own, however many rounds that takes, with no operator involvement at all; a run that repeats itself stops on the evidence of that repetition.
+
+`maxRemediationRounds` is **superseded**. It stays in `ConfigSchema` because operator configuration files carry it, and the legacy arithmetic for runs persisted before the breaker is still defined in terms of it, but it no longer bounds a progressing loop. There is deliberately **no configuration knob for the breaker**: the rules are code, reviewed like code.
+
+A round is PROGRESS when the actionable finding set changed, shrank or disappeared, when the candidate advanced through a new immutable descendant commit, or when a failing gate moved on. Continuation requires progress; every other verdict throws and fails the run closed.
+
+### Fingerprints
+
+Findings are compared mechanically and phrasing-tolerantly. A per-finding fingerprint is `severity + file + normalized message` (lowercase, whitespace collapsed, digit runs replaced by `#`); the reviewer-assigned `id` and `line` are **excluded**, because both are unstable across rounds and either would let a materially identical repeat present itself as fresh work. The set fingerprint is the SHA-256 of the sorted per-finding fingerprints. A gate fingerprint is the exact gate argv plus the first non-empty output line, normalized the same way. Severity `note` findings are advisory: they flow to `advisoryFindings`, never start a remediation round, and are excluded from every fingerprint.
+
+### Verdicts
+
+Every stage that produces actionable findings is classified before the next remediation round starts. A block reason always begins with a stable prefix.
+
+| Rule | Blocks when | Reason prefix |
+|---|---|---|
+| `identical-repeat` | The same stage repeats the finding-set fingerprint the preceding remediation was asked to fix, and that remediation changed no file the finding set names. Blocks on the **first** repeat. | `no-progress circuit breaker: ` |
+| `churn-cap` | The same fingerprint from the same source occurs a **third** time in one run, however much changed in between. | `no-progress circuit breaker: ` |
+| `oscillation` | A round produces a candidate whose **tree** already appeared in this run — including the frozen base, i.e. the work was undone. | `no-progress circuit breaker: ` |
+| `no-change-ready` | The write role reports READY without creating any change while findings are pending. The first one still gets **one** fresh independent review (a fresh reviewer may legitimately withdraw its own finding); a second consecutive one blocks without another review. | `no-progress circuit breaker: ` |
+| `gate-repeat` | The same gate fingerprint fails in two consecutive rounds with the judged tree unchanged, or in three consecutive rounds regardless of change. | `no-progress circuit breaker: ` |
+| `absolute-backstop` | The run reaches the frozen `ABSOLUTE_ROUND_BACKSTOP = 30` rounds — the terminal defense against pathological always-different churn. | `absolute round backstop: ` |
+
+A finding that names files is answered only by a change to one of those exact files. A finding that names no file cannot be located, so any candidate change counts as relevant: the breaker fails open on ambiguity and closed only on evidence.
+
+### Evidence and restart
+
+Verdicts are computed by `scripts/claude-loop/progress.ts`, which is **pure over persisted data** — no clock, no randomness, no Git call inside a classifier. The evidence is an append-only `progressHistory` on the run state: each record carries the round, the source stage, the candidate SHA and tree SHA the stage judged, the finding-set fingerprint, the files those findings named, and whether the remediation leading into the stage changed any of them. Records are never rewritten, removed or reordered, and the blocking record is appended before the run stops.
+
+So a killed and restarted supervisor re-derives the **identical** verdict from the identical history. `resume` refuses a breaker-blocked run exactly as it refuses a legacy budget-blocked one, and never truncates, resets or re-fingerprints the history: **a restart cannot manufacture fresh retry entitlement.**
+
+### Owner re-open
+
+`extend-remediation` re-opens a run blocked by the breaker, and still re-opens runs blocked before the breaker existed (the retired `remediation budget exhausted after ` reason stays extendable, so old persisted runs remain loadable, extendable and resumable). The extension appends an explicit `owner-extension` marker to the history; the classifier reads the window after that marker, which is what gives the re-opened run a genuine fresh chance instead of re-deriving the same stale verdict. `attempt` is never reset and history is never truncated.
+
+The absolute backstop is **never** extendable. At 30 rounds the run id is terminally blocked and the only escape is a fresh sequential run.
+
+The breaker is a stop condition only. It never widens a permission, never upgrades a lane, and leaves authority resolution, exact scope validation, claims and fencing, candidate lineage and the Publication v2 guards exactly as they were. Telemetry adds `progress.recorded` and `circuit_breaker.blocked`; no existing event was renamed. Regression coverage lives in `tests/claude-loop/autonomy-circuit-breaker.test.ts`, which runs real supervised runs against disposable Git repositories with injected role results and never touches the real repository.
 
 ## Visual review
 

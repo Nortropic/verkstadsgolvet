@@ -76,6 +76,10 @@ async function main(): Promise<void> {
     return;
   }
   if (cmd === 'extend-remediation') {
+    // The owner re-open. It re-opens a run stopped by the no-progress circuit breaker, and still
+    // re-opens runs blocked before the breaker existed. It appends an explicit owner-extension
+    // marker to the append-only progress history; it never resets `attempt`, never truncates
+    // history and can never re-open a run that reached the frozen absolute round backstop.
     const id = args[0]; const rounds = Number(args[1]);
     if (!id || !Number.isInteger(rounds) || rounds < 1) throw new Error('extend-remediation requires run-id and positive integer rounds');
     const s = extendRemediationBudget(id, rounds); console.log(JSON.stringify(s, null, 2)); return;

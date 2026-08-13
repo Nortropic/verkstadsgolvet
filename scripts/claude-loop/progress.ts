@@ -1,0 +1,298 @@
+import { createHash } from 'node:crypto';
+import type { Finding, ProgressRecord } from './schemas';
+
+/**
+ * The progress-aware remediation circuit breaker.
+ *
+ * The remediation loop is no longer bounded by a fixed round budget. It is bounded by PROGRESS:
+ * a round that closes a finding, discovers a different finding, advances the candidate to a new
+ * immutable descendant or moves a failing gate on is allowed to continue, however many rounds that
+ * takes, with no operator involvement. A round that demonstrably repeats itself stops the run
+ * fail-closed on the evidence of that repetition, not on an accidental countdown.
+ *
+ * EVERY function here is pure over persisted data. No clock, no randomness, no environment and no
+ * Git call is read inside a classifier, so a supervisor that is killed and restarted re-derives the
+ * IDENTICAL verdict from the IDENTICAL persisted history. That is what makes "restart cannot
+ * manufacture fresh retry entitlement" mechanical rather than aspirational.
+ *
+ * This module is a stop condition only. It never widens a permission, never upgrades a lane, never
+ * touches claims, scope, lineage or publication.
+ */
+
+/**
+ * Terminal defense against pathological always-different churn, as a FROZEN constant.
+ *
+ * It is deliberately not configuration: a knob that can be raised is a budget, and a budget is the
+ * thing this module replaces. Reaching it terminally blocks the run id; the escape is a fresh
+ * sequential run, never an extension.
+ */
+export const ABSOLUTE_ROUND_BACKSTOP = 30;
+
+/** Stable prefix of every no-progress block. Persisted blocked reasons are keyed on it. */
+export const NO_PROGRESS_BLOCK_PREFIX = 'no-progress circuit breaker: ';
+
+/** Stable prefix of the never-extendable backstop block. */
+export const ABSOLUTE_BACKSTOP_BLOCK_PREFIX = 'absolute round backstop: ';
+
+/**
+ * The RETIRED fixed-budget prefix.
+ *
+ * It is kept because run states persisted before the breaker exist on disk and must stay loadable,
+ * extendable and resumable. Nothing writes it any more.
+ */
+export const LEGACY_REMEDIATION_BUDGET_BLOCK_PREFIX = 'remediation budget exhausted after ';
+
+export type BreakerRule =
+  | 'identical-repeat'
+  | 'churn-cap'
+  | 'oscillation'
+  | 'no-change-ready'
+  | 'gate-repeat'
+  | 'absolute-backstop';
+
+export type ProgressVerdict =
+  | { verdict: 'PROGRESS' }
+  | { verdict: 'BLOCK'; rule: BreakerRule; reason: string };
+
+const PROGRESS: ProgressVerdict = { verdict: 'PROGRESS' };
+
+/* --------------------------------------------------------------------- fingerprints */
+
+function sha256(value: string): string {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+/**
+ * Reviewer-phrasing-tolerant normalization: lowercase, whitespace collapsed, digit runs replaced.
+ *
+ * Digit runs go because line numbers, counts and timings drift between rounds while the defect is
+ * the same defect. Whitespace goes because re-wrapped prose is not new information.
+ */
+export function normalizeFindingMessage(message: string): string {
+  return message.toLowerCase().replace(/\s+/g, ' ').trim().replace(/\d+/g, '#');
+}
+
+/** Actionable findings only. `note` severity is advisory and never reaches the breaker. */
+export function actionableFindings(findings: readonly Finding[]): Finding[] {
+  return findings.filter((f) => f.severity !== 'note');
+}
+
+/**
+ * Per-finding fingerprint: severity + file + normalized message.
+ *
+ * Reviewer-assigned `id` and `line` are DELIBERATELY excluded. Both are unstable across rounds —
+ * an independent reviewer renumbers its own findings every session, and a line number moves when
+ * any earlier line is edited — so including either would let a materially identical repeat present
+ * itself as fresh work and walk straight past the breaker.
+ *
+ * The parts are JSON-encoded rather than joined by a delimiter. A delimiter that can also occur
+ * INSIDE a field makes two different findings collide (`file="a b"`+`msg="c"` would fingerprint
+ * identically to `file="a"`+`msg="b c"`), and a collision here is a false no-progress block on
+ * genuinely different work. JSON escaping is deterministic, unambiguous and — unlike a control
+ * character — leaves this file readable text, so the candidate stays reviewable in a diff.
+ */
+export function findingFingerprint(finding: Finding): string {
+  return JSON.stringify([finding.severity, finding.file ?? '', normalizeFindingMessage(finding.message)]);
+}
+
+/** SHA-256 over the SORTED per-finding fingerprints: finding order is not information. */
+export function findingSetFingerprint(findings: readonly Finding[]): string {
+  const parts = actionableFindings(findings).map(findingFingerprint).sort();
+  return sha256(parts.join('\n'));
+}
+
+/** Gate fingerprint: the exact argv plus the first non-empty output line, normalized identically. */
+export function gateFailureFingerprint(failure: { command: readonly string[]; output: string }): string {
+  const firstLine = failure.output.split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? '';
+  return JSON.stringify([failure.command.join(' '), normalizeFindingMessage(firstLine)]);
+}
+
+export function gateFailureSetFingerprint(failures: ReadonlyArray<{ command: readonly string[]; output: string }>): string {
+  return sha256(failures.map(gateFailureFingerprint).sort().join('\n'));
+}
+
+/** The exact repo-relative file paths a finding set names, sorted and de-duplicated. */
+export function findingFiles(findings: readonly Finding[]): string[] {
+  const files = actionableFindings(findings).map((f) => f.file).filter((f): f is string => typeof f === 'string' && f.length > 0);
+  return [...new Set(files)].sort();
+}
+
+/**
+ * Did the remediation actually touch what it was asked to fix?
+ *
+ * A finding set that names files is answered only by a change to one of those exact files. A
+ * finding set that names NO file (a gate failure, a whole-candidate objection) cannot be located,
+ * so any candidate change at all counts as relevant — the breaker fails OPEN on ambiguity here and
+ * closed only on evidence.
+ */
+export function isRelevantChange(args: { findingFiles: readonly string[]; changedFiles: readonly string[] }): boolean {
+  if (args.changedFiles.length === 0) return false;
+  if (args.findingFiles.length === 0) return true;
+  const changed = new Set(args.changedFiles);
+  return args.findingFiles.some((f) => changed.has(f));
+}
+
+/* ------------------------------------------------------------------------- history */
+
+/** The explicit marker an owner extension appends. It is a record, never a truncation. */
+export function ownerExtensionRecord(args: { round: number; rounds: number }): ProgressRecord {
+  return {
+    round: args.round,
+    source: 'owner-extension',
+    kind: 'owner-extension',
+    candidateSha: null,
+    candidateTree: null,
+    fingerprint: '',
+    files: [],
+    relevantChange: false,
+    detail: `owner extension of ${args.rounds} round${args.rounds === 1 ? '' : 's'}`,
+  };
+}
+
+/**
+ * The window the classifier reasons over: everything AFTER the last owner extension.
+ *
+ * History itself is append-only and is never truncated, reordered or re-fingerprinted. An owner
+ * re-open moves the reading window, so the re-opened run gets a genuine fresh chance instead of
+ * re-deriving the same stale verdict from the same stale evidence on its very first stage.
+ */
+export function historyAfterLastOwnerExtension(history: readonly ProgressRecord[]): ProgressRecord[] {
+  let start = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].kind === 'owner-extension') { start = i + 1; break; }
+  }
+  return history.slice(start);
+}
+
+/** True when the most recent record is an owner extension: the entitlement a resume requires. */
+export function endsWithOwnerExtension(history: readonly ProgressRecord[]): boolean {
+  return history.length > 0 && history[history.length - 1].kind === 'owner-extension';
+}
+
+/* ------------------------------------------------------------------------ verdicts */
+
+function shortSha(sha: string | null | undefined): string {
+  return sha ? sha.slice(0, 12) : 'none';
+}
+
+function evidence(record: ProgressRecord, prior: ProgressRecord | null, extra: string): string {
+  const rounds = prior ? `rounds ${prior.round}->${record.round}` : `round ${record.round}`;
+  const candidates = `candidate ${shortSha(prior?.candidateSha ?? null)}->${shortSha(record.candidateSha)}`;
+  const trees = `tree ${shortSha(prior?.candidateTree ?? null)}->${shortSha(record.candidateTree)}`;
+  const files = record.files.length ? ` files=${record.files.join(',')}` : ' files=none';
+  return `${extra}; source=${record.source} fingerprint=${record.fingerprint} ${rounds} ${candidates} ${trees}${files}`;
+}
+
+function block(rule: BreakerRule, record: ProgressRecord, prior: ProgressRecord | null, extra: string): ProgressVerdict {
+  return { verdict: 'BLOCK', rule, reason: `${NO_PROGRESS_BLOCK_PREFIX}${rule}: ${evidence(record, prior, extra)}` };
+}
+
+/** The reason a run is terminally blocked by the frozen backstop. Never extendable. */
+export function absoluteBackstopBlockedReason(args: { runId: string; round: number }): string {
+  return `${ABSOLUTE_BACKSTOP_BLOCK_PREFIX}run ${args.runId} reached the frozen ${ABSOLUTE_ROUND_BACKSTOP}-round backstop at round ${args.round}; this run id is terminally blocked, is not extendable, and the only escape is a fresh sequential run`;
+}
+
+export function absoluteBackstopReached(round: number): boolean {
+  return round >= ABSOLUTE_ROUND_BACKSTOP;
+}
+
+/**
+ * The whole circuit-breaker decision, as a pure function of the persisted history and the record
+ * the supervisor is about to append.
+ *
+ * Continuation requires PROGRESS. Every BLOCK verdict carries exact evidence: the repeated
+ * fingerprint, the rounds involved and the candidate identities.
+ */
+export function classifyProgress(history: readonly ProgressRecord[], record: ProgressRecord): ProgressVerdict {
+  const active = historyAfterLastOwnerExtension(history);
+  const previous = active.length ? active[active.length - 1] : null;
+
+  if (record.kind === 'findings') {
+    const priorFindings = active.filter((r) => r.kind === 'findings');
+    const last = priorFindings.length ? priorFindings[priorFindings.length - 1] : null;
+
+    // (a) IDENTICAL REPEAT — blocks on the FIRST repeat.
+    //
+    // Suppressed for exactly one case: the stage that immediately follows a recorded no-change
+    // READY is the ONE fresh independent review rule (d) deliberately grants, so it is judged by
+    // rule (d) on the next round rather than pre-empted here.
+    if (
+      previous?.kind !== 'no-change-ready'
+      && last
+      && last.source === record.source
+      && last.fingerprint === record.fingerprint
+      && !record.relevantChange
+    ) {
+      return block('identical-repeat', record, last, `the ${record.source} finding set is materially identical to the one the preceding remediation round was asked to fix, and that remediation changed no file the finding set names`);
+    }
+
+    // (e) GATE REPEAT — same gate fingerprint twice with an unchanged candidate, or three times.
+    if (record.source === 'gates') {
+      const priorGates = priorFindings.filter((r) => r.source === 'gates');
+      const g1 = priorGates.length >= 1 ? priorGates[priorGates.length - 1] : null;
+      const g2 = priorGates.length >= 2 ? priorGates[priorGates.length - 2] : null;
+      if (g1 && g1.fingerprint === record.fingerprint && g1.candidateTree === record.candidateTree) {
+        return block('gate-repeat', record, g1, 'the same gate failure fingerprint failed in two consecutive rounds with no candidate change between them');
+      }
+      if (g1 && g2 && g1.fingerprint === record.fingerprint && g2.fingerprint === record.fingerprint) {
+        return block('gate-repeat', record, g1, 'the same gate failure fingerprint failed in three consecutive rounds');
+      }
+    }
+
+    // (b) CHURN CAP — the third occurrence of one fingerprint from one source in a run.
+    const repeats = priorFindings.filter((r) => r.source === record.source && r.fingerprint === record.fingerprint);
+    if (repeats.length >= 2) {
+      return block('churn-cap', record, repeats[repeats.length - 1], `the same ${record.source} finding set occurred for the third time in this run (previously in rounds ${repeats.map((r) => r.round).join(', ')})`);
+    }
+    return PROGRESS;
+  }
+
+  // (c) OSCILLATION — the content returned to an equivalent earlier state.
+  if (record.kind === 'candidate') {
+    const twin = active.find((r) => (r.kind === 'candidate' || r.kind === 'base') && r.candidateTree !== null && r.candidateTree === record.candidateTree);
+    if (twin) {
+      return block('oscillation', record, twin, `the remediation produced a candidate whose tree already existed earlier in this run (round ${twin.round}${twin.kind === 'base' ? ', the frozen base' : ''})`);
+    }
+    return PROGRESS;
+  }
+
+  // (d) NO-CHANGE READY — one fresh review is granted, the second consecutive one blocks.
+  //
+  // "Consecutive" is measured over records that touch CONTENT, because the fresh independent review
+  // granted by the first no-change READY legitimately sits between the two. If a candidate was
+  // created in between then the content did move and this is a first occurrence again.
+  if (record.kind === 'no-change-ready') {
+    const lastContent = [...active].reverse().find((r) => r.kind === 'no-change-ready' || r.kind === 'candidate' || r.kind === 'base');
+    if (lastContent?.kind === 'no-change-ready' && lastContent.fingerprint === record.fingerprint) {
+      return block('no-change-ready', record, lastContent, 'the write role reported READY twice in a row without creating any change against the same pending findings, so the fresh independent review already granted once cannot be granted again');
+    }
+    return PROGRESS;
+  }
+
+  return PROGRESS;
+}
+
+/* ------------------------------------------------------- persisted-reason predicates */
+
+export function isNoProgressBlockedReason(reason: string | null | undefined): boolean {
+  return typeof reason === 'string' && reason.startsWith(NO_PROGRESS_BLOCK_PREFIX);
+}
+
+export function isAbsoluteBackstopBlockedReason(reason: string | null | undefined): boolean {
+  return typeof reason === 'string' && reason.startsWith(ABSOLUTE_BACKSTOP_BLOCK_PREFIX);
+}
+
+export function isLegacyBudgetBlockedReason(reason: string | null | undefined): boolean {
+  return typeof reason === 'string' && reason.startsWith(LEGACY_REMEDIATION_BUDGET_BLOCK_PREFIX);
+}
+
+/**
+ * Which blocked runs an owner may re-open with `extend-remediation`.
+ *
+ * BOTH the retired fixed-budget prefix (old persisted runs stay extendable) and the no-progress
+ * breaker prefix qualify. The absolute backstop NEVER does.
+ */
+export function isOwnerExtendableBlockedReason(reason: string | null | undefined): boolean {
+  if (isAbsoluteBackstopBlockedReason(reason)) return false;
+  return isLegacyBudgetBlockedReason(reason) || isNoProgressBlockedReason(reason);
+}
