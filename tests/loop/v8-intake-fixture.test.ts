@@ -22,6 +22,7 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -252,18 +253,91 @@ test("V8*-NEG: ingen transportväg, ingen hashning och ingen semantisk markdown-
   }
 });
 
-test("V8*-NEG: källans påstådda sha256 och dedup-nyckel når ALDRIG DOM", () => {
-  const html = renderShell();
+test("V8*-NEG: intakevyn läser ALDRIG kommandots payload — källhashen kommer bara ur snapshot", () => {
+  /*
+    STRUKTURELL kontroll, inte en strängjakt. Efter ett ACCEPTERAT intag är controllerns
+    publicerade `TaskView.source.sha256` med nödvändighet samma 64 tecken som påståendet i
+    kommandot — det är hela poängen med B5: controllern läser bytes, räknar om hashen och
+    kräver match. En substrängsökning kan därför inte längre skilja de två värdena åt, och
+    provet mäter i stället VARIFRÅN vyn hämtar sitt värde: transportens payload och dedup-nyckel
+    får inte läsas alls.
+  */
+  for (const file of INTAKE_FILES) {
+    const source = sourceOf(file);
+    assert.ok(!/\bpayload\b/.test(source), `${file} läser kommandots payload`);
+    assert.ok(!/dedup_key|dedupKey/.test(source), `${file} läser dedup-nyckeln`);
+    assert.ok(!/source_ref/.test(source), `${file} läser den opaka transportreferensen`);
+    assert.ok(!/source_sha256/.test(source), `${file} läser appens påstådda hash`);
+  }
+});
+
+test("V8*-NEG: påståendet och dedup-nyckeln syns aldrig i vyn — och aldrig utanför snapshotens kort", () => {
   for (const outcome of outcomes()) {
     const command = outcome.command;
     assert.ok(command, "fixturutfallet saknar transportrad");
-    const claimed = (command.payload as Record<string, unknown>).source_sha256;
-    assert.equal(typeof claimed, "string");
-    assert.ok(
-      !html.includes(claimed as string),
-      "en påstådd sha256 renderades — appens hash får aldrig se ut som en sanning om källan",
-    );
+    const claimed = (command.payload as Record<string, unknown>).source_sha256 as string;
+    assert.match(claimed, /^[0-9a-f]{64}$/);
+
+    const html = renderResult(outcome);
     assert.ok(!html.includes(command.dedup_key), "dedup-nyckeln (som bär hashen) renderades");
+
+    if (outcome.controller_answer === null) {
+      // Inget controllersvar finns → värdet får inte synas någonstans alls.
+      assert.ok(
+        !html.includes(claimed),
+        "ett påstående renderades innan controllern bekräftat det",
+      );
+      continue;
+    }
+
+    /*
+      Med ett svar publicerar controllern källans identitet i sina TaskViews, och DEN får visas.
+      Utanför korten — i intakevyns egen krom — får värdet däremot inte förekomma, för där hade
+      det bara kunnat komma ur transporten.
+    */
+    const withoutCards = html.replace(/<article\b[\s\S]*?<\/article>/g, "");
+    assert.ok(
+      !withoutCards.includes(claimed),
+      "källhashen renderades i intakevyns egen krom, inte ur snapshotens uppgiftskort",
+    );
+  }
+});
+
+test("V8*-PROVENANCE: alla uppgifter ur EN inlämning delar EN källidentitet, härledd ur källan", () => {
+  for (const outcome of outcomes()) {
+    const tasks = outcome.controller_answer?.tasks ?? [];
+    if (tasks.length === 0) continue;
+
+    // Provets EGEN härledning ur källtexten — aldrig fixturens eget värde återanvänt.
+    const expected = createHash("sha256").update(outcome.source.text).digest("hex");
+
+    const ids = new Set(tasks.map((task) => task.source?.source_id));
+    assert.equal(ids.size, 1, `${outcome.submission_id}: uppgifterna bär olika källidentitet`);
+    for (const task of tasks) {
+      assert.ok(task.source, "en uppgift ur en inlämning saknar källa");
+      assert.equal(
+        task.source.sha256,
+        expected,
+        `${outcome.submission_id}: uppgiftens käll-sha256 hör inte till den inlämnade källan`,
+      );
+      assert.equal(
+        task.source.locator,
+        outcome.source.source_name,
+        `${outcome.submission_id}: uppgiften pekar på en annan fil än den inlämnade`,
+      );
+    }
+
+    // Och identiteten är unik per inlämning — två inlämningar delar aldrig källa.
+    const others = outcomes().filter((other) => other.submission_id !== outcome.submission_id);
+    for (const other of others) {
+      for (const task of other.controller_answer?.tasks ?? []) {
+        assert.notEqual(
+          task.source?.source_id,
+          [...ids][0],
+          "två skilda inlämningar delar källidentitet",
+        );
+      }
+    }
   }
 });
 

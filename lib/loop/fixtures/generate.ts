@@ -372,6 +372,32 @@ function buildIntakeCommandRecord(args: {
 }
 
 /**
+ * PROVENANCE: alla uppgifter ur EN inlämning bär SAMMA källidentitet, härledd ur just den
+ * inlämnade källan.
+ *
+ * Modellen UI:t självt beskriver (SelectionReport: "Varje fil hade blivit en EGEN källa med
+ * eget sha256 hos controllern") är fil ↔ källa 1:1, och en källa kompilerar till många
+ * uppgifter som delar den identiteten. En fixtur där två uppgifter ur samma inlämning bar
+ * olika `source_id` och olika `sha256` hade varit precis den sortens fixtur V1:s fixturregel
+ * finns för att fälla: en form som inte är den verkliga kanalens, men som ändå går grön.
+ *
+ * `sha256` är källans EGEN hash. Att den sammanfaller med `source_sha256` i kommandot är inte
+ * en tillfällighet utan själva poängen med B5: controllern läser bytes, räknar om hashen och
+ * kräver match innan den skapar källan. Efter ett accepterat intag ÄR de två värdena samma —
+ * skillnaden är vem som räknat fram dem, och bara controllerns värde är auktoritativt.
+ */
+function withSubmissionProvenance(task: TaskView, submission: IntakeOutcome["source"], sourceId: string): TaskView {
+  return {
+    ...task,
+    source: {
+      source_id: sourceId,
+      sha256: sha256(submission.text),
+      locator: submission.source_name,
+    },
+  };
+}
+
+/**
  * Fyra utfall som täcker planens intake-krav i fixturläge:
  *   1. inlämnad och obesvarad  → väntetext, NOLL uppgifter, antal "—" (I6)
  *   2. avvisad av controllern  → orsaken ordagrant med rå command_id och status (I5)
@@ -383,10 +409,21 @@ function buildIntakeCommandRecord(args: {
  * som en fil, med genererat filnamn (I7).
  */
 export function buildIntakeOutcomeFixtures(): IntakeOutcome[] {
+  const sourceOfThin: IntakeOutcome["source"] = {
+    source_name: "fixa-hemsidan.md",
+    origin: "file",
+    text: INTAKE_SOURCE_THIN,
+  };
+  const sourceOfTwoGoals: IntakeOutcome["source"] = {
+    source_name: "backlog-aug.md",
+    origin: "file",
+    text: INTAKE_SOURCE_TWO_GOALS,
+  };
+
   return [
     {
       submission_id: "sub-fixture-0001",
-      source: { source_name: "backlog-aug.md", origin: "file", text: INTAKE_SOURCE_TWO_GOALS },
+      source: { ...sourceOfTwoGoals },
       submission_state: "submission.command_queued",
       command: buildIntakeCommandRecord({
         label: "awaiting",
@@ -420,7 +457,7 @@ export function buildIntakeOutcomeFixtures(): IntakeOutcome[] {
     },
     {
       submission_id: "sub-fixture-0003",
-      source: { source_name: "fixa-hemsidan.md", origin: "file", text: INTAKE_SOURCE_THIN },
+      source: { ...sourceOfThin },
       submission_state: "submission.claimed_by_controller",
       command: buildIntakeCommandRecord({
         label: "needs-spec",
@@ -431,11 +468,16 @@ export function buildIntakeOutcomeFixtures(): IntakeOutcome[] {
         claimed: true,
       }),
       // Controllerns svar, ur dess eget vokabulär: NEEDS_SPEC är ett arbetsläge, inte ett fel.
-      controller_answer: { tasks: [buildTask("NEEDS_SPEC", 20)] },
+      // Uppgiften bär inlämningens källidentitet — inte en främmande fils.
+      controller_answer: {
+        tasks: [buildTask("NEEDS_SPEC", 20)].map((task) =>
+          withSubmissionProvenance(task, sourceOfThin, "src-fixture-0003"),
+        ),
+      },
     },
     {
       submission_id: "sub-fixture-0004",
-      source: { source_name: "backlog-aug.md", origin: "file", text: INTAKE_SOURCE_TWO_GOALS },
+      source: { ...sourceOfTwoGoals },
       submission_state: "submission.claimed_by_controller",
       command: buildIntakeCommandRecord({
         label: "answered",
@@ -445,8 +487,13 @@ export function buildIntakeOutcomeFixtures(): IntakeOutcome[] {
         result: null,
         claimed: true,
       }),
-      // Antalet är CONTROLLERNS, inte en tolkning av källans rubriker.
-      controller_answer: { tasks: [buildTask("READY", 21), buildTask("QUEUED", 22)] },
+      // Antalet är CONTROLLERNS, inte en tolkning av källans rubriker. BÅDA uppgifterna kommer
+      // ur samma inlämnade fil och delar därför en och samma källidentitet.
+      controller_answer: {
+        tasks: [buildTask("READY", 21), buildTask("QUEUED", 22)].map((task) =>
+          withSubmissionProvenance(task, sourceOfTwoGoals, "src-fixture-0004"),
+        ),
+      },
     },
   ];
 }

@@ -84,9 +84,9 @@
           "title": "Fixturuppgift p-220",
           "state": "NEEDS_SPEC",
           "source": {
-            "source_id": "src-020",
-            "sha256": "ed5173d38daaee9ea199ed9244b709cfa52b1fd9ce3a7c72bdba6044b279ad85",
-            "locator": "backlog-aug.md"
+            "source_id": "src-fixture-0003",
+            "sha256": "f4dce851ab6e84617fc1d648983af5b3bedb1638da2f847988f3447d1c7a0134",
+            "locator": "fixa-hemsidan.md"
           },
           "attempt": {
             "n": 1,
@@ -152,9 +152,9 @@
           "title": "Fixturuppgift p-221",
           "state": "READY",
           "source": {
-            "source_id": "src-021",
-            "sha256": "d599536d5f6357a06c276af47b04dc5d5461b81b96f8e86b6d9940d978e49af3",
-            "locator": null
+            "source_id": "src-fixture-0004",
+            "sha256": "16d3f826a89efeb4d8e596a999f8a348c6dbc0c03df36bf99cdfe1429a7c1e39",
+            "locator": "backlog-aug.md"
           },
           "attempt": {
             "n": 1,
@@ -191,8 +191,8 @@
           "title": "Fixturuppgift p-222",
           "state": "QUEUED",
           "source": {
-            "source_id": "src-022",
-            "sha256": "cdefcc2bf212c276225afc02d2c0d663b2edd8cfb24e7c236a0c9fa4229bc7d9",
+            "source_id": "src-fixture-0004",
+            "sha256": "16d3f826a89efeb4d8e596a999f8a348c6dbc0c03df36bf99cdfe1429a7c1e39",
             "locator": "backlog-aug.md"
           },
           "attempt": {
