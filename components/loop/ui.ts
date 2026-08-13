@@ -144,7 +144,17 @@ export const LOOP_CSS = `
   flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 .mk-drop-over { background: var(--tint-accent-bg); box-shadow: inset 0 0 0 1px var(--tint-accent-border); }
 .mk-drop-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-.mk-file-input { font-size: 12px; color: var(--text-secondary); }
+/* Namnet PÅ en kontroll, inte en sektionsrubrik: .mk-label:s versala 9.5px-mono läses som
+   kapitälrubrik och gör kontrollens namn otydligt. Egen klass, samma tokens. */
+.mk-control-label { font-size: 12.5px; line-height: 17px; font-weight: 600; color: var(--text-primary); }
+.mk-file-input { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-secondary); }
+/* Webbläsarens egen filknapp bär värdens chrome (och engelsk text). Den kan inte översättas
+   från CSS, men den ska åtminstone bära husets färger i stället för systemets ljusa default. */
+.mk-file-input::file-selector-button { height: 28px; padding: 0 12px; margin-right: 10px; border: 0;
+  border-radius: var(--radius-control); font-family: var(--font-mono); font-size: 11.5px;
+  letter-spacing: 0.6px; background: var(--bg-surface-2); color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--border-strong); cursor: pointer; }
+.mk-file-input::file-selector-button:hover { background: var(--bg-surface-3); }
 .mk-textarea { font-family: var(--font-mono); font-size: 12px; line-height: 18px; color: var(--text-primary);
   background: var(--bg-surface-0); box-shadow: inset 0 0 0 1px var(--border-strong);
   border: 0; border-radius: var(--radius-control); padding: 10px 11px; resize: vertical; min-height: 120px; }
@@ -165,6 +175,11 @@ export const LOOP_CSS = `
   background: var(--bg-surface-0); box-shadow: inset 0 0 0 1px var(--border-strong);
   border-radius: var(--radius-control); padding: 10px 11px; margin: 0; overflow-x: auto;
   white-space: pre; max-height: 420px; overflow-y: auto; }
+/* Controllerns avslag PÅSTÅS visas "ordagrant och i sin helhet" — då ska det också SYNAS i sin
+   helhet, utan att läsaren först måste upptäcka en horisontell scroll. Radbrytning ändrar inga
+   tecken (byte-identiteten mäts på DOM:en), kapar ingenting och lägger ingen "visa mer"-lucka
+   mellan läsaren och orsaken. */
+.mk-raw[data-rejection-verbatim="true"] { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mk-intake-results { display: flex; flex-direction: column; gap: var(--gap-md); }
 
 @media (max-width: 1279px) { .mk-cols { gap: var(--gap-sm); } }
@@ -178,5 +193,8 @@ export const LOOP_CSS = `
   .mk-col-backlog { order: 1; }
   .mk-col-completed { order: 2; }
   .mk-fields { grid-template-columns: minmax(0, 1fr); }
+  /* På den smalaste vyn bryts även originalkällan hellre än att kräva sidled-scroll för att
+     läsas. Källan är fortfarande byte-identisk — bara ombruten, aldrig kapad. */
+  .mk-raw[data-source-raw="true"] { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 `;

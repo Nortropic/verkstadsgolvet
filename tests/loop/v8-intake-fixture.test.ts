@@ -75,6 +75,7 @@ import {
   type IntakeOutcome,
   type IntakeRejectionCode,
 } from "../../lib/loop/intake";
+import { LOOP_CSS } from "../../components/loop/ui";
 import { MISSING, NEEDS_SPEC_EXPLANATION, TASK_LIFECYCLE_PRESENTATION } from "../../lib/loop/labels";
 import { SUBMISSION_LIFECYCLE, TASK_LIFECYCLE } from "../../lib/loop/schema";
 
@@ -526,6 +527,61 @@ test("V8*-I5: controllerns avslag visas ordagrant med rå command_id och rå sta
   // Ingen omskrivning till något vänligare, och ingen knapp som skickar samma sak igen.
   assert.ok(!/försök igen|prova igen|try again/i.test(html), "UI:t erbjöd en blind omsändning");
   assert.ok(!/något gick fel|ett fel uppstod/i.test(html), "orsaken skrevs om");
+});
+
+test("V8*-I5: 'i sin helhet' är ett löfte om SYNLIGHET — avslaget bryts om, kapas aldrig", () => {
+  const html = renderResult(outcomeById(REJECTED));
+  // Påståendet finns i UI:t …
+  assert.ok(html.includes("ordagrant och i sin helhet"), "löftet om helheten saknas");
+
+  // … och stilarket måste infria det: hela svaret läsbart utan horisontell scroll.
+  assert.match(
+    LOOP_CSS,
+    /\.mk-raw\[data-rejection-verbatim="true"\]\s*\{[^}]*white-space:\s*pre-wrap/,
+    "avslaget kräver sidled-scroll för att läsas — UI:t lovar mer än det visar",
+  );
+  assert.match(
+    LOOP_CSS,
+    /\.mk-raw\[data-rejection-verbatim="true"\]\s*\{[^}]*overflow-wrap:\s*anywhere/,
+    "en lång sträng utan mellanslag (t.ex. en hash) bryts inte och sticker ut ur panelen",
+  );
+
+  // Och ingenting får kapa svaret: varken CSS-trunkering eller en "visa mer"-lucka.
+  assert.ok(
+    !/text-overflow:\s*ellipsis|line-clamp/i.test(LOOP_CSS),
+    "stilarket trunkerar text i /loop-trädet",
+  );
+  assert.ok(!/visa mer|läs mer|show more/i.test(html), "avslaget gömdes bakom en expandering");
+  assert.ok(!html.includes("…"), "avslaget renderades med ellips");
+});
+
+test("V8*-STIL: intakens klasser finns faktiskt i stilarket — ingen klass utan regel", () => {
+  const html = renderShell();
+  const used = new Set(
+    (html.match(/class="([^"]*)"/g) ?? [])
+      .flatMap((match) => match.slice(7, -1).split(/\s+/))
+      .filter((name) => name.startsWith("mk-")),
+  );
+  assert.ok(used.size > 0, "ingen namnrymdad klass användes — provet mäter ingenting");
+  /*
+    `mk-tone-neutral` är AVSIKTLIGT regellös: neutral ÄR grundutseendet på .mk-card och
+    .mk-badge, och en modifierare som återupprepar grunden hade bara kunnat glida isär från
+    den. Undantaget står här, uttryckligen, i stället för att provet tyst släpper igenom
+    varje klass utan regel.
+  */
+  const intentionallyRuleless = new Set(["mk-tone-neutral"]);
+  for (const name of used) {
+    if (intentionallyRuleless.has(name)) continue;
+    assert.ok(
+      LOOP_CSS.includes(`.${name}`),
+      `klassen ${name} används men har ingen regel i stilarket`,
+    );
+  }
+  // Kontrollernas namn ska läsas som namn, inte som kapitälrubrik.
+  assert.ok(html.includes('class="mk-control-label"'));
+  assert.match(LOOP_CSS, /\.mk-control-label\s*\{[^}]*font-size:\s*12\.5px/);
+  // Webbläsarens filknapp bär husets färger i stället för systemets ljusa default.
+  assert.match(LOOP_CSS, /\.mk-file-input::file-selector-button\s*\{[^}]*background:\s*var\(--bg-surface-2\)/);
 });
 
 test("V8*-I5-NEG: avslaget läses ALDRIG fältvis — ett annat nyckelnamn renderas lika ordagrant", () => {

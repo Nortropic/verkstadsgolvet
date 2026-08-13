@@ -143,7 +143,17 @@ export default function IntakeDropzone() {
           event.preventDefault();
           setDragOver(true);
         }}
-        onDragLeave={() => setDragOver(false)}
+        onDragLeave={(event) => {
+          /*
+            `dragleave` utlöses ÄVEN när pekaren går in i ett barn i zonen (titeln, hinten,
+            filväljaren). Släcks markeringen då blinkar den medan användaren rör sig inom
+            samma yta. Zonen räknas som lämnad först när pekaren faktiskt är utanför hela
+            behållaren — och `relatedTarget` är null när den lämnar fönstret helt.
+          */
+          const next = event.relatedTarget;
+          if (next instanceof Node && event.currentTarget.contains(next)) return;
+          setDragOver(false);
+        }}
         onDrop={(event) => {
           event.preventDefault();
           setDragOver(false);
@@ -156,7 +166,7 @@ export default function IntakeDropzone() {
           inlämning · högst {groupDigits(INTAKE_MAX_FILE_BYTES)} byte per fil
         </span>
         {/* Riktig <label htmlFor> — husets form för formulärkontroller (OnboardingForm, DocPanel). */}
-        <label className="mk-label" htmlFor={IDS.filePicker}>
+        <label className="mk-control-label" htmlFor={IDS.filePicker}>
           Välj Markdown-filer
         </label>
         <input
@@ -175,7 +185,7 @@ export default function IntakeDropzone() {
 
       <div className="mk-group">
         {/* Programmatiskt namn på ytan, inte bara en visuell rubrik: placeholder är inget namn. */}
-        <label className="mk-label" htmlFor={IDS.pasteArea}>
+        <label className="mk-control-label" htmlFor={IDS.pasteArea}>
           Klistra in text
         </label>
         <textarea
