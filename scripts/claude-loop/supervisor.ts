@@ -305,8 +305,8 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
 
       if (config.publish.enabled) {
         state.phase = 'PUBLISH'; saveState(repo, state); t.emit('publication.started', { candidate_sha: state.candidateSha });
-        const p = publish({ repo, worktree: state.worktree, branch: state.branch, baseSha: state.baseSha, candidateSha: state.candidateSha!, taskId: state.task.id, autoMerge: config.publish.autoMerge });
-        state.prUrl = p.prUrl; t.emit(p.mergedMain ? 'publication.completed' : 'pr.created', { pr: p.prUrl, main: p.mergedMain ?? null });
+        const p = publish({ repo, worktree: state.worktree, branch: state.branch, baseSha: state.baseSha, candidateSha: state.candidateSha!, taskId: state.task.id, autoMerge: config.publish.autoMerge, mergeMethod: config.publish.mergeMethod });
+        state.prUrl = p.prUrl; t.emit(p.mergedMain ? 'publication.completed' : 'pr.created', { pr: p.prUrl, main: p.mergedMain ?? null, merge_method: config.publish.mergeMethod, merge_sha: p.mergeSha ?? null });
       }
       const completed = completeRunState(state);
       saveState(repo, completed); t.emit('run.completed', { task: completed.task.id, candidate_sha: completed.candidateSha, pr: completed.prUrl, advisory_findings: completed.advisoryFindings });

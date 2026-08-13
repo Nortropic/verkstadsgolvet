@@ -11,6 +11,6 @@
   "publish": {
     "enabled": false,
     "autoMerge": false,
-    "mergeMethod": "rebase"
+    "mergeMethod": "merge"
   }
 }

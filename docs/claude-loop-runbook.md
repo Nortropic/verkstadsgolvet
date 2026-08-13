@@ -20,7 +20,41 @@ Start from `.claude-loop.example-task.json`. A task defines exact allowed-write 
 
 ## Publication
 
-`.claude-loop.example.json` documents publication switches. Both `publish.enabled` and `publish.autoMerge` default to `false`. Enabling them is an explicit operator choice after the first empirical run.
+`.claude-loop.example.json` documents publication switches. `publish.enabled` and `publish.autoMerge` both default to `false` and `publish.mergeMethod` is `merge`. Enabling publication is an explicit operator choice after the first empirical run. `/.claude-loop.json` is the operator-local runtime override, is git-ignored, and is never task or product authority.
+
+### Merge method
+
+The only supported Factory auto-merge is a **normal GitHub merge commit**. `publish.mergeMethod` accepts `merge` and nothing else: a configuration asking for `rebase` or `squash` fails configuration validation instead of silently selecting another method. Rebase and squash would put a NEW commit on `main`, so the object that lands would not be the object an independent reviewer read. The supervisor passes the configured method explicitly into publication; it is never an unused config field.
+
+### `publish.enabled=true`, `autoMerge=false`
+
+Ordinary non-force branch push, PR creation, exact verification of PR state, base ref/SHA, head ref/SHA and the mechanically derived changed-file set — then stop. Nothing is merged.
+
+### `publish.enabled=true`, `autoMerge=true`
+
+Immediately before merging, every fact is re-locked; nothing observed earlier in the run is trusted:
+
+- `origin/main` is re-fetched and must still equal the run's frozen `baseSha`;
+- the worktree HEAD must still be the exact independently reviewed `candidateSha`;
+- the remote candidate branch must still be that same `candidateSha`;
+- the PR is re-read and must still be open, with `base.ref=main`, `base.sha=baseSha`, `head.ref` the exact Factory branch and `head.sha=candidateSha`;
+- the PR's changed files must exactly equal the mechanically derived candidate changed-file set.
+
+The merge is then performed through GitHub's merge API with the expected head SHA and `merge_method=merge`. `gh pr merge --rebase`/`--squash`, `--delete-branch`, `--admin`, force push, amend, reset and rebase are never used and are rejected by argument guards before any process is spawned.
+
+### Post-merge proof
+
+An API response is not proof. A merge counts as successful only when GitHub explicitly reports `merged=true` with a valid merge SHA **and** Git then confirms all of:
+
+- freshly fetched `origin/main` equals that merge SHA;
+- the merge commit has exactly two parents;
+- parent 1 is the frozen `baseSha`;
+- parent 2 is the exact reviewed `candidateSha`;
+- the merge tree equals the reviewed candidate tree.
+
+A tree-equivalent but wrongly parented or history-rewritten result is a BLOCK, not a success. Any refusal, conflict or drift is a BLOCK. The candidate commit and its remote branch are immutable publication evidence and are never deleted by publication.
+
+Regression coverage lives in `tests/claude-loop/publication-merge-commit.test.ts`, which runs against disposable local Git repositories with an injected GitHub seam and never touches the real repository.
 
 ## Recovery
 
