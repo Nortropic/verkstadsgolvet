@@ -62,7 +62,7 @@ Independent fresh context. Read-only. Reviews actual screenshots at configured d
 
 The supervisor commits only after allowed-write and mechanical gates pass. Each remediation creates a new immutable commit; no amend/rebase/reset repair is allowed.
 
-Publication support exists in v1 but defaults off. When enabled, push is ordinary non-force push, PR base/head are checked, and auto-merge (if separately enabled) uses expected-head guarded rebase merge. A changed base blocks publication rather than silently rewriting history.
+Publication defaults off. When enabled, push is ordinary non-force push and PR base, head and file scope are verified exactly. Auto-merge, separately enabled, is a normal GitHub merge commit performed through the merge API with the expected head SHA and `merge_method=merge`; rebase, squash, force push, amend and reset are never used. A merge succeeds only when GitHub reports `merged=true` with a valid merge SHA and Git then proves, from a fresh fetch, that `origin/main` equals that returned merge SHA and is a two-parent merge commit whose first parent is the frozen base and whose second parent is the exact reviewed candidate, carrying the identical reviewed candidate tree. A changed base, any drift or any refusal blocks publication rather than rewriting history. The candidate commit and its remote branch stay immutable evidence. See `docs/claude-loop-runbook.md` for the full guard list.
 
 ## Telemetry
 
