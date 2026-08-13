@@ -29,6 +29,7 @@ import {
   INTAKE_DISABLED_REASON,
   INTAKE_MAX_FILES,
   INTAKE_MAX_FILE_BYTES,
+  classifyIntakeCandidate,
   groupDigits,
   intakeSubmissionEnabled,
   pasteSourceName,
@@ -66,24 +67,62 @@ export function toCandidate(file: { name: string; size: number; type: string }):
   return { file_name: file.name, byte_size: file.size, mime_type: file.type };
 }
 
+/** En kompakt mening om urvalet — det som ska HÖRAS när valet ändras, inte tjugoen rader. */
+function selectionStatusText(selection: IntakeSelection | null): string {
+  if (selection === null) return "Ingen fil är vald ännu.";
+  const chosen = selection.verdicts.length;
+  const rejected = selection.verdicts.filter((verdict) => !verdict.accepted).length;
+  if (selection.selection_rejection !== null) {
+    return `${chosen} filer valda. Antalsgränsen fällde hela urvalet — ingen fil lämnas in.`;
+  }
+  return `${chosen} valda: ${selection.accepted.length} formellt godkända, ${rejected} avvisade.`;
+}
+
 /**
  * Domarna över ett urval. Ren komponent utan tillstånd — samma urval ger samma markup, och
  * provet kan rendera den utan att simulera drag-and-drop i en webbläsare.
+ *
+ * `live` gör statusraden till ett artigt live-område. Den sätts BARA av dropzonen, vars urval
+ * faktiskt ändras: en statisk kopia i fixturpanelen ska inte annonsera något. Behållaren
+ * renderas alltid — även utan urval — så att live-området finns i DOM:en INNAN det uppdateras;
+ * ett område som skapas samtidigt som sitt innehåll annonseras inte pålitligt.
  */
-export function SelectionReport({ selection }: { selection: IntakeSelection | null }) {
-  if (selection === null) {
-    return (
-      <p className="mk-hint" data-selection="empty">
-        Ingen fil är vald ännu.
-      </p>
-    );
-  }
-
+export function SelectionReport({
+  selection,
+  live = false,
+}: {
+  selection: IntakeSelection | null;
+  live?: boolean;
+}) {
   /** Hela urvalet fällt (antalsgränsen) — då lämnas ingen fil in, hur ren den än är. */
+  const selectionFell = selection !== null && selection.selection_rejection !== null;
+
+  return (
+    <div
+      className="mk-group"
+      data-selection={selection === null ? "empty" : "report"}
+      data-selection-fell={selectionFell ? "true" : "false"}
+    >
+      <p
+        className="mk-hint"
+        data-selection-status="true"
+        role={live ? "status" : undefined}
+        aria-live={live ? "polite" : undefined}
+      >
+        {selectionStatusText(selection)}
+      </p>
+
+      {selection !== null && <SelectionDetails selection={selection} />}
+    </div>
+  );
+}
+
+/** Banner, rader och sammanfattning. Renderas först när ett urval finns. */
+function SelectionDetails({ selection }: { selection: IntakeSelection }) {
   const selectionFell = selection.selection_rejection !== null;
 
   return (
-    <div className="mk-group" data-selection="report" data-selection-fell={selectionFell ? "true" : "false"}>
+    <>
       {selection.selection_rejection && (
         <p
           className="mk-note mk-tone-warning"
@@ -137,10 +176,10 @@ export function SelectionReport({ selection }: { selection: IntakeSelection | nu
 
       <p className="mk-hint" data-accepted-count={selection.accepted.length}>
         {selectionFell
-          ? `Filer som skulle lämnats in: ${selection.accepted.length}. Antalsgränsen fäller hela urvalet — Verkstadsgolvet väljer aldrig ut några filer åt dig.`
-          : `Formellt godkända filer: ${selection.accepted.length}. Varje fil hade blivit en EGEN källa med eget sha256 hos controllern — filer slås aldrig ihop.`}
+          ? "Antalsgränsen fäller hela urvalet — Verkstadsgolvet väljer aldrig ut några filer åt dig."
+          : "Varje fil hade blivit en EGEN källa med eget sha256 hos controllern — filer slås aldrig ihop."}
       </p>
-    </div>
+    </>
   );
 }
 
@@ -156,6 +195,22 @@ export default function IntakeDropzone() {
 
   const stats = sourceStats(pasted);
   const enabled = intakeSubmissionEnabled();
+
+  /*
+    Inklistrad text går "samma väg som en fil" (I7) — då ska den också dömas av SAMMA funktion.
+    Storleksgränsen är den enda regel skivan påstår sig hålla, och en inklistrad källa över
+    gränsen fick tidigare bara sitt bytetal utskrivet. Namn och typ är GENERERADE av appen (en
+    inklistrad källa har inget filnamn från en webbläsare), så i praktiken kan bara storleken
+    fälla — men domen hämtas ur classifyIntakeCandidate så att de två vägarna inte kan glida isär.
+  */
+  const pasteVerdict =
+    pasted === ""
+      ? null
+      : classifyIntakeCandidate({
+          file_name: pasteSourceName(1),
+          byte_size: stats.bytes,
+          mime_type: "text/markdown",
+        });
 
   return (
     <section className="mk-panel" data-intake-dropzone="true" aria-label="Mata maskinen">
@@ -220,7 +275,8 @@ export default function IntakeDropzone() {
         </label>
       </div>
 
-      <SelectionReport selection={selection} />
+      {/* Enda live-området: dropzonens urval är det som faktiskt ändras. */}
+      <SelectionReport selection={selection} live />
 
       <div className="mk-group">
         {/* Programmatiskt namn på ytan, inte bara en visuell rubrik: placeholder är inget namn. */}
@@ -237,11 +293,23 @@ export default function IntakeDropzone() {
           placeholder="Klistra in Markdown här. Texten sparas som en egen källa med genererat filnamn."
           onChange={(event) => setPasted(event.target.value)}
         />
-        <p className="mk-hint" id={IDS.pasteStats} data-paste-stats="true">
+        <p
+          className="mk-hint"
+          id={IDS.pasteStats}
+          data-paste-stats="true"
+          data-paste-accepted={pasteVerdict === null ? undefined : pasteVerdict.accepted ? "true" : "false"}
+          role="status"
+          aria-live="polite"
+        >
           {pasted === ""
             ? "Ingen text inklistrad ännu."
             : `${pasteSourceName(1)} · ${stats.characters} tecken · ${stats.lines} rader · ${groupDigits(stats.bytes)} byte`}
         </p>
+        {pasteVerdict !== null && !pasteVerdict.accepted && (
+          <p className="mk-note mk-tone-danger" data-paste-rejection={pasteVerdict.code}>
+            {pasteVerdict.message}
+          </p>
+        )}
         <p className="mk-hint" id={IDS.pasteRule}>
           Verkstadsgolvet räknar tecken och rader — inget annat. Rubriker läses inte, källan delas
           inte upp och antalet uppgifter uppskattas aldrig här. Tolkningen är Nortropics.

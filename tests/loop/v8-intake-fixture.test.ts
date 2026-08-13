@@ -632,6 +632,80 @@ test("V8*-A11Y-NEG: ingen koppling pekar på ett id som saknas i markupen", () =
   }
 });
 
+test("V8*-I7: inklistrad text döms av SAMMA funktion som en fil — storleksgränsen gäller båda", () => {
+  /*
+    "Samma väg som en fil" måste gälla även GRÄNSERNA. En inklistrad källa som bara fick sitt
+    bytetal utskrivet hade gjort de två vägarna oense om den enda regel skivan påstår sig hålla,
+    och asymmetrin hade blivit skarp i samma stund som V8 live kopplar in transporten.
+  */
+  const source = sourceOf("components/loop/IntakeDropzone.tsx");
+  assert.ok(
+    /classifyIntakeCandidate\(\{[\s\S]*byte_size: stats\.bytes/.test(source),
+    "den inklistrade texten körs inte genom den delade klassificeraren",
+  );
+
+  // Domen är densamma som för en fil av samma storlek — mätt på funktionen, inte på texten.
+  const asPaste = classifyIntakeCandidate({
+    file_name: pasteSourceName(1),
+    byte_size: INTAKE_MAX_FILE_BYTES + 1,
+    mime_type: "text/markdown",
+  });
+  const asFile = classifyIntakeCandidate({
+    file_name: "stor.md",
+    byte_size: INTAKE_MAX_FILE_BYTES + 1,
+    mime_type: "text/markdown",
+  });
+  assert.equal(asPaste.accepted, false);
+  assert.equal(asFile.accepted, false);
+  if (!asPaste.accepted && !asFile.accepted) assert.equal(asPaste.code, asFile.code);
+
+  // Gränsvärdet självt går igenom på båda vägarna.
+  assert.equal(
+    classifyIntakeCandidate({
+      file_name: pasteSourceName(1),
+      byte_size: INTAKE_MAX_FILE_BYTES,
+      mime_type: "text/markdown",
+    }).accepted,
+    true,
+  );
+
+  // Tom inmatning är inget avslag: den har inte lämnats in, den finns bara inte ännu.
+  const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+  assert.ok(html.includes("Ingen text inklistrad ännu."));
+  assert.ok(!html.includes("data-paste-rejection"), "tom textarea renderades som ett avslag");
+  assert.ok(!html.includes('data-paste-accepted'), "tom textarea fick en dom");
+});
+
+test("V8*-A11Y: urvalets utfall annonseras — och bara den yta som faktiskt ändras annonserar", () => {
+  const dropzone = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+
+  // Live-området finns INNAN det uppdateras — ett område som skapas samtidigt som sitt
+  // innehåll annonseras inte pålitligt.
+  assert.ok(
+    /<p[^>]*data-selection-status="true"[^>]*role="status"[^>]*aria-live="polite"|<p[^>]*role="status"[^>]*aria-live="polite"[^>]*data-selection-status="true"/.test(
+      dropzone,
+    ),
+    "urvalets status är inget artigt live-område",
+  );
+  assert.ok(dropzone.includes("Ingen fil är vald ännu."), "live-området saknar sitt tomma läge");
+
+  // Statusen är KOMPAKT: den ska höras, inte läsas upp som tjugoen rader.
+  const selection = validateIntakeSelection(fixtureIntakeCandidates());
+  const report = renderToStaticMarkup(createElement(SelectionReport, { selection, live: true }));
+  const status = report.match(/data-selection-status="true"[^>]*>([^<]+)</);
+  assert.ok(status, "statusraden saknas när ett urval finns");
+  assert.ok(status[1].includes(String(selection.accepted.length)), "antalet godkända annonseras inte");
+  assert.ok(status[1].includes("avvisade"), "antalet avvisade annonseras inte");
+
+  // Den statiska fixturpanelen får INTE annonsera: den ändras aldrig.
+  const shell = renderShell();
+  assert.equal(
+    (shell.match(/aria-live="polite"/g) ?? []).length,
+    2,
+    "fel antal live-områden: bara dropzonens urval och dess inklistringsmått ska annonsera",
+  );
+});
+
 /* ── 5 · I3 · originalkällan bevaras byte-identisk och kan visas ──────────── */
 
 test("V8*-I3: originalkällan renderas RÅTT och byte-identiskt med fixturen", () => {
