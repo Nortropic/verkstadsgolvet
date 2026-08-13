@@ -354,6 +354,13 @@ export type TransportReader = (query: SelectQuery) => Promise<LoopReadResult<Tra
  * Lazy klientcache (samma mönster som lib/supabase.ts). Cachen nycklas på BÅDE url och
  * nyckel: en roterad nyckel måste ge en ny klient, annars hade processen kunnat fortsätta
  * läsa med en återkallad credential tills den startades om.
+ *
+ * Separatorn mellan url och nyckel är en NUL-byte (U+0000) — en byte som varken en URL eller en
+ * Supabase-nyckel kan innehålla, så två olika par kan aldrig ge samma identitetssträng.
+ * Den skrivs som ESCAPE och aldrig som en rå byte: en litteral NUL i källan gör filen
+ * binär för file(1), grep och ripgrep, och en grep-baserad statisk grind (repots sätt att
+ * mäta skrivverb, credentialer och markörsträngar) hade då hoppat över just den här filen
+ * medan den såg ut att gå grön. Ett prov längre ner mäter att regeln håller.
  */
 let cachedClient: SupabaseClient | null = null;
 let cachedClientIdentity: string | null = null;
@@ -364,7 +371,7 @@ function controlPlaneClient(config: Extract<TransportConfig, { configured: true 
     // i stället för att en transportnyckel hamnar i webbläsaren.
     throw new Error("lib/loop/transport.ts är server-only och får aldrig köras i klienten.");
   }
-  const identity = `${config.url} ${config.key}`;
+  const identity = `${config.url}\u0000${config.key}`;
   if (!cachedClient || cachedClientIdentity !== identity) {
     cachedClient = createClient(config.url, config.key, {
       auth: { persistSession: false, autoRefreshToken: false },

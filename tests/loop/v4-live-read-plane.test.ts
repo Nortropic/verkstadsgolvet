@@ -199,6 +199,21 @@ function writeCallsIn(text: string): string[] {
   return WRITE_CALL_PATTERNS.filter((pattern) => text.includes(pattern));
 }
 
+/**
+ * Råa kontrollbyte i en källfil, som offset. Tillåtna är tabb, radbrytning och CR (9/10/13).
+ * En byte utanför dem — i praktiken en litteral NUL — gör filen BINÄR för file(1), grep och
+ * ripgrep, och därmed osynlig för varje grep-baserad statisk grind.
+ */
+function controlBytesIn(bytes: Buffer): number[] {
+  const allowed = new Set([9, 10, 13]);
+  const offsets: number[] = [];
+  for (let index = 0; index < bytes.length; index += 1) {
+    const byte = bytes[index];
+    if (byte === 0x7f || (byte < 0x20 && !allowed.has(byte))) offsets.push(index);
+  }
+  return offsets;
+}
+
 /** Alla modulspecificerare en fil importerar (import … from "x" och require("x")). */
 function importsOf(text: string): string[] {
   const specifiers: string[] = [];
@@ -207,6 +222,36 @@ function importsOf(text: string): string[] {
   while ((match = pattern.exec(text)) !== null) specifiers.push(match[1]);
   return specifiers;
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * SÖKBARHET — en osökbar fil kan inte mätas av de statiska grindarna
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+test("Maskinens källfiler är PLAIN TEXT — ingen rå kontrollbyte gör en fil osynlig för grep", () => {
+  /**
+   * Skälet är inte kosmetik. Repots verifieringsstil är grep-baserad (skrivverb,
+   * credentialer, markörsträngar, matcher-undantag). En litteral NUL i en källfil får
+   * grep och ripgrep att behandla den som binär och tyst hoppa över den — grinden hade
+   * fortsatt se grön ut medan den mest känsliga filen i skivan aldrig lästes. Kontrolltecken
+   * som DATA skrivs därför alltid som escape i källan (se transportens identitetsseparator
+   * och parseIdParam-provet nedan).
+   */
+  const scanned = [...LOOP_SERVER_FILES, ...filesUnder("tests/loop", [".ts"])];
+  assert.ok(scanned.length > 0, "hittade inga källfiler att mäta");
+
+  for (const file of scanned) {
+    assert.deepEqual(
+      controlBytesIn(readFileSync(file)),
+      [],
+      `${path.relative(REPO, file)} bär en rå kontrollbyte och blir därmed binär för grep`,
+    );
+  }
+
+  // LÖGNSTUB: detektorn måste fälla exakt den byte den finns för att fånga — och får inte
+  // fälla tabb/radbrytning, annars hade provet varit omöjligt att hålla grönt.
+  assert.deepEqual(controlBytesIn(Buffer.from(`a${String.fromCharCode(0)}b`, "utf8")), [1]);
+  assert.deepEqual(controlBytesIn(Buffer.from("rad1\n\trad2\r\n", "utf8")), []);
+});
 
 /* ────────────────────────────────────────────────────────────────────────────
  * EXIT 2 · NOLL SKRIVNINGAR MOT loop_events / loop_snapshots
@@ -865,7 +910,12 @@ test("frågesträngen tolkas typat; ett ogiltigt värde ger 400 i stället för 
   assert.equal(parseIdParam("task_id", "p-205").ok, true);
   assert.equal(parseIdParam("task_id", "").ok, false);
   assert.equal(parseIdParam("task_id", "a".repeat(1000)).ok, false);
-  assert.equal(parseIdParam("task_id", "p-2 05").ok, false);
+  // Kontrolltecknet skrivs som ESCAPE, aldrig som rå byte (se sökbarhetsprovet ovan). Raden
+  // är dessutom sitt eget självprov: vore escapen felskriven som en litteral backslash hade
+  // strängen inte burit någon kontrollbyte alls, och båda assertionerna nedan hade fallit.
+  const withControlCharacter = "p-2\u000005";
+  assert.equal(withControlCharacter.charCodeAt(3), 0, "escapen gav ingen kontrollbyte");
+  assert.equal(parseIdParam("task_id", withControlCharacter).ok, false);
 });
 
 /* ────────────────────────────────────────────────────────────────────────────
