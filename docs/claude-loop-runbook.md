@@ -56,6 +56,18 @@ A tree-equivalent but wrongly parented or history-rewritten result is a BLOCK, n
 
 Regression coverage lives in `tests/claude-loop/publication-merge-commit.test.ts`, which runs against disposable local Git repositories with an injected GitHub seam and never touches the real repository.
 
+### Operating-model supersession (pending operator edit)
+
+`docs/claude-operating-model-v1.md` still carries the pre-merge-commit wording in its "Candidate and publication" section:
+
+> Publication support exists in v1 but defaults off. When enabled, push is ordinary non-force push, PR base/head are checked, and auto-merge (if separately enabled) uses expected-head guarded rebase merge. A changed base blocks publication rather than silently rewriting history.
+
+That sentence is **superseded by this Publication section and no longer describes the implementation**: expected-head guarded rebase merge no longer exists in the Factory, and `publish.mergeMethod` rejects `rebase` at configuration validation. The operating model is a protected authority path that product agents may not edit — `CLAUDE.md`, `.claude/settings.json` (`Edit(/docs/claude-operating-model-v1.md)`) and `.claude/hooks/pre-tool-guard.mjs` all block it — so the correction must be applied by an operator with settings authority, using exactly this replacement paragraph:
+
+> Publication defaults off. When enabled, push is ordinary non-force push and PR base, head and file scope are verified exactly. Auto-merge, separately enabled, is a normal GitHub merge commit performed through the merge API with the expected head SHA and `merge_method=merge`; rebase, squash, force push, amend and reset are never used. A merge succeeds only when GitHub reports `merged=true` and Git then proves that `origin/main` is a two-parent merge commit whose first parent is the frozen base and whose second parent is the exact reviewed candidate, carrying the reviewed tree. A changed base, any drift or any refusal blocks publication rather than rewriting history. The candidate commit and its remote branch stay immutable evidence. See `docs/claude-loop-runbook.md` for the full guard list.
+
+Once that edit is applied, this supersession subsection can be deleted. `tests/claude-loop/publication-merge-commit.test.ts` mechanically enforces the pair: while the stale wording is present the notice above must quote it verbatim and carry the replacement, and once the operating model is corrected the test requires the corrected merge-commit semantics there instead.
+
 ## Recovery
 
 A blocked run preserves its Git worktree and run state. Re-run:

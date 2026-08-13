@@ -490,6 +490,44 @@ test('supervisor passes the configured merge method explicitly into publication'
   assert.match(src, /autoMerge: config\.publish\.autoMerge/);
 });
 
+const OPERATING_MODEL = 'docs/claude-operating-model-v1.md';
+const RUNBOOK = 'docs/claude-loop-runbook.md';
+/** The exact pre-merge-commit wording this task obsoleted. */
+const STALE_REBASE_WORDING = 'auto-merge (if separately enabled) uses expected-head guarded rebase merge';
+/** The operator-applied replacement, quoted verbatim in the runbook's supersession notice. */
+const REPLACEMENT_OPENING = 'Auto-merge, separately enabled, is a normal GitHub merge commit performed through the merge API with the expected head SHA and `merge_method=merge`';
+
+test('the operating model is a mechanically protected authority path a product agent cannot edit', () => {
+  // Why the builder could not simply rewrite the operating model: three independent guards.
+  const claudeMd = fs.readFileSync('CLAUDE.md', 'utf8');
+  assert.match(claudeMd, /Product agents must not edit this file, `\.claude\/\*\*`, `docs\/claude-operating-model-v1\.md`/);
+  const settings = JSON.parse(fs.readFileSync('.claude/settings.json', 'utf8')) as { permissions: { deny: string[] } };
+  assert.ok(settings.permissions.deny.includes(`Edit(/${OPERATING_MODEL})`), 'settings must deny editing the operating model');
+  assert.match(fs.readFileSync('.claude/hooks/pre-tool-guard.mjs', 'utf8'), /'docs\/claude-operating-model-v1\.md'/, 'the pre-tool guard must list it as protected');
+});
+
+test('operating-model publication wording is either corrected or explicitly superseded by the runbook', () => {
+  const model = fs.readFileSync(OPERATING_MODEL, 'utf8');
+  const runbook = fs.readFileSync(RUNBOOK, 'utf8');
+
+  if (model.includes(STALE_REBASE_WORDING)) {
+    // Still stale and only an operator may fix it: the runbook must say so unambiguously,
+    // quote the superseded sentence verbatim and carry the exact replacement paragraph.
+    assert.match(runbook, /### Operating-model supersession \(pending operator edit\)/);
+    assert.ok(runbook.includes(STALE_REBASE_WORDING), 'the notice must quote the exact superseded wording');
+    assert.ok(runbook.includes(REPLACEMENT_OPENING), 'the notice must carry the exact operator replacement text');
+    assert.match(runbook, /superseded by this Publication section and no longer describes the implementation/);
+    assert.match(runbook, /operator with settings authority/);
+  } else {
+    // Corrected upstream: the operating model itself must now state the merge-commit semantics,
+    // and the temporary supersession notice must be gone.
+    assert.match(model, /normal GitHub merge commit/);
+    assert.match(model, /two-parent merge commit/);
+    assert.doesNotMatch(model, /rebase merge/);
+    assert.doesNotMatch(runbook, /### Operating-model supersession/, 'delete the notice once the operating model is corrected');
+  }
+});
+
 test('shipped defaults stay safe and operator-local runtime config is git-ignored', () => {
   const config = ConfigSchema.parse(JSON.parse(fs.readFileSync('.claude-loop.example.json', 'utf8')));
   assert.equal(config.publish.enabled, false);
