@@ -94,9 +94,14 @@ The lane is entered **only** by an explicit supervisor selection:
 ```bash
 npm run claude:autopilot -- --owner-author OM1
 npm run claude:run -- --task path/to/task.json --owner-author OM1
+npm run claude:resume -- <run-id> --owner-author OM1
 ```
 
-or the operator-local, git-ignored `.claude-loop.json` (`ownerAuthor.selectedTaskIds`). A backlog entry, a task file or model output can only ever *declare* `authorityClass: "owner-author"`; a declaration without a selection is an escalation attempt and fails the run closed with `OWNER_AUTHOR_SELF_CLAIM`. The scheduler additionally refuses to schedule an owner-author slice from repository data alone.
+or the operator-local, git-ignored `.claude-loop.json` (`ownerAuthor.selectedTaskIds`). A backlog entry, a task file, persisted run state and model output can only ever *declare* `authorityClass: "owner-author"`; a declaration without a selection is an escalation attempt and fails the run closed with `OWNER_AUTHOR_SELF_CLAIM`. The scheduler additionally refuses to schedule an owner-author slice from repository data alone.
+
+**A resume is not a shortcut into the lane.** Run state lives under the Git common directory, outside every worktree, so a mutated `authorityClass` there is invisible to changed-file validation. `claude:resume` therefore re-resolves the class against the selection given in *that* invocation — exactly like a fresh run — rather than trusting the persisted field, and refuses without one.
+
+The selection is only ever read from the **operator's checkout**: `loadConfig` resolves `.claude-loop.json` through the Git common directory, never relative to the current working directory, because supervisor steps (mechanical gates among them) legitimately run with `cwd` inside a candidate worktree. The tracked `.claude-loop.example.json` is shipped *defaults*, not an authority grant: whenever the configuration comes from it, `ownerAuthor.selectedTaskIds` is forced empty, so a task that is allowed to edit that file cannot select its own lane. On top of that, `.claude-loop.json` and `.claude-loop/**` are never-writable paths, and — since a git-ignored file appears in no diff and no changed-file set — the supervisor asserts by **existence** that no `.claude-loop.json` sits in the run worktree, before gates, candidate and review. Finding one blocks the run.
 
 When selected, the write role becomes `owner-author` and runs isolated under Claude Agent SDK 0.3.228:
 
@@ -110,7 +115,7 @@ Ordinary roles are unchanged (`settingSources: ['project']`). An owner-author ru
 
 Scope is validated **after** the writes, on the changed-file set the supervisor derives from Git (tracked and untracked), and again cumulatively over the whole candidate against the frozen base. A single file outside the exact scope blocks the run before any gate, candidate or reviewer. The rules fail closed in order: unsafe path (absolute, traversal, home-relative, drive-qualified) → never-writable → task `deniedWrite` → workflow-authority path → not matched by any `allowedWrite` pattern.
 
-`docs/nortropic-control-room-plan-v1.md`, `docs/nortropic-control-room-codex-handoff.md`, every `.env*` and `.git/**` are never writable by **any** lane. `CLAUDE.md`, `.claude/**` and `docs/claude-operating-model-v1.md` are writable only by a supervisor-selected owner-author run whose task names them explicitly; an ordinary task may not even declare them.
+`docs/nortropic-control-room-plan-v1.md`, `docs/nortropic-control-room-codex-handoff.md`, every `.env*`, `.git/**`, `.claude-loop.json` and `.claude-loop/**` are never writable by **any** lane. `CLAUDE.md`, `.claude/**` and `docs/claude-operating-model-v1.md` are writable only by a supervisor-selected owner-author run whose task names them explicitly; an ordinary task may not even declare them.
 
 ## Publication
 
@@ -168,6 +173,7 @@ A blocked run preserves its Git worktree and run state. Re-run:
 
 ```bash
 npm run claude:resume -- <run-id>
+npm run claude:resume -- <run-id> --owner-author <taskId>   # only for an owner-authority run
 ```
 
 A resume takes an atomic **run claim** and keeps it heartbeating for the whole resume, so two operators cannot put two model sessions on the same recorded run and the same candidate however long the resume takes; a second resume is refused with the current owner's identity. If a resume is killed, its claim stops beating and becomes recoverable through `npm run claude:autopilot-recover`.

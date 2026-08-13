@@ -38,7 +38,8 @@ async function main(): Promise<void> {
   }
   if (cmd === 'resume') {
     const id = args[0]; if (!id) throw new Error('resume requires run-id');
-    const s = await resumeRun(id); console.log(JSON.stringify(s, null, 2)); return;
+    // A resume re-applies the owner-author guard, so the selection must be expressible here too.
+    const s = await resumeRun(id, collectFlag(args, '--owner-author')); console.log(JSON.stringify(s, null, 2)); return;
   }
   if (cmd === 'backlog') {
     const ctx = defaultAutopilotContext(collectFlag(args, '--owner-author'));
@@ -92,7 +93,7 @@ async function main(): Promise<void> {
     console.log(`Watch ${root}; Ctrl-C to stop.`);
     let last=''; setInterval(() => { if (!fs.existsSync(root)) return; const rows:string[]=[]; for (const d of fs.readdirSync(root).sort()) { const p=path.join(root,d,'state.json'); if(fs.existsSync(p)){const s=JSON.parse(fs.readFileSync(p,'utf8')); rows.push(`${s.runId}\t${s.task?.id}\t${s.phase}\t${s.candidateSha ?? '-'}`);}} const v=rows.join('\n'); if(v!==last){console.clear();console.log(v||'NO_RUNS');last=v;} }, 1500); return;
   }
-  throw new Error('usage: cli.ts doctor|selftest|live-smoke|empirical-smoke|status|watch|backlog|autopilot [--force] [--owner-author <taskId>]|autopilot-status|autopilot-recover [--clear <taskId>]|run --task <file> [--owner-author <taskId>]|resume <run-id>|extend-remediation <run-id> <rounds>');
+  throw new Error('usage: cli.ts doctor|selftest|live-smoke|empirical-smoke|status|watch|backlog|autopilot [--force] [--owner-author <taskId>]|autopilot-status|autopilot-recover [--clear <taskId>]|run --task <file> [--owner-author <taskId>]|resume <run-id> [--owner-author <taskId>]|extend-remediation <run-id> <rounds>');
 }
 
 main().catch((e) => { console.error(`CLAUDE_FACTORY_BLOCKED: ${e instanceof Error ? e.stack || e.message : String(e)}`); process.exitCode = 2; });

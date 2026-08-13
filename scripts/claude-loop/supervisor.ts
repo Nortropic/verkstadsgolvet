@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ConfigSchema, TaskSchema, type FactoryConfig, type Finding, type RoleResult, type RunState, type TaskSpec } from './schemas';
-import { repoRoot, readJson, nowId, slug } from './util';
+import { repoRoot, readJson, nowId, slug, mainCheckout } from './util';
 import { originMain, createWorktree, changedFiles, commitCandidate, clean } from './git';
 import { ClaudeRoleFailure, runRole, WRITE_ROLES, type RoleName } from './claude';
 import { assertOwnerAuthorPublicationGuard, laneForAuthorityClass, resolveAuthorityClass, type AuthorityClass, type AuthoritySelection } from './authority';
-import { assertDeclaredScope, formatScopeViolations, validateExactScope } from './scope';
+import { assertDeclaredScope, assertNoForbiddenWorktreeFiles, formatScopeViolations, validateExactScope } from './scope';
 import { ClaimLostError, acquireClaim, ownerToken, releaseClaim, startClaimHeartbeat } from './claims';
 import { runGates } from './gates';
 import { saveState, loadState } from './state';
@@ -157,10 +157,34 @@ export function completeRunState(state: RunState): RunState {
   return { ...state, phase: 'DONE', findings: [], blockedReason: null };
 }
 
+/**
+ * Loads the supervisor's configuration from the OPERATOR's checkout, never from a run worktree.
+ *
+ * `ownerAuthor.selectedTaskIds` in this file is one of the only two ways into the owner-author lane,
+ * so where it is read from is a real question. `repoRoot()` resolves from `cwd`, and a supervisor
+ * step legitimately runs with `cwd` inside a candidate worktree (mechanical gates do), so reading
+ * the config relative to `cwd` would let a file inside the candidate tree — including the
+ * git-ignored `.claude-loop.json`, which no diff and no changed-file set can show — decide the lane.
+ * Resolving from the Git common directory makes the operator's checkout the only source.
+ */
 export function loadConfig(repo: string): FactoryConfig {
-  const local = path.join(repo, '.claude-loop.json');
-  const example = path.join(repo, '.claude-loop.example.json');
-  return ConfigSchema.parse(readJson(fs.existsSync(local) ? local : example));
+  const root = mainCheckout(repo);
+  const local = path.join(root, '.claude-loop.json');
+  if (fs.existsSync(local)) return ConfigSchema.parse(readJson(local));
+
+  // Shipped defaults. The operator checkout is preferred, but this file is tracked, so a run root
+  // copy is an acceptable fallback when the main checkout is unreadable — WITH the owner-author
+  // selection forced empty. Shipped defaults are documentation, never an authority grant, so a
+  // tracked example inside a candidate tree can never select the owner-author lane even when it is
+  // the copy that gets read. Only the operator-local `.claude-loop.json` above, or the explicit
+  // `--owner-author` CLI flag, can do that.
+  for (const candidateRoot of [root, repo]) {
+    const example = path.join(candidateRoot, '.claude-loop.example.json');
+    if (!fs.existsSync(example)) continue;
+    const shipped = ConfigSchema.parse(readJson(example));
+    return { ...shipped, ownerAuthor: { selectedTaskIds: [] } };
+  }
+  throw new Error(`no Claude Factory configuration found: neither ${local} nor a .claude-loop.example.json under ${root} or ${repo}`);
 }
 export function loadTask(file: string): TaskSpec { return TaskSchema.parse(readJson(path.resolve(file))); }
 
@@ -233,11 +257,23 @@ export async function startRunFromTask(args: {
   return await execute(repo, config, state, args.heartbeat);
 }
 
-export async function resumeRun(runId: string): Promise<RunState> {
+export async function resumeRun(runId: string, cliOwnerAuthorTaskIds: readonly string[] = []): Promise<RunState> {
   const repo = repoRoot();
   const config = loadConfig(repo);
   const state = loadState(repo, runId);
   if (!fs.existsSync(state.worktree)) throw new Error(`recorded worktree missing: ${state.worktree}`);
+
+  // The persisted authority class is DATA, exactly like the class declared in a task file, and it
+  // lives under the Git common directory where no changed-file set can observe a mutation. So the
+  // resume re-applies the same guard as a fresh run instead of trusting the field: entering the
+  // owner-author lane always requires an explicit supervisor selection in THIS invocation.
+  state.authorityClass = resolveAuthorityClass({
+    taskId: state.task.id,
+    declared: state.authorityClass,
+    selection: supervisorAuthoritySelection(config, cliOwnerAuthorTaskIds),
+    source: `persisted run state ${runId}`,
+  });
+  saveState(repo, state);
   // Fail before any Claude segment while the continuation budget is still spent under the
   // CURRENT config; raising maxBuilderContinuationResumes re-opens the same persisted session.
   if (builderContinuationResumeBlocked(config, state)) {
@@ -347,6 +383,10 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
       // POST-WRITE EXACT SCOPE VALIDATION. Measured from Git after the model stopped writing, over
       // the union of tracked and untracked changes, against the exact lane rules. A single file
       // outside the exact scope blocks the run before any gate, candidate or reviewer.
+      // Existence check first: the operator-local configuration is git-ignored, so it is invisible
+      // to the changed-file set below and could otherwise plant an owner-author lane selection that
+      // no mechanical control, diff or reviewer would ever see.
+      assertNoForbiddenWorktreeFiles(state.worktree);
       const files = changedFiles(state.worktree, state.candidateSha ?? state.baseSha);
       const violations = validateExactScope({ files, allowedWrite: state.task.allowedWrite, deniedWrite: state.task.deniedWrite, lane });
       if (violations.length) {
@@ -369,6 +409,7 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
 
       // Cumulative candidate scope: the whole candidate against the frozen base, not just this
       // round's delta, so an out-of-scope file from an earlier round cannot survive into review.
+      assertNoForbiddenWorktreeFiles(state.worktree);
       const candidateViolations = validateExactScope({ files: changedFiles(state.worktree, state.baseSha), allowedWrite: state.task.allowedWrite, deniedWrite: state.task.deniedWrite, lane });
       if (candidateViolations.length) {
         t.emit('scope.violation', { round, lane, stage: 'candidate', violations: candidateViolations });

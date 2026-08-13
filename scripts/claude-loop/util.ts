@@ -62,6 +62,22 @@ export function commonGitDir(repo: string): string {
   const p = git(repo, 'rev-parse', '--git-common-dir');
   return path.resolve(repo, p);
 }
+/**
+ * The OPERATOR's checkout, derived from the Git common directory rather than from `cwd`.
+ *
+ * `repoRoot()` answers "which working tree am I standing in", which inside a Factory worktree is
+ * the candidate's own tree — a tree a model just wrote. Supervisor configuration must never be read
+ * from there, so it is resolved here instead: the common directory of every worktree is the main
+ * checkout's `.git`, and its parent is the operator's checkout. A repository layout that is not
+ * `<checkout>/.git` (a bare repository) falls back to the given root rather than guessing.
+ */
+export function mainCheckout(repo: string): string {
+  const common = commonGitDir(repo);
+  // Git's own answer about where the main repository lives, so it cannot be influenced by a model
+  // or by the current working directory. A bare repository has no checkout to point at.
+  return path.basename(common) === '.git' ? path.dirname(common) : repo;
+}
+
 export function ensureDir(p: string): void { fs.mkdirSync(p, { recursive: true, mode: 0o700 }); }
 export function readJson<T>(p: string): T { return JSON.parse(fs.readFileSync(p, 'utf8')) as T; }
 /**

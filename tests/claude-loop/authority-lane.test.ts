@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,10 +23,15 @@ import {
 import {
   NEVER_WRITABLE_PATHS,
   PROTECTED_AUTHORITY_PATHS,
+  WORKTREE_FORBIDDEN_FILES,
+  WORKTREE_FORBIDDEN_FILE_BLOCK_PREFIX,
   assertDeclaredScope,
+  assertNoForbiddenWorktreeFiles,
+  findForbiddenWorktreeFiles,
   unsafeRepoPath,
   validateExactScope,
 } from '../../scripts/claude-loop/scope';
+import { commonGitDir, mainCheckout } from '../../scripts/claude-loop/util';
 import { ConfigSchema, TaskSchema } from '../../scripts/claude-loop/schemas';
 import { laneForRole, roleDefinition, WRITE_ROLES } from '../../scripts/claude-loop/claude';
 import { supervisorAuthoritySelection } from '../../scripts/claude-loop/supervisor';
@@ -151,6 +157,103 @@ test('a task file may declare the class, but the declaration is data and not aut
   const defaulted = TaskSchema.parse({ id: 'V4', title: 'x', description: 'y', allowedWrite: ['lib/loop/**'], gates: [['npx', 'tsc', '--noEmit']] });
   assert.equal(defaulted.authorityClass, 'ordinary', 'the default is always the ordinary lane');
   assert.throws(() => TaskSchema.parse({ ...defaulted, authorityClass: 'root' }), isError, 'an invented class is not a class');
+});
+
+test('resuming a persisted owner-author run without a selection is refused as self-claim', () => {
+  // Run state lives under the Git common directory, outside every worktree, so a mutated
+  // authorityClass there is structurally invisible to changed-file validation. The resume path
+  // therefore re-applies the same guard as a fresh run instead of trusting the persisted field.
+  const persisted = { taskId: 'OM1', declared: 'owner-author' as const };
+  const attempt = (selected: string[]) => resolveAuthorityClass({
+    taskId: persisted.taskId,
+    declared: persisted.declared,
+    selection: supervisorAuthoritySelection(shipped, selected),
+    source: `persisted run state om1-20260813103000`,
+  });
+
+  assert.throws(() => attempt([]), AuthorityEscalationError, 'a resume with no selection must fail closed');
+  assert.throws(() => attempt([]), /persisted run state om1-20260813103000/, 'the refusal names the data source it refused');
+  assert.throws(() => attempt(['V4']), AuthorityEscalationError, 'a selection for another task grants nothing');
+  assert.equal(attempt(['OM1']), 'owner-author', 'an explicit selection in THIS invocation is the only way in');
+});
+
+test('the production resume path re-resolves the class and can express a selection', () => {
+  const src = fs.readFileSync('scripts/claude-loop/supervisor.ts', 'utf8');
+  assert.match(src, /export async function resumeRun\(runId: string, cliOwnerAuthorTaskIds: readonly string\[\] = \[\]\)/, 'resume must accept an operator selection');
+  assert.match(src, /state\.authorityClass = resolveAuthorityClass\(\{/, 'the persisted class must be re-resolved, not trusted');
+  assert.match(src, /source: `persisted run state \$\{runId\}`/);
+  assert.match(src, /selection: supervisorAuthoritySelection\(config, cliOwnerAuthorTaskIds\)/);
+  // The guard must run before the run claim and before any Claude segment.
+  assert.ok(src.indexOf('state.authorityClass = resolveAuthorityClass({') < src.indexOf("acquireClaim({ repo, scope: 'run'"), 'the class is resolved before the run is claimed');
+
+  const cli = fs.readFileSync('scripts/claude-loop/cli.ts', 'utf8');
+  assert.match(cli, /resumeRun\(id, collectFlag\(args, '--owner-author'\)\)/, 'the CLI must be able to express the selection on resume');
+  assert.match(cli, /resume <run-id> \[--owner-author <taskId>\]/, 'the usage string must document it');
+});
+
+test('the git-ignored operator config can never decide the lane from inside a worktree', () => {
+  // It is git-ignored, so a changed-file set structurally cannot contain it...
+  assert.ok(fs.readFileSync('.gitignore', 'utf8').includes('/.claude-loop.json'));
+  assert.deepEqual(validateExactScope({ files: [], allowedWrite: ['**'], deniedWrite: [], lane: ORDINARY }), [], 'an invisible file produces no violation from a diff alone');
+  // ...so it is BOTH declared never-writable and asserted by existence.
+  assert.ok(NEVER_WRITABLE_PATHS.includes('.claude-loop.json'));
+  assert.ok(NEVER_WRITABLE_PATHS.includes('.claude-loop/**'));
+  assert.deepEqual(validateExactScope({ files: ['.claude-loop.json'], allowedWrite: ['**'], deniedWrite: [], lane: OWNER }).map((v) => v.reason), ['never-writable']);
+  assert.throws(() => assertDeclaredScope({ taskId: 'X', allowedWrite: ['.claude-loop.json'], lane: OWNER }), /never-writable allowedWrite pattern/);
+  assert.deepEqual(WORKTREE_FORBIDDEN_FILES, ['.claude-loop.json']);
+});
+
+test('a .claude-loop.json left in the run worktree blocks the run', () => {
+  const worktree = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-scope-worktree-'));
+  try {
+    assert.deepEqual(findForbiddenWorktreeFiles(worktree), [], 'a clean worktree passes');
+    assert.doesNotThrow(() => assertNoForbiddenWorktreeFiles(worktree));
+
+    fs.writeFileSync(path.join(worktree, '.claude-loop.json'), JSON.stringify({ ownerAuthor: { selectedTaskIds: ['V4'] } }), 'utf8');
+    assert.deepEqual(findForbiddenWorktreeFiles(worktree), ['.claude-loop.json']);
+    assert.throws(() => assertNoForbiddenWorktreeFiles(worktree), (e: unknown) => {
+      const message = (e as Error).message;
+      assert.ok(message.startsWith(WORKTREE_FORBIDDEN_FILE_BLOCK_PREFIX), message);
+      assert.match(message, /git-ignored/);
+      return true;
+    });
+  } finally {
+    fs.rmSync(worktree, { recursive: true, force: true });
+  }
+});
+
+test('the supervisor asserts the forbidden file before gates, candidate and review', () => {
+  const src = fs.readFileSync('scripts/claude-loop/supervisor.ts', 'utf8');
+  const executeBody = src.slice(src.indexOf('async function execute('));
+  assert.equal((executeBody.match(/assertNoForbiddenWorktreeFiles\(state\.worktree\)/g) ?? []).length, 2, 'checked with the post-write scope validation and again for the cumulative candidate');
+  assert.ok(executeBody.indexOf('assertNoForbiddenWorktreeFiles(state.worktree)') < executeBody.indexOf('const gates = await runGates('), 'the check runs before any gate process can read a planted config');
+});
+
+test('supervisor configuration is read from the operator checkout, not from a run worktree', () => {
+  const src = fs.readFileSync('scripts/claude-loop/supervisor.ts', 'utf8');
+  assert.match(src, /const root = mainCheckout\(repo\);/, 'loadConfig must resolve from the Git common directory');
+  assert.match(src, /const local = path\.join\(root, '\.claude-loop\.json'\);\n\s*if \(fs\.existsSync\(local\)\) return ConfigSchema\.parse\(readJson\(local\)\);/, 'the operator-local override is read only from the operator checkout');
+  // mainCheckout answers with the operator checkout even when asked from inside a worktree, and it
+  // is derived from Git's own common-dir answer rather than from cwd.
+  assert.equal(mainCheckout(repo), path.dirname(commonGitDir(repo)), 'this very worktree resolves to the main checkout');
+  assert.notEqual(mainCheckout(repo), repo, 'the factory runs inside a worktree, which is exactly the case that matters');
+});
+
+test('a shipped-defaults config can never grant the owner-author lane, wherever it is read from', () => {
+  // The example file is TRACKED, so a task with it in allowedWrite could otherwise set
+  // ownerAuthor.selectedTaskIds and select its own lane within the very same run.
+  const src = fs.readFileSync('scripts/claude-loop/supervisor.ts', 'utf8');
+  assert.match(src, /return \{ \.\.\.shipped, ownerAuthor: \{ selectedTaskIds: \[\] \} \};/, 'shipped defaults are documentation, never an authority grant');
+
+  const tampered = ConfigSchema.parse({ ...shipped, ownerAuthor: { selectedTaskIds: ['OM1'] } });
+  const asShippedDefaults: typeof tampered = { ...tampered, ownerAuthor: { selectedTaskIds: [] } };
+  assert.deepEqual(supervisorAuthoritySelection(asShippedDefaults).selectedTaskIds, [], 'the stripped selection grants nothing');
+  assert.throws(
+    () => resolveAuthorityClass({ taskId: 'OM1', declared: 'owner-author', selection: supervisorAuthoritySelection(asShippedDefaults), source: 'tracked .claude-loop.example.json' }),
+    AuthorityEscalationError,
+    'an example file edited inside a candidate cannot select its own lane',
+  );
+  assert.deepEqual(shipped.ownerAuthor.selectedTaskIds, [], 'and the shipped file itself selects nothing');
 });
 
 test('an owner-author run may never be armed for auto-merge', () => {

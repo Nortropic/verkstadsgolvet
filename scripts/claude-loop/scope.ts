@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { matchPattern } from './util';
 import type { Lane } from './lanes';
 
@@ -30,7 +32,35 @@ export const NEVER_WRITABLE_PATHS: readonly string[] = [
   '**/.env.*',
   '.git/**',
   '**/.git/**',
+  // The operator-local supervisor configuration and its runtime directory. `.claude-loop.json`
+  // carries `ownerAuthor.selectedTaskIds`, one of the only two ways into the owner-author lane.
+  '.claude-loop.json',
+  '.claude-loop/**',
 ];
+
+/**
+ * Files that must NOT EXIST in a run worktree, checked by existence rather than by diff.
+ *
+ * `.claude-loop.json` is git-ignored, so it appears in neither `git diff` nor
+ * `git ls-files --others --exclude-standard`: a changed-file set structurally cannot see it, and
+ * neither can a reviewer or a PR diff. Listing it in `NEVER_WRITABLE_PATHS` is therefore necessary
+ * but not sufficient — its presence has to be asserted directly.
+ */
+export const WORKTREE_FORBIDDEN_FILES: readonly string[] = ['.claude-loop.json'];
+
+/** Returns the forbidden files that actually exist in `worktree`. Empty is the only good answer. */
+export function findForbiddenWorktreeFiles(worktree: string, exists: (p: string) => boolean = fs.existsSync): string[] {
+  return WORKTREE_FORBIDDEN_FILES.filter((relative) => exists(path.join(worktree, relative)));
+}
+
+/** The stable prefix of the blocked reason, so the guard is greppable in run state and telemetry. */
+export const WORKTREE_FORBIDDEN_FILE_BLOCK_PREFIX = 'forbidden operator-configuration file in the run worktree: ';
+
+export function assertNoForbiddenWorktreeFiles(worktree: string, exists: (p: string) => boolean = fs.existsSync): void {
+  const found = findForbiddenWorktreeFiles(worktree, exists);
+  if (!found.length) return;
+  throw new Error(`${WORKTREE_FORBIDDEN_FILE_BLOCK_PREFIX}${found.join(', ')}; this file is git-ignored, so no changed-file set, diff or reviewer can observe it, and it carries the owner-author lane selection`);
+}
 
 export type ScopeViolationReason =
   | 'unsafe-path'
