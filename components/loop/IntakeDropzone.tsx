@@ -1,0 +1,345 @@
+"use client";
+
+/**
+ * V8* · Dropzonen: dra · välj · klistra in — och FORMELL validering, ingenting mer.
+ *
+ * KÄLLA: docs/nortropic-control-room-plan-v1.md — MARKDOWN_INTAKE_UX ("Tre inmatningssätt",
+ * "Validering i klienten (endast formell, aldrig semantisk)") och COMPONENT_PLAN
+ * (`IntakeDropzone.tsx — dra/välj/klistra, formell validering`).
+ *
+ * BINDANDE REGLER SOM KOMPONENTEN BÄR
+ * -----------------------------------
+ * · INGEN TRANSPORT. Ingen `fetch`, ingen `XMLHttpRequest`, ingen `FormData`, ingen `action`,
+ *   ingen route. Knappen för inlämning är avstängd med ORDAGRANN orsak: intake-transporten ägs
+ *   av nortropic-system S10 + S13 (B5) och finns inte. Ingen fejkad inlämning, ingen kö.
+ * · INGEN HASH. Klienten beräknar aldrig sha256 — och ett värde beräknat här hade ändå aldrig
+ *   varit trust-anchor (B5, låst).
+ * · INGEN SEMANTIK. Ingen rubrikparsning, ingen uppgiftsdelning, ingen uppskattning av antal
+ *   tasks. Endast tecken och rader räknas, och bara för texten användaren själv klistrat in.
+ * · Filens BYTES läses inte ens. Det finns ingen transport att lämna dem till i den här skivan,
+ *   så att läsa dem hade bara gett sken av att något skickades.
+ * · Ett avvisat val visas med sin orsak. Ingen fil faller bort tyst.
+ */
+import * as React from "react";
+import { useState } from "react";
+import {
+  INTAKE_ACCEPTED_EXTENSIONS,
+  INTAKE_ACCEPT_ATTRIBUTE,
+  INTAKE_BLOCKED_ON,
+  INTAKE_DISABLED_REASON,
+  INTAKE_MAX_FILES,
+  INTAKE_MAX_FILE_BYTES,
+  classifyIntakeCandidate,
+  groupDigits,
+  intakeSubmissionEnabled,
+  pasteSourceName,
+  sourceStats,
+  validateIntakeSelection,
+  type IntakeCandidate,
+  type IntakeSelection,
+} from "@/lib/loop/intake";
+
+/**
+ * DOM-identiteter för kopplingen etikett ↔ kontroll och kontroll ↔ förklaring.
+ *
+ * Bärs som konstanter (och exporteras) av två skäl: en `htmlFor` som pekar på ett id som inte
+ * finns är en TYST tillgänglighetsregression som ingen ser i en skärmdump, och provet ska kunna
+ * mäta att varje koppling faktiskt landar i markupen. Ytan renderas en gång per sida, så
+ * stabila id är korrekta här — ingen id-kollision kan uppstå.
+ */
+export const INTAKE_DOM_IDS = {
+  filePicker: "intake-filvaljare",
+  fileLimits: "intake-filgranser",
+  pasteArea: "intake-inklistrad-text",
+  pasteStats: "intake-inklistrad-matt",
+  pasteRule: "intake-inklistrad-regel",
+  blockedOn: "intake-blockerad-pa",
+  disabledReason: "intake-avstangd-orsak",
+} as const;
+
+const IDS = INTAKE_DOM_IDS;
+
+/**
+ * Det klienten läser ur en vald fil: namn, storlek och webbläsarens påstådda typ.
+ * INNEHÅLLET rörs inte. Exporterad så provet kan mäta exakt den avbildningen.
+ */
+export function toCandidate(file: { name: string; size: number; type: string }): IntakeCandidate {
+  return { file_name: file.name, byte_size: file.size, mime_type: file.type };
+}
+
+/** En kompakt mening om urvalet — det som ska HÖRAS när valet ändras, inte tjugoen rader. */
+function selectionStatusText(selection: IntakeSelection | null): string {
+  if (selection === null) return "Ingen fil är vald ännu.";
+  const chosen = selection.verdicts.length;
+  const rejected = selection.verdicts.filter((verdict) => !verdict.accepted).length;
+  if (selection.selection_rejection !== null) {
+    return `${chosen} filer valda. Antalsgränsen fällde hela urvalet — ingen fil lämnas in.`;
+  }
+  return `${chosen} valda: ${selection.accepted.length} formellt godkända, ${rejected} avvisade.`;
+}
+
+/**
+ * Domarna över ett urval. Ren komponent utan tillstånd — samma urval ger samma markup, och
+ * provet kan rendera den utan att simulera drag-and-drop i en webbläsare.
+ *
+ * `live` gör statusraden till ett artigt live-område. Den sätts BARA av dropzonen, vars urval
+ * faktiskt ändras: en statisk kopia i fixturpanelen ska inte annonsera något. Behållaren
+ * renderas alltid — även utan urval — så att live-området finns i DOM:en INNAN det uppdateras;
+ * ett område som skapas samtidigt som sitt innehåll annonseras inte pålitligt.
+ */
+export function SelectionReport({
+  selection,
+  live = false,
+}: {
+  selection: IntakeSelection | null;
+  live?: boolean;
+}) {
+  /** Hela urvalet fällt (antalsgränsen) — då lämnas ingen fil in, hur ren den än är. */
+  const selectionFell = selection !== null && selection.selection_rejection !== null;
+
+  return (
+    <div
+      className="mk-group"
+      data-selection={selection === null ? "empty" : "report"}
+      data-selection-fell={selectionFell ? "true" : "false"}
+    >
+      <p
+        className="mk-hint"
+        data-selection-status="true"
+        role={live ? "status" : undefined}
+        aria-live={live ? "polite" : undefined}
+      >
+        {selectionStatusText(selection)}
+      </p>
+
+      {selection !== null && <SelectionDetails selection={selection} />}
+    </div>
+  );
+}
+
+/** Banner, rader och sammanfattning. Renderas först när ett urval finns. */
+function SelectionDetails({ selection }: { selection: IntakeSelection }) {
+  const selectionFell = selection.selection_rejection !== null;
+
+  return (
+    <>
+      {selection.selection_rejection && (
+        <p
+          className="mk-note mk-tone-warning"
+          data-selection-rejection={selection.selection_rejection.code}
+        >
+          {selection.selection_rejection.message}
+        </p>
+      )}
+
+      {/*
+        Fälls hela urvalet bär banneret ovan orsaken EN gång. Att upprepa exakt samma mening på
+        var och en av tjugoen rader hade inte gjort avslaget tydligare — det hade dränkt den
+        information som faktiskt skiljer sig åt. Raderna står då tätare, och ingen fil utelämnas.
+      */}
+      <div className={selectionFell ? "mk-list mk-list-dense" : "mk-list"} data-selection-rows="true">
+        {selection.verdicts.map((verdict, index) => {
+        /*
+          `verdict.accepted` är filens EGNA formella dom. Att den domen är grön betyder inte att
+          filen skulle lämnas in: fälls hela urvalet på antalsgränsen lämnas ingen fil in alls
+          (validateIntakeSelection tömmer `accepted` fail-closed). Raden får då varken grön färg
+          eller texten "godkänd" — annars svarar ytan två olika saker på samma fråga.
+        */
+          const included = verdict.accepted && !selectionFell;
+          const tone = !verdict.accepted ? "mk-tone-danger" : included ? "mk-tone-success" : "";
+          /*
+            Egen orsak per rad så snart raden HAR en egen orsak. En formellt felfri fil i ett
+            fällt urval har ingen — dess orsak är urvalets, och den står redan i banneret.
+          */
+          const reason = !verdict.accepted
+            ? verdict.message
+            : included
+              ? "Formellt godkänd. Inget skickas i fixturläge."
+              : null;
+          return (
+            <div
+              className={tone === "" ? "mk-file" : `mk-file ${tone}`}
+              key={`${verdict.candidate.file_name}-${index}`}
+              data-file-name={verdict.candidate.file_name}
+              data-accepted={verdict.accepted ? "true" : "false"}
+              data-included={included ? "true" : "false"}
+              data-rejection-code={verdict.accepted ? undefined : verdict.code}
+            >
+              <span className="mk-file-name">
+                {verdict.candidate.file_name} · {groupDigits(verdict.candidate.byte_size)} byte
+              </span>
+              {reason !== null && <span className="mk-file-reason">{reason}</span>}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mk-hint" data-accepted-count={selection.accepted.length}>
+        {selectionFell
+          ? "Antalsgränsen fäller hela urvalet — Verkstadsgolvet väljer aldrig ut några filer åt dig."
+          : "Varje fil hade blivit en EGEN källa med eget sha256 hos controllern — filer slås aldrig ihop."}
+      </p>
+    </>
+  );
+}
+
+export default function IntakeDropzone() {
+  const [selection, setSelection] = useState<IntakeSelection | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [pasted, setPasted] = useState("");
+
+  /** Enda vägen till en dom: formell validering i lib/loop/intake.ts. */
+  function classify(files: readonly { name: string; size: number; type: string }[]) {
+    setSelection(validateIntakeSelection(files.map((file) => toCandidate(file))));
+  }
+
+  const stats = sourceStats(pasted);
+  const enabled = intakeSubmissionEnabled();
+
+  /*
+    Inklistrad text går "samma väg som en fil" (I7) — då ska den också dömas av SAMMA funktion.
+    Storleksgränsen är den enda regel skivan påstår sig hålla, och en inklistrad källa över
+    gränsen fick tidigare bara sitt bytetal utskrivet. Namn och typ är GENERERADE av appen (en
+    inklistrad källa har inget filnamn från en webbläsare), så i praktiken kan bara storleken
+    fälla — men domen hämtas ur classifyIntakeCandidate så att de två vägarna inte kan glida isär.
+  */
+  const pasteVerdict =
+    pasted === ""
+      ? null
+      : classifyIntakeCandidate({
+          file_name: pasteSourceName(1),
+          byte_size: stats.bytes,
+          mime_type: "text/markdown",
+        });
+
+  return (
+    <section className="mk-panel" data-intake-dropzone="true" aria-label="Mata maskinen">
+      <h2 className="mk-panel-title">
+        <span>Mata maskinen</span>
+        <span className="mk-col-count">fixturläge</span>
+      </h2>
+
+      <div
+        className={dragOver ? "mk-drop mk-drop-over" : "mk-drop"}
+        data-drop-target="true"
+        data-drag-over={dragOver ? "true" : "false"}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={(event) => {
+          /*
+            `dragleave` utlöses ÄVEN när pekaren går in i ett barn i zonen (titeln, hinten,
+            filväljaren). Släcks markeringen då blinkar den medan användaren rör sig inom
+            samma yta. Zonen räknas som lämnad först när pekaren faktiskt är utanför hela
+            behållaren — och `relatedTarget` är null när den lämnar fönstret helt.
+          */
+          const next = event.relatedTarget;
+          if (next instanceof Node && event.currentTarget.contains(next)) return;
+          setDragOver(false);
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragOver(false);
+          classify(Array.from(event.dataTransfer.files));
+        }}
+      >
+        <span className="mk-drop-title">Dra Markdown-filer hit</span>
+        <span className="mk-hint" id={IDS.fileLimits}>
+          Endast {INTAKE_ACCEPTED_EXTENSIONS.join(" och ")} · högst {INTAKE_MAX_FILES} filer per
+          inlämning · högst {groupDigits(INTAKE_MAX_FILE_BYTES)} byte per fil
+        </span>
+        {/*
+          Den nativa filkontrollen ritar värdens EGEN krom på värdens EGET språk ("Choose Files",
+          "No file chosen") — strängar som CSS inte når. I ett svenskt kontrollrum blir det både
+          främmande och dubblerat: filnamnsstatusen bärs redan av SelectionReport nedanför.
+
+          Kontrollen ligger därför kvar i DOM:en, med sitt id och sin etikett, men döljs VISUELLT
+          (klipp-rektangel — aldrig display:none, som hade tagit bort den ur tabbordningen). Den
+          synliga knappen är etiketten, som öppnar samma väljare vid klick. Fokusringen målas på
+          etiketten via syskonregeln i LOOP_CSS, så tangentbordsfokus syns även när kontrollen
+          inte gör det. Ordningen input → label är vad den regeln kräver.
+        */}
+        <input
+          className="mk-sr-only"
+          id={IDS.filePicker}
+          type="file"
+          multiple
+          accept={INTAKE_ACCEPT_ATTRIBUTE}
+          aria-describedby={`${IDS.fileLimits} ${IDS.disabledReason}`}
+          data-file-picker="true"
+          onChange={(event) => classify(Array.from(event.target.files ?? []))}
+        />
+        <label className="mk-file-label" htmlFor={IDS.filePicker}>
+          Välj Markdown-filer
+        </label>
+      </div>
+
+      {/* Enda live-området: dropzonens urval är det som faktiskt ändras. */}
+      <SelectionReport selection={selection} live />
+
+      <div className="mk-group">
+        {/* Programmatiskt namn på ytan, inte bara en visuell rubrik: placeholder är inget namn. */}
+        <label className="mk-control-label" htmlFor={IDS.pasteArea}>
+          Klistra in text
+        </label>
+        <textarea
+          className="mk-textarea"
+          id={IDS.pasteArea}
+          rows={8}
+          value={pasted}
+          aria-describedby={`${IDS.pasteStats} ${IDS.pasteRule} ${IDS.disabledReason}`}
+          data-paste-area="true"
+          placeholder="Klistra in Markdown här. Texten sparas som en egen källa med genererat filnamn."
+          onChange={(event) => setPasted(event.target.value)}
+        />
+        <p
+          className="mk-hint"
+          id={IDS.pasteStats}
+          data-paste-stats="true"
+          data-paste-accepted={pasteVerdict === null ? undefined : pasteVerdict.accepted ? "true" : "false"}
+          role="status"
+          aria-live="polite"
+        >
+          {pasted === ""
+            ? "Ingen text inklistrad ännu."
+            : `${pasteSourceName(1)} · ${stats.characters} tecken · ${stats.lines} rader · ${groupDigits(stats.bytes)} byte`}
+        </p>
+        {pasteVerdict !== null && !pasteVerdict.accepted && (
+          <p className="mk-note mk-tone-danger" data-paste-rejection={pasteVerdict.code}>
+            {pasteVerdict.message}
+          </p>
+        )}
+        <p className="mk-hint" id={IDS.pasteRule}>
+          Verkstadsgolvet räknar tecken och rader — inget annat. Rubriker läses inte, källan delas
+          inte upp och antalet uppgifter uppskattas aldrig här. Tolkningen är Nortropics.
+        </p>
+      </div>
+
+      <div className="mk-actions">
+        {/*
+          Orsaken till att knappen är avstängd hör IHOP med knappen, inte bredvid den: utan
+          aria-describedby hör en skärmläsare "Lämna in källan, otillgänglig" och får aldrig veta
+          varför. Ärligheten om fixturläget ska nå alla, inte bara den som ser den gula rutan.
+        */}
+        <button
+          type="button"
+          className="mk-button"
+          disabled={!enabled}
+          aria-disabled={enabled ? undefined : "true"}
+          aria-describedby={enabled ? undefined : `${IDS.blockedOn} ${IDS.disabledReason}`}
+          data-submit-disabled={enabled ? "false" : "true"}
+        >
+          Lämna in källan
+        </button>
+        <span className="mk-hint" id={IDS.blockedOn} data-blocked-on={INTAKE_BLOCKED_ON}>
+          Blockerad på {INTAKE_BLOCKED_ON}.
+        </span>
+      </div>
+
+      <p className="mk-note mk-tone-warning" id={IDS.disabledReason} data-disabled-reason="true">
+        {INTAKE_DISABLED_REASON}
+      </p>
+    </section>
+  );
+}

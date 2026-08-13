@@ -130,6 +130,68 @@ export const LOOP_CSS = `
 .mk-phase.mk-mark-failed { background: var(--tint-danger-bg); box-shadow: inset 0 0 0 1px var(--tint-danger-border); }
 .mk-phase.mk-mark-failed .mk-phase-mark, .mk-phase.mk-mark-failed .mk-phase-name { color: var(--danger-text); }
 
+/* V8* · Markdown-intake (fixturläge). Samma tokens, samma namnrymd, ingen ny färg. */
+.mk-intake { display: flex; flex-direction: column; gap: var(--gap-md); }
+.mk-panel { background: var(--bg-panel); box-shadow: var(--hairline), 0 2px 10px -4px rgba(0,0,0,0.45);
+  border-radius: var(--radius-card); padding: var(--pad-card) 18px; display: flex;
+  flex-direction: column; gap: var(--gap-sm); min-width: 0; }
+.mk-panel-title { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--text-secondary); display: flex; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; }
+.mk-panel-title .mk-col-count { color: var(--text-muted); font-weight: 400; letter-spacing: 0.6px; }
+.mk-drop { border-radius: var(--radius-control); background: var(--bg-surface-0);
+  box-shadow: inset 0 0 0 1px var(--border-strong); padding: 22px 18px; display: flex;
+  flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.mk-drop-over { background: var(--tint-accent-bg); box-shadow: inset 0 0 0 1px var(--tint-accent-border); }
+.mk-drop-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+/* Namnet PÅ en kontroll, inte en sektionsrubrik: .mk-label:s versala 9.5px-mono läses som
+   kapitälrubrik och gör kontrollens namn otydligt. Egen klass, samma tokens. */
+.mk-control-label { font-size: 12.5px; line-height: 17px; font-weight: 600; color: var(--text-primary); }
+/* Kvar för hjälpmedel, borta för ögat. ALDRIG display:none — det hade tagit kontrollen ur
+   tabbordningen. Inga procentmått (t.ex. clip-path: inset(50…)) används: /loop-trädet är fritt
+   från procenttecken, och en 1×1-ruta med inset(1px) är lika osynlig. */
+.mk-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; white-space: nowrap; clip: rect(0 0 0 0); clip-path: inset(1px); }
+/* Etiketten ÄR den synliga knappen: svensk text, husets färger, öppnar samma filväljare. */
+.mk-file-label { display: inline-flex; align-items: center; height: 30px; padding: 0 14px;
+  border-radius: var(--radius-control); font-family: var(--font-mono); font-size: 11.5px;
+  letter-spacing: 0.6px; background: var(--bg-surface-2); color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--border-strong); cursor: pointer; }
+.mk-file-label:hover { background: var(--bg-surface-3); }
+/* Tangentbordsfokus måste synas trots att kontrollen är dold — ringen målas på etiketten. */
+.mk-sr-only:focus-visible + .mk-file-label { box-shadow: var(--focus-ring); }
+.mk-textarea { font-family: var(--font-mono); font-size: 12px; line-height: 18px; color: var(--text-primary);
+  background: var(--bg-surface-0); box-shadow: inset 0 0 0 1px var(--border-strong);
+  border: 0; border-radius: var(--radius-control); padding: 10px 11px; resize: vertical; min-height: 120px; }
+.mk-list { display: flex; flex-direction: column; gap: 6px; }
+/* Ett fällt urval listar fortfarande VARJE fil — ingen faller bort tyst — men raderna bär då
+   ingen egen orsak och kan därför stå i flera spalter på breda vyer. */
+@media (min-width: 960px) {
+  .mk-list-dense { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.mk-file { display: flex; flex-direction: column; gap: 3px; background: var(--bg-surface-1);
+  box-shadow: var(--hairline); border-radius: var(--radius-control); padding: 9px 11px; min-width: 0; }
+.mk-file.mk-tone-danger { background: var(--tint-danger-bg); box-shadow: inset 0 0 0 1px var(--tint-danger-border); }
+.mk-file.mk-tone-success { background: var(--tint-success-bg); box-shadow: inset 0 0 0 1px var(--tint-success-border); }
+.mk-file-name { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-primary); overflow-wrap: anywhere; }
+.mk-file-reason { font-size: 11.5px; line-height: 1.5; color: var(--text-secondary); }
+.mk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.mk-button { height: 30px; padding: 0 14px; border: 0; border-radius: var(--radius-control);
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.6px; background: var(--bg-surface-1);
+  color: var(--text-disabled); box-shadow: inset 0 0 0 1px var(--border-strong); cursor: not-allowed; }
+.mk-link { font-size: 12px; color: var(--accent-text); text-decoration: none; box-shadow: var(--hairline);
+  border-radius: var(--radius-control); padding: 7px 11px; background: var(--bg-surface-1); display: inline-block; }
+.mk-raw { font-family: var(--font-mono); font-size: 11.5px; line-height: 17px; color: var(--text-secondary);
+  background: var(--bg-surface-0); box-shadow: inset 0 0 0 1px var(--border-strong);
+  border-radius: var(--radius-control); padding: 10px 11px; margin: 0; overflow-x: auto;
+  white-space: pre; max-height: 420px; overflow-y: auto; }
+/* Controllerns avslag PÅSTÅS visas "ordagrant och i sin helhet" — då ska det också SYNAS i sin
+   helhet, utan att läsaren först måste upptäcka en horisontell scroll. Radbrytning ändrar inga
+   tecken (byte-identiteten mäts på DOM:en), kapar ingenting och lägger ingen "visa mer"-lucka
+   mellan läsaren och orsaken. */
+.mk-raw[data-rejection-verbatim="true"] { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mk-intake-results { display: flex; flex-direction: column; gap: var(--gap-md); }
+
 @media (max-width: 1279px) { .mk-cols { gap: var(--gap-sm); } }
 @media (max-width: 959px) {
   .mk-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -141,5 +203,8 @@ export const LOOP_CSS = `
   .mk-col-backlog { order: 1; }
   .mk-col-completed { order: 2; }
   .mk-fields { grid-template-columns: minmax(0, 1fr); }
+  /* På den smalaste vyn bryts även originalkällan hellre än att kräva sidled-scroll för att
+     läsas. Källan är fortfarande byte-identisk — bara ombruten, aldrig kapad. */
+  .mk-raw[data-source-raw="true"] { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 `;

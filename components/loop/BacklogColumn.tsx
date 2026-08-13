@@ -37,6 +37,15 @@ export default function BacklogColumn({ tasks }: { tasks: readonly TaskView[] })
         <span className="mk-col-count">{countLabel(tasks.length)}</span>
       </h2>
 
+      {/*
+        V8* · planens primära CTA överst i kolumnen. En vanlig `<a>`, inte `next/link`: hela
+        /loop-trädet renderas i prov utan Next-router, och en full sidnavigering är rätt
+        beteende för en egen route. Knappen ÖPPNAR bara intake-ytan — den lämnar inte in något.
+      */}
+      <a className="mk-link" href="/loop/mata" data-intake-cta="true">
+        + Mata maskinen
+      </a>
+
       {groups.length === 0 && (
         <p className="mk-empty">Snapshoten har ingen uppgift i backlog.</p>
       )}
