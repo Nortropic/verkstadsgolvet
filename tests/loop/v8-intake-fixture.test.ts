@@ -323,6 +323,16 @@ test("V8*-I1: avvisade filer syns i UI:t med sin orsak — ingen fil faller bort
   }
   assert.ok(html.includes('data-accepted="false"'), "ingen fil renderades som avvisad");
   assert.ok(html.includes('data-accepted="true"'), "ingen fil renderades som godkänd");
+
+  // I ett urval som INTE fälls på antalet syns den gröna domen som vanligt.
+  assert.ok(html.includes('data-selection-fell="false"'));
+  assert.ok(html.includes('data-included="true"'));
+  assert.ok(html.includes("Formellt godkänd"));
+  assert.equal(
+    (html.match(/data-included="true"/g) ?? []).length,
+    selection.accepted.length,
+    "raderna som lämnas in stämmer inte med urvalets accepterade filer",
+  );
 });
 
 test("V8*-I1: filväljaren begränsar urvalet och kandidaten byggs utan att läsa filens bytes", () => {
@@ -375,6 +385,27 @@ test("V8*-I2: antalsgränsen fälls FAIL-CLOSED — ingen fil accepteras tyst ur
   assert.ok(html.includes('data-selection-rejection="too_many_files"'));
   assert.ok(decodeEntities(html).includes(selection.selection_rejection!.message));
   assert.ok(html.includes('data-accepted-count="0"'));
+
+  /*
+    ETT svar per fråga: fälls hela urvalet får ingen rad se godkänd ut. En grön rad ovanför
+    "0 filer lämnas in" hade låtit ytan svara två olika saker på samma fråga — och den gröna
+    raden är den som läses först.
+  */
+  assert.ok(html.includes('data-selection-fell="true"'));
+  assert.equal(
+    (html.match(/mk-tone-success/g) ?? []).length,
+    0,
+    "en fil såg godkänd ut trots att hela urvalet fälldes",
+  );
+  assert.ok(!html.includes("Formellt godkänd"), "en rad påstod sig godkänd i ett fällt urval");
+  assert.equal(
+    (html.match(/data-included="false"/g) ?? []).length,
+    many.length,
+    "varje rad måste visa att den INTE lämnas in",
+  );
+  assert.ok(!html.includes('data-included="true"'));
+  // Den egna formella domen står kvar — filerna är felfria, det är urvalet som fälls.
+  assert.equal((html.match(/data-accepted="true"/g) ?? []).length, many.length);
 
   // Exakt vid gränsen går allt igenom — gränsen är inte "en till för säkerhets skull".
   const exact = validateIntakeSelection(many.slice(0, INTAKE_MAX_FILES));

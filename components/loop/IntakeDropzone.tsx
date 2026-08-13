@@ -79,8 +79,11 @@ export function SelectionReport({ selection }: { selection: IntakeSelection | nu
     );
   }
 
+  /** Hela urvalet fällt (antalsgränsen) — då lämnas ingen fil in, hur ren den än är. */
+  const selectionFell = selection.selection_rejection !== null;
+
   return (
-    <div className="mk-list" data-selection="report">
+    <div className="mk-list" data-selection="report" data-selection-fell={selectionFell ? "true" : "false"}>
       {selection.selection_rejection && (
         <p
           className="mk-note mk-tone-warning"
@@ -90,26 +93,42 @@ export function SelectionReport({ selection }: { selection: IntakeSelection | nu
         </p>
       )}
 
-      {selection.verdicts.map((verdict, index) => (
-        <div
-          className={`mk-file ${verdict.accepted ? "mk-tone-success" : "mk-tone-danger"}`}
-          key={`${verdict.candidate.file_name}-${index}`}
-          data-file-name={verdict.candidate.file_name}
-          data-accepted={verdict.accepted ? "true" : "false"}
-          data-rejection-code={verdict.accepted ? undefined : verdict.code}
-        >
-          <span className="mk-file-name">
-            {verdict.candidate.file_name} · {groupDigits(verdict.candidate.byte_size)} byte
-          </span>
-          <span className="mk-file-reason">
-            {verdict.accepted ? "Formellt godkänd. Inget skickas i fixturläge." : verdict.message}
-          </span>
-        </div>
-      ))}
+      {selection.verdicts.map((verdict, index) => {
+        /*
+          `verdict.accepted` är filens EGNA formella dom. Att den domen är grön betyder inte att
+          filen skulle lämnas in: fälls hela urvalet på antalsgränsen lämnas ingen fil in alls
+          (validateIntakeSelection tömmer `accepted` fail-closed). Raden får då varken grön färg
+          eller texten "godkänd" — annars svarar ytan två olika saker på samma fråga.
+        */
+        const included = verdict.accepted && !selectionFell;
+        const tone = !verdict.accepted ? "mk-tone-danger" : included ? "mk-tone-success" : "";
+        return (
+          <div
+            className={tone === "" ? "mk-file" : `mk-file ${tone}`}
+            key={`${verdict.candidate.file_name}-${index}`}
+            data-file-name={verdict.candidate.file_name}
+            data-accepted={verdict.accepted ? "true" : "false"}
+            data-included={included ? "true" : "false"}
+            data-rejection-code={verdict.accepted ? undefined : verdict.code}
+          >
+            <span className="mk-file-name">
+              {verdict.candidate.file_name} · {groupDigits(verdict.candidate.byte_size)} byte
+            </span>
+            <span className="mk-file-reason">
+              {!verdict.accepted
+                ? verdict.message
+                : included
+                  ? "Formellt godkänd. Inget skickas i fixturläge."
+                  : "Formellt felfri, men hela urvalet fälldes på antalsgränsen — ingen fil lämnas in."}
+            </span>
+          </div>
+        );
+      })}
 
       <p className="mk-hint" data-accepted-count={selection.accepted.length}>
-        Formellt godkända filer: {selection.accepted.length}. Varje fil hade blivit en EGEN källa
-        med eget sha256 hos controllern — filer slås aldrig ihop.
+        {selectionFell
+          ? `Filer som skulle lämnats in: ${selection.accepted.length}. Antalsgränsen fäller hela urvalet — Verkstadsgolvet väljer aldrig ut några filer åt dig.`
+          : `Formellt godkända filer: ${selection.accepted.length}. Varje fil hade blivit en EGEN källa med eget sha256 hos controllern — filer slås aldrig ihop.`}
       </p>
     </div>
   );
