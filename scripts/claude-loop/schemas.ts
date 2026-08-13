@@ -78,6 +78,8 @@ export const VisualConfigSchema = z.object({
   });
 }).optional();
 
+export const AuthorityClassSchema = z.enum(['ordinary', 'owner-author']);
+
 export const TaskSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
   title: z.string().min(1),
@@ -88,6 +90,12 @@ export const TaskSchema = z.object({
   gates: z.array(z.array(z.string().min(1)).min(1)).min(1),
   visualReview: z.boolean().default(false),
   visual: VisualConfigSchema,
+  /**
+   * DECLARED authority class. Task data, backlog data and model output can only ever declare it;
+   * the effective class is resolved by `resolveAuthorityClass` against the supervisor's explicit
+   * selection, and a `owner-author` declaration without that selection fails the run closed.
+   */
+  authorityClass: AuthorityClassSchema.default('ordinary'),
 });
 export type TaskSpec = z.infer<typeof TaskSchema>;
 
@@ -113,6 +121,28 @@ export const ConfigSchema = z.object({
    * independent reviewer read.
    */
   publish: z.object({ enabled: z.boolean(), autoMerge: z.boolean(), mergeMethod: z.enum(['merge']) }),
+  /**
+   * Autopilot scheduling. Disabled by default: an operator arms continuous backlog work explicitly.
+   *
+   * `maxTasks`          — hard bound on tasks started per invocation. There is no unbounded loop.
+   * `claimTtlSeconds`   — how long a claim survives without a heartbeat before it is recoverable.
+   * `continueAfterMerge`— continue to the next slice only after the previous candidate really is in
+   *                       `origin/main` as a verified merge commit. Never a way to move main itself.
+   */
+  autopilot: z.object({
+    enabled: z.boolean().default(false),
+    maxTasks: z.number().int().min(1).max(20).default(1),
+    claimTtlSeconds: z.number().int().min(30).max(86400).default(900),
+    continueAfterMerge: z.boolean().default(true),
+  }).default({ enabled: false, maxTasks: 1, claimTtlSeconds: 900, continueAfterMerge: true }),
+  /**
+   * Operator-local selection of owner-author tasks. This file, not repository or model data, is one
+   * of the only two ways into the owner-author lane; the other is the explicit `--owner-author` CLI
+   * flag. It is workflow authority only and never a Nortropic trust boundary.
+   */
+  ownerAuthor: z.object({
+    selectedTaskIds: z.array(z.string().min(1)).default([]),
+  }).default({ selectedTaskIds: [] }),
 });
 export type FactoryConfig = z.infer<typeof ConfigSchema>;
 
@@ -120,6 +150,11 @@ export const RunStateSchema = z.object({
   version: z.literal(1),
   runId: z.string(),
   task: TaskSchema,
+  /**
+   * EFFECTIVE authority class for this run, resolved once by the supervisor from its explicit
+   * selection. It is persisted so a resume cannot re-derive a different lane from mutated task data.
+   */
+  authorityClass: AuthorityClassSchema.default('ordinary'),
   baseSha: z.string(),
   branch: z.string(),
   worktree: z.string(),

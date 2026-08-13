@@ -1,0 +1,329 @@
+{
+  "version": 1,
+  "plan": "docs/nortropic-control-room-plan-v1.md",
+  "planBaseSha": "ae9d250240e47c40eccf72ff045198f8f5f054ea",
+  "note": "Canonical backlog for the control-room slices, derived from IMPLEMENTATION_SLICES and IMPLEMENTATION_ORDER in the plan. Order follows the plan's IMPLEMENTATION_ORDER verbatim. declaredStatus is a CLAIM that is believed only when its completionEvidence exists on disk; dependencies and prerequisites are evaluated mechanically by scripts/claude-loop/backlog.ts. External prerequisites name backend slices in Nortropic/nortropic-system, which this repository is not the authority for and cannot measure: they stay unmet until an owner records a measurement in the runtime evidence file under the Git common directory. No slice here is described as live-complete against fixtures.",
+  "items": [
+    {
+      "id": "V1",
+      "order": 1,
+      "title": "Typed backend contracts and schema validation",
+      "summary": "Typed event/command contracts, schema validation and generated fixtures for the control-room read plane.",
+      "planSection": "V1 · Typade backendkontrakt och schemavalidering",
+      "declaredStatus": "DONE",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": [],
+      "prerequisites": [],
+      "completionEvidence": [
+        "lib/loop/schema.ts",
+        "lib/loop/labels.ts",
+        "lib/loop/fixtures",
+        "tests/loop/schema.test.ts",
+        "tests/loop/fixtures.test.ts",
+        "tests/loop/ordering.test.ts"
+      ],
+      "task": {
+        "description": "Already implemented. Retained for dependency resolution and evidence only.",
+        "allowedWrite": ["lib/loop/**", "tests/loop/**"],
+        "deniedWrite": ["app/**", "components/**", ".claude/**", "CLAUDE.md", "docs/**"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": false
+      }
+    },
+    {
+      "id": "V2",
+      "order": 2,
+      "title": "Fixture-backed Maskinen shell",
+      "summary": "Three-column /loop shell rendered from fixtures behind LOOP_ENABLED, with distinct rendering for all eleven TASK_LIFECYCLE states.",
+      "planSection": "V2 · Fixturbaserad Maskinen-shell",
+      "declaredStatus": "DONE",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": ["V1"],
+      "prerequisites": [],
+      "completionEvidence": [
+        "app/(app)/loop/page.tsx",
+        "components/loop/MaskinShell.tsx",
+        "components/loop/RunStatusBar.tsx",
+        "components/loop/PhaseRail.tsx",
+        "tests/loop/v2-maskinen-shell.test.ts"
+      ],
+      "task": {
+        "description": "Already implemented. Retained for dependency resolution and evidence only.",
+        "allowedWrite": ["app/(app)/loop/**", "components/loop/**", "tests/loop/**"],
+        "deniedWrite": [".claude/**", "CLAUDE.md", "docs/**"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": false
+      }
+    },
+    {
+      "id": "V3",
+      "order": 3,
+      "title": "Read model and SNAPSHOT_WINS",
+      "summary": "Snapshot-authoritative read model where a tail event never produces DONE, duplicates and out-of-order events converge, and seq gaps are reported.",
+      "planSection": "V3 · Read model + SNAPSHOT_WINS",
+      "declaredStatus": "DONE",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": ["V1", "V2"],
+      "prerequisites": [],
+      "completionEvidence": [
+        "lib/loop/events.ts",
+        "lib/loop/snapshot.ts",
+        "tests/loop/v3-read-model.test.ts"
+      ],
+      "task": {
+        "description": "Already implemented. Retained for dependency resolution and evidence only.",
+        "allowedWrite": ["lib/loop/**", "tests/loop/**"],
+        "deniedWrite": [".claude/**", "CLAUDE.md", "docs/**"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": false
+      }
+    },
+    {
+      "id": "V4",
+      "order": 4,
+      "title": "Live read plane",
+      "summary": "Real snapshots and events from the control-plane Supabase, with zero writes from Verkstadsgolvet and gap detection only on the unfiltered store stream.",
+      "planSection": "V4 · Live läsyta",
+      "declaredStatus": "PENDING",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": ["V3"],
+      "prerequisites": [
+        { "kind": "external_slice", "repository": "Nortropic/nortropic-system", "slice": "S5", "note": "operations/lifecycle-event store built and green, carrying B3's locked seq scope and B4's canonical payload contract" },
+        { "kind": "external_slice", "repository": "Nortropic/nortropic-system", "slice": "S13", "note": "controller/lucka read projection publishing the B8 controller-generated snapshot (BACKEND_CROSS_PLAN_REQUIREMENT_FOR_S13)" },
+        { "kind": "local_file", "path": "lib/loop/snapshot.ts" },
+        { "kind": "local_test", "command": ["npm", "run", "loop:test"] }
+      ],
+      "completionEvidence": [],
+      "task": {
+        "description": "Implement V4 exactly as the plan defines it. The app performs zero writes against loop_events/loop_snapshots, never resolves origin/main itself, never reconstructs authoritative state by event fold, and adds no /api/loop route to the middleware matcher exemptions. Every /api/loop handler calls auth() itself. Unknown or unavailable backend data renders as an em dash, never invented data.",
+        "allowedWrite": ["lib/loop/**", "app/api/loop/**", "tests/loop/**"],
+        "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**", "lib/github-read.ts", "lib/github-write.ts"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": false
+      }
+    },
+    {
+      "id": "V5",
+      "order": 5,
+      "title": "Task inspector",
+      "summary": "Eleven inspector tabs where a tab without backend data shows an em dash with a reason and NOT_RUN renders visually distinct from PASS.",
+      "planSection": "V5 · Task inspector",
+      "declaredStatus": "PENDING",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": ["V4"],
+      "prerequisites": [
+        { "kind": "external_slice", "repository": "Nortropic/nortropic-system", "slice": "S1", "note": "per-task gate verdict (h-017) built with proofs, needed by the verification tabs" },
+        { "kind": "external_slice", "repository": "Nortropic/nortropic-system", "slice": "S4", "note": "structured failure feedback, needed by the ATTEMPTS tab" },
+        { "kind": "external_slice", "repository": "Nortropic/nortropic-system", "slice": "S13", "note": "read projection for DIFF/EVIDENCE references" }
+      ],
+      "completionEvidence": [],
+      "task": {
+        "description": "Implement V5 exactly as the plan defines it. No tab ever renders gate code, control names or the registry. A verdict is always rendered against its own candidate_sha and never inherited.",
+        "allowedWrite": ["app/(app)/loop/**", "components/loop/**", "lib/loop/**", "app/api/loop/**", "tests/loop/**"],
+        "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": true
+      }
+    },
+    {
+      "id": "V8-FIXTURE",
+      "order": 6,
+      "title": "Markdown intake UI against fixtures",
+      "summary": "The intake surface (/loop/mata, dropzone and result rendering) built and proven against generated fixtures only, with no live transport and no server intake route.",
+      "planSection": "V8 · Markdown-intake (V8* fixturläge in IMPLEMENTATION_ORDER)",
+      "declaredStatus": "PENDING",
+      "fixtureOnly": true,
+      "liveCounterpart": "V8",
+      "authorityClass": "ordinary",
+      "dependsOn": ["V1", "V2", "V3"],
+      "prerequisites": [
+        { "kind": "local_file", "path": "lib/loop/schema.ts" },
+        { "kind": "local_file", "path": "lib/loop/fixtures" },
+        { "kind": "local_file", "path": "components/loop/MaskinShell.tsx" },
+        { "kind": "local_test", "command": ["npm", "run", "loop:test"] }
+      ],
+      "completionEvidence": [],
+      "task": {
+        "description": "Build the intake UI against generated fixtures only. This slice is FIXTURE-ONLY and is never live-complete: it must not create app/api/loop/intake, must not talk to any transport, must not compute a trusted hash and must not compile tasks in the frontend. The client rejects non-.md files and enforces size/count limits; a fixture backend rejection is rendered verbatim; NEEDS_SPEC renders as a working state and never as an error. The live counterpart V8 stays blocked on nortropic-system S10 + S13 (B5), which own the transport form.",
+        "allowedWrite": ["app/(app)/loop/mata/**", "components/loop/**", "lib/loop/**", "tests/loop/**"],
+        "deniedWrite": ["app/api/**", "middleware.ts", ".claude/**", "CLAUDE.md", "docs/**", "lib/github-read.ts", "lib/github-write.ts"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": true
+      }
+    },
+    {
+      "id": "V7",
+      "order": 7,
+      "title": "Narrow command surface",
+      "summary": "Exactly the five typed operator intents, idempotent by command_id, with no optimistic state and no lease/breaker/ref/verdict/attestation/promotion code path.",
+      "planSection": "V7 · Smal kommandoyta",
+      "declaredStatus": "PENDING",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": ["V4"],
+      "prerequisites": [
+        { "kind": "external_slice", "repository": "Nortropic/nortropic-system", "slice": "S13", "note": "controller/lucka built AND verified; a command queue without a built claimer is a queue without a claimer" }
+      ],
+      "completionEvidence": [],
+      "task": {
+        "description": "Implement V7 exactly as the plan defines it. Exactly five verbs; a sixth returns 400 with no side effect. A command is only an intention and the controller may always reject it. No optimistic UI state: task state changes only from a snapshot. Zero code paths under app/api/loop/** and lib/loop/** touching lease, breaker, Git refs, verdict, attestation or promotion, and no GitHub credential of any kind.",
+        "allowedWrite": ["app/api/loop/command/**", "lib/loop/**", "components/loop/**", "tests/loop/**"],
+        "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**", "lib/github-read.ts", "lib/github-write.ts"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": false
+      }
+    },
+    {
+      "id": "V8",
+      "order": 8,
+      "title": "Markdown intake live",
+      "summary": "The same intake UI against the real narrow intake transport, where Verkstadsgolvet's sha256 is only a claim and the controller recomputes and rejects on mismatch.",
+      "planSection": "V8 · Markdown-intake",
+      "declaredStatus": "PENDING",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": ["V7", "V8-FIXTURE"],
+      "prerequisites": [
+        { "kind": "external_slice", "repository": "Nortropic/nortropic-system", "slice": "S10", "note": "controller/intag Markdown intake and Task IR" },
+        { "kind": "external_slice", "repository": "Nortropic/nortropic-system", "slice": "S13", "note": "B5 source_ref transport form is owned there, not here" }
+      ],
+      "completionEvidence": [],
+      "task": {
+        "description": "Implement live V8 exactly as the plan defines it. The app's hash is never a trust anchor; a tampered transport byte must produce a controller rejection rather than an accepted source. The frontend never compiles tasks and never estimates a task count before the controller answers.",
+        "allowedWrite": ["app/(app)/loop/mata/**", "app/api/loop/intake/**", "lib/loop/**", "components/loop/**", "tests/loop/**"],
+        "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**", "lib/github-read.ts", "lib/github-write.ts"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": true
+      }
+    },
+    {
+      "id": "V9",
+      "order": 9,
+      "title": "Realtime, reconnect and dedup",
+      "summary": "SSE tail with reconnect and backfill that never duplicates or loses events, dedup on event_id, and a visible poll fallback.",
+      "planSection": "V9 · Realtid, reconnect, dedup",
+      "declaredStatus": "PENDING",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": ["V4"],
+      "prerequisites": [
+        { "kind": "external_slice", "repository": "Nortropic/nortropic-system", "slice": "S5", "note": "the operations event store is the only source of a real tail" }
+      ],
+      "completionEvidence": [],
+      "task": {
+        "description": "Implement V9 exactly as the plan defines it. An unknown future event_type renders raw without crashing, a newer major schema_version shows a banner, and the UI never claims realtime while it is polling.",
+        "allowedWrite": ["app/api/loop/stream/**", "lib/loop/**", "components/loop/**", "tests/loop/**"],
+        "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": false
+      }
+    },
+    {
+      "id": "V10",
+      "order": 10,
+      "title": "Security hardening",
+      "summary": "Statically measured: no secrets in the client bundle, no NEXT_PUBLIC_ variables, an unchanged middleware matcher and no GitHub credential reachable from any loop path.",
+      "planSection": "V10 · Säkerhetshärdning",
+      "declaredStatus": "PENDING",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": ["V7"],
+      "prerequisites": [
+        { "kind": "local_file", "path": "middleware.ts" }
+      ],
+      "completionEvidence": [],
+      "task": {
+        "description": "Implement V10 exactly as the plan defines it. The middleware matcher must stay byte-identical to the one at PLAN_BASE_SHA. Prove statically: zero imports of lib/github-read.ts or lib/github-write.ts under app/api/loop/** and lib/loop/**, and zero code paths there touching lease, breaker, Git refs, verdict, attestation or promotion.",
+        "allowedWrite": ["app/api/loop/**", "lib/loop/**", "next.config.ts", "tests/loop/**"],
+        "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": false
+      }
+    },
+    {
+      "id": "V11",
+      "order": 11,
+      "title": "Responsive polish and regressions",
+      "summary": "1280/960/720/375 px without horizontal page scroll, reduced motion respected, and every existing surface still green.",
+      "planSection": "V11 · Responsivt och regressioner",
+      "declaredStatus": "PENDING",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": ["V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10"],
+      "prerequisites": [
+        { "kind": "local_file", "path": "app/globals.css" }
+      ],
+      "completionEvidence": [],
+      "task": {
+        "description": "Implement V11 exactly as the plan defines it. app/globals.css changes are additive only; wide surfaces scroll in their own container; / must render identically to PLAN_BASE_SHA.",
+        "allowedWrite": ["app/globals.css", "app/(app)/loop/**", "components/loop/**", "tests/loop/**"],
+        "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": true
+      }
+    },
+    {
+      "id": "V6",
+      "order": 12,
+      "title": "Merge resolution UX",
+      "summary": "The seven merge states rendered from their event types, where B's PASS is never shown as D's verdict and conflict/resolver-working never render as a human stop.",
+      "planSection": "V6 · Merge-resolution-UX",
+      "declaredStatus": "PENDING",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "ordinary",
+      "dependsOn": ["V5"],
+      "prerequisites": [
+        { "kind": "external_slice", "repository": "Nortropic/nortropic-system", "slice": "S8", "note": "merge resolution, which must itself prove candidate=D with parent_sha=C (B7)" }
+      ],
+      "completionEvidence": [],
+      "task": {
+        "description": "Implement V6 exactly as the plan defines it. Never derive parentage from GitHub, never reuse an old verdict for a resolved candidate, and offer no 'resolve the conflict' button.",
+        "allowedWrite": ["components/loop/**", "lib/loop/**", "tests/loop/**"],
+        "deniedWrite": ["middleware.ts", ".claude/**", "CLAUDE.md", "docs/**"],
+        "gates": [["npx", "tsc", "--noEmit"], ["npm", "run", "build"], ["npm", "run", "loop:test"]],
+        "visualReview": true
+      }
+    },
+    {
+      "id": "OM1",
+      "order": 13,
+      "title": "Apply the operating-model publication supersession",
+      "summary": "Replace the stale expected-head-guarded rebase-merge paragraph in docs/claude-operating-model-v1.md with the merge-commit paragraph the runbook already quotes verbatim, then delete the supersession subsection from the runbook.",
+      "planSection": "docs/claude-loop-runbook.md · Operating-model supersession (pending operator edit)",
+      "declaredStatus": "PENDING",
+      "fixtureOnly": false,
+      "liveCounterpart": null,
+      "authorityClass": "owner-author",
+      "dependsOn": [],
+      "prerequisites": [
+        { "kind": "local_file", "path": "docs/claude-operating-model-v1.md" },
+        { "kind": "local_file", "path": "docs/claude-loop-runbook.md" },
+        { "kind": "local_test", "command": ["npm", "run", "claude:test"] }
+      ],
+      "completionEvidence": [],
+      "task": {
+        "description": "Apply exactly the replacement paragraph the runbook quotes, and nothing else. Do not weaken any guard, do not change publication behaviour, do not touch the control-room plan or the codex handoff, and do not edit scripts/claude-loop/owner-author/**. tests/claude-loop/publication-merge-commit.test.ts mechanically enforces the pair: once the operating model carries the corrected merge-commit semantics, the runbook's supersession subsection must be removed in the same candidate.",
+        "allowedWrite": ["docs/claude-operating-model-v1.md", "docs/claude-loop-runbook.md"],
+        "deniedWrite": ["docs/nortropic-control-room-plan-v1.md", "docs/nortropic-control-room-codex-handoff.md", "scripts/claude-loop/owner-author/**", "app/**", "components/**", "lib/**"],
+        "gates": [["npm", "run", "claude:selftest"], ["npx", "tsc", "--noEmit"], ["npm", "run", "claude:test"]],
+        "visualReview": false
+      }
+    }
+  ]
+}

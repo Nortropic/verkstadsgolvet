@@ -37,6 +37,7 @@ function task(authenticated: boolean): TaskSpec {
     id: 'FACTORY-AUTH-VISUAL-001-FAV-003',
     title: 'preview child environment boundary',
     description: 'freeze the FAV-003 owner security contract',
+    authorityClass: 'ordinary',
     allowedWrite: ['tests/claude-loop/visual-preview-child-env.test.ts'],
     deniedWrite: [],
     gates: [['npm', 'run', 'claude:test']],
