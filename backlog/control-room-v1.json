@@ -172,7 +172,7 @@
         "visualReview": true,
         "visual": {
           "previewCommand": ["/usr/bin/env", "LOOP_ENABLED=true", "npm", "run", "dev", "--", "--hostname", "127.0.0.1", "--port", "4317"],
-          "previewUrl": "http://127.0.0.1:4317/loop",
+          "previewUrl": "http://127.0.0.1:4317/loop/mata",
           "readyTimeoutMs": 120000,
           "authenticated": true,
           "viewports": [
