@@ -302,13 +302,22 @@ test('structural integrity is enforced, so a malformed backlog cannot schedule a
 /* --------------------------------------------------------- visual configuration, before any run */
 
 /**
- * The preview configuration proven by the persisted successful V2 Factory run: `/usr/bin/env`
- * carries `LOOP_ENABLED=true` into `npm run dev`, whose own `--` separator forwards the host/port
- * argv to Next.js. It is an argv array, so no shell ever interprets it.
+ * The one canonical V8-FIXTURE visual target: the intake surface this fixture slice actually
+ * changes. A screenshot of `/loop` is evidence about a different surface, so the target carries the
+ * `/loop/mata` path explicitly. Same loopback origin, so it stays credential-safe.
+ */
+const V8_FIXTURE_PREVIEW_URL = 'http://127.0.0.1:4317/loop/mata';
+
+/**
+ * The preview configuration for V8-FIXTURE. Transport is exactly what the persisted successful V2
+ * Factory run proved: `/usr/bin/env` carries `LOOP_ENABLED=true` into `npm run dev`, whose own `--`
+ * separator forwards the host/port argv to Next.js. It is an argv array, so no shell ever
+ * interprets it. Port, ready timeout, authenticated mode and the three viewports are unchanged; only
+ * the URL path points at the surface under review.
  */
 const PROVEN_VISUAL = {
   previewCommand: ['/usr/bin/env', 'LOOP_ENABLED=true', 'npm', 'run', 'dev', '--', '--hostname', '127.0.0.1', '--port', '4317'],
-  previewUrl: 'http://127.0.0.1:4317/loop',
+  previewUrl: V8_FIXTURE_PREVIEW_URL,
   readyTimeoutMs: 120000,
   authenticated: true,
   viewports: [
@@ -370,7 +379,7 @@ test('V8-FIXTURE carries exactly the preview configuration proven by the success
   const task = materializeTask(item, { baseSha: null, authorityClass: 'ordinary' });
   assert.deepEqual(task.visual, PROVEN_VISUAL, 'the run receives the proven configuration, not a default');
   assert.deepEqual(task.visual!.previewCommand, PROVEN_VISUAL.previewCommand, 'the env/npm/-- argv semantics are preserved element by element');
-  assert.equal(task.visual!.previewUrl, 'http://127.0.0.1:4317/loop');
+  assert.equal(task.visual!.previewUrl, V8_FIXTURE_PREVIEW_URL);
   assert.equal(task.visual!.readyTimeoutMs, 120000);
   assert.equal(task.visual!.authenticated, true);
   assert.equal(isLoopbackPreviewTarget(task.visual!.previewUrl), true);
@@ -379,6 +388,34 @@ test('V8-FIXTURE carries exactly the preview configuration proven by the success
     { name: 'tablet', width: 900, height: 1000 },
     { name: 'mobile', width: 390, height: 844 },
   ]);
+});
+
+test('the V8-FIXTURE visual target is the intake surface the slice changes, on the same loopback origin', () => {
+  // Asserted on the tracked FILE and on every derived form, so no layer can quietly retarget it.
+  const raw = canonicalJson().items.find((i) => i.id === 'V8-FIXTURE')!;
+  const rawVisual = raw.task.visual as { previewUrl: string; authenticated: boolean };
+  const item = backlog.items.find((i) => i.id === 'V8-FIXTURE')!;
+  const task = materializeTask(item, { baseSha: null, authorityClass: 'ordinary' });
+
+  for (const [label, url] of [
+    ['tracked file', rawVisual.previewUrl],
+    ['loaded backlog', item.task.visual!.previewUrl],
+    ['materialized task', task.visual!.previewUrl],
+  ] as const) {
+    assert.equal(url, V8_FIXTURE_PREVIEW_URL, `${label} must target the intake surface`);
+    const parsed = new URL(url);
+    assert.equal(parsed.pathname, '/loop/mata', `${label} path must be exactly the intake route`);
+    assert.notEqual(parsed.pathname, '/loop', `${label} must not fall back to the shell route this slice does not change`);
+    // The allowedWrite surface of this slice is app/(app)/loop/mata/**, so the evidence covers it.
+    assert.equal(parsed.origin, 'http://127.0.0.1:4317', `${label} keeps the proven loopback origin and port`);
+    assert.equal(isLoopbackPreviewTarget(url), true, `${label} must stay loopback while credentials are typed`);
+  }
+  assert.equal(rawVisual.authenticated, true, 'the intake surface is behind auth, so the capture stays authenticated');
+  assert.equal(task.visual!.authenticated, true);
+  assert.ok(
+    item.task.allowedWrite.some((p) => p.includes('loop/mata')),
+    'the retarget is only honest while the slice actually writes the intake route',
+  );
 });
 
 test('visualReview=false never requires a preview configuration', () => {
