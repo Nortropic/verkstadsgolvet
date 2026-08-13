@@ -2,6 +2,7 @@
   "id": "V1",
   "title": "Typed backend contracts and schema validation",
   "description": "Implement V1 exactly as defined by docs/nortropic-control-room-plan-v1.md. Do not invent live backend fields.",
+  "authorityClass": "ordinary",
   "allowedWrite": [
     "lib/loop/**",
     "tests/loop/**",

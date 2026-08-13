@@ -2,9 +2,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ConfigSchema, TaskSchema, type FactoryConfig, type Finding, type RoleResult, type RunState, type TaskSpec } from './schemas';
-import { repoRoot, readJson, nowId, slug, checkWriteScope, git } from './util';
+import { repoRoot, readJson, nowId, slug } from './util';
 import { originMain, createWorktree, changedFiles, commitCandidate, clean } from './git';
-import { ClaudeRoleFailure, runRole } from './claude';
+import { ClaudeRoleFailure, runRole, WRITE_ROLES, type RoleName } from './claude';
+import { assertOwnerAuthorPublicationGuard, laneForAuthorityClass, resolveAuthorityClass, type AuthorityClass, type AuthoritySelection } from './authority';
+import { assertDeclaredScope, formatScopeViolations, validateExactScope } from './scope';
+import { acquireClaim, ownerToken, releaseClaim } from './claims';
 import { runGates } from './gates';
 import { saveState, loadState } from './state';
 import { Telemetry } from './telemetry';
@@ -23,8 +26,9 @@ function mergeAdvisories(current: Finding[], next: Finding[]): Finding[] {
   return out;
 }
 
+/** Recoverable write-role sessions: the ordinary `builder` and the owner-author write role. */
 export function recoverableBuilderSession(error: unknown): string | null {
-  return error instanceof ClaudeRoleFailure && error.role === 'builder' ? error.sessionId : null;
+  return error instanceof ClaudeRoleFailure && WRITE_ROLES.includes(error.role) ? error.sessionId : null;
 }
 
 /** The single failure subtype that a builder may continue from without operator involvement. */
@@ -45,7 +49,7 @@ export function builderContinuationBudgetBlockedReason(sessionId: string, used: 
  */
 export function isBuilderContinuationFailure(error: unknown): error is ClaudeRoleFailure {
   return error instanceof ClaudeRoleFailure
-    && error.role === 'builder'
+    && WRITE_ROLES.includes(error.role)
     && error.subtype === BUILDER_CONTINUATION_SUBTYPE
     && typeof error.sessionId === 'string'
     && error.sessionId.length > 0;
@@ -164,11 +168,49 @@ function basePrompt(task: TaskSpec): string {
   return `Task ${task.id}: ${task.title}\n\n${task.description}\n\nAllowed write: ${task.allowedWrite.join(', ')}\nDenied write: ${task.deniedWrite.join(', ')}\nRequired gates: ${task.gates.map((g) => JSON.stringify(g)).join(' ; ')}`;
 }
 
-export async function startRun(taskFile: string): Promise<RunState> {
+/**
+ * The supervisor's explicit owner-author selection for one invocation.
+ *
+ * Composed ONLY of operator-controlled inputs: the `--owner-author` CLI flag and the git-ignored,
+ * operator-local `.claude-loop.json`. Nothing a model writes reaches this function.
+ */
+export function supervisorAuthoritySelection(config: FactoryConfig, cliSelected: readonly string[] = []): AuthoritySelection {
+  return { selectedTaskIds: [...new Set([...config.ownerAuthor.selectedTaskIds, ...cliSelected])] };
+}
+
+export async function startRun(taskFile: string, cliOwnerAuthorTaskIds: readonly string[] = []): Promise<RunState> {
   const repo = repoRoot();
   const config = loadConfig(repo);
   const task = loadTask(taskFile);
+  const authorityClass = resolveAuthorityClass({
+    taskId: task.id,
+    declared: task.authorityClass,
+    selection: supervisorAuthoritySelection(config, cliOwnerAuthorTaskIds),
+    source: `task file ${path.basename(taskFile)}`,
+  });
+  return await startRunFromTask({ repo, config, task, authorityClass });
+}
+
+/**
+ * Starts one run from an already-resolved task and authority class.
+ *
+ * Shared by `claude:run` and the autopilot scheduler so both go through exactly the same worktree
+ * lifecycle, the same declared-scope guard and the same publication guard. The authority class is
+ * an input here: this function never resolves, upgrades or infers it.
+ */
+export async function startRunFromTask(args: {
+  repo?: string;
+  config?: FactoryConfig;
+  task: TaskSpec;
+  authorityClass: AuthorityClass;
+}): Promise<RunState> {
+  const repo = args.repo ?? repoRoot();
+  const config = args.config ?? loadConfig(repo);
+  const task = args.task;
+  const authorityClass = args.authorityClass;
   if (task.visualReview && !task.visual) throw new Error('visualReview=true requires task.visual');
+  assertDeclaredScope({ taskId: task.id, allowedWrite: task.allowedWrite, lane: laneForAuthorityClass(authorityClass) });
+  assertOwnerAuthorPublicationGuard({ authorityClass, autoMerge: config.publish.autoMerge });
   if (!clean(repo)) throw new Error('launch checkout must be clean');
   const main = originMain(repo);
   const baseSha = task.baseSha ?? main;
@@ -176,7 +218,7 @@ export async function startRun(taskFile: string): Promise<RunState> {
   const runId = `${slug(task.id)}-${nowId()}`;
   const wtRoot = path.join(os.homedir(), 'nortropic', 'worktrees', 'claude-factory');
   const { worktree, branch } = createWorktree(repo, wtRoot, task.id, runId, baseSha);
-  let state: RunState = { version: 1, runId, task, baseSha, branch, worktree, phase: 'ARCHITECT', attempt: 0, candidateSha: null, sessions: { architect: null, builder: null, reviewer: null, visualReviewer: null }, ownerRemediationExtensionRounds: 0, builderContinuationResumesUsed: 0, findings: [], advisoryFindings: [], prUrl: null, blockedReason: null };
+  let state: RunState = { version: 1, runId, task, authorityClass, baseSha, branch, worktree, phase: 'ARCHITECT', attempt: 0, candidateSha: null, sessions: { architect: null, builder: null, reviewer: null, visualReviewer: null }, ownerRemediationExtensionRounds: 0, builderContinuationResumesUsed: 0, findings: [], advisoryFindings: [], prUrl: null, blockedReason: null };
   saveState(repo, state);
   return await execute(repo, config, state);
 }
@@ -196,7 +238,20 @@ export async function resumeRun(runId: string): Promise<RunState> {
   if (state.phase === 'BLOCKED' && state.blockedReason?.startsWith('remediation budget exhausted after ') && (legacyExhausted || state.attempt > maxRound)) {
     throw new Error('remediation budget exhausted; explicit owner extend-remediation is required before resume');
   }
-  return await execute(repo, config, state);
+
+  // A RUN claim, held for the duration of this resume. A fresh run gets a brand new run id and
+  // cannot collide, but two operators can resume the SAME recorded run in the same worktree; that
+  // would put two model sessions on one candidate. The claim makes it exactly one, and an
+  // abandoned resume becomes recoverable through the ordinary stale-claim path.
+  const claim = acquireClaim({ repo, scope: 'run', key: runId, owner: ownerToken('resume'), nowMs: Date.now(), ttlSeconds: config.autopilot.claimTtlSeconds, runId });
+  if (!claim.ok) {
+    throw new Error(`run ${runId} is already claimed by ${claim.current?.owner ?? 'another supervisor'} (${claim.reason}); recover the stale claim with npm run claude:autopilot-recover before resuming`);
+  }
+  try {
+    return await execute(repo, config, state);
+  } finally {
+    releaseClaim({ repo, claim: claim.claim, nowMs: Date.now(), note: 'released after resume' });
+  }
 }
 
 export function extendRemediationBudget(runId: string, rounds: number): RunState {
@@ -215,7 +270,13 @@ export function extendRemediationBudget(runId: string, rounds: number): RunState
 
 async function execute(repo: string, config: FactoryConfig, state: RunState): Promise<RunState> {
   const t = new Telemetry(repo, state.runId);
+  // The lane is derived from the PERSISTED effective authority class, never from task file data
+  // that could have changed since the run started.
+  const lane = laneForAuthorityClass(state.authorityClass);
+  const writeRole: RoleName = lane === 'owner-author' ? 'owner-author' : 'builder';
   try {
+    assertOwnerAuthorPublicationGuard({ authorityClass: state.authorityClass, autoMerge: config.publish.autoMerge });
+    assertDeclaredScope({ taskId: state.task.id, allowedWrite: state.task.allowedWrite, lane });
     if (!state.sessions.architect) {
       t.emit('architect.started', { task: state.task.id });
       const a = await runRole({ role: 'architect', cwd: state.worktree, prompt: `${basePrompt(state.task)}\n\nPlan this implementation. Do not edit files.`, model: config.models.architect });
@@ -227,7 +288,7 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
     const maxRound = allowedMaxRound(config, state);
     for (let round = state.attempt; round <= maxRound; round++) {
       state.attempt = round; state.phase = round === 0 ? 'BUILD' : 'REMEDIATE'; saveState(repo, state);
-      t.emit(round === 0 ? 'builder.started' : 'builder.remediation_started', { task: state.task.id, round });
+      t.emit(round === 0 ? 'builder.started' : 'builder.remediation_started', { task: state.task.id, round, role: writeRole, authority_class: state.authorityClass });
       const supervisorGateHandoff = `If a required task gate is blocked inside the Claude sandbox by network or permission limits, do not bypass it and do not spend turns trying to prove the environment failure. Record the limitation and return READY when implementation is complete; the supervisor executes task.gates mechanically outside the model sandbox.`;
       const prompt = round === 0
         ? `${basePrompt(state.task)}\n\nImplement the task now in this worktree. You are not allowed to publish. Run useful local checks.\n\n${supervisorGateHandoff}`
@@ -239,7 +300,7 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
         prompt,
         deps: {
           // maxTurns per segment stays the claude.ts default: this composes bounded segments.
-          runBuilderSegment: (seg) => runRole({ role: 'builder', cwd: state.worktree, prompt: seg.prompt, resume: seg.resume, model: config.models.builder }),
+          runBuilderSegment: (seg) => runRole({ role: writeRole, cwd: state.worktree, prompt: seg.prompt, resume: seg.resume, model: config.models.builder }),
           persist: (s) => saveState(repo, s),
           emit: (event, fields) => t.emit(event, fields),
         },
@@ -254,9 +315,15 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
         continue;
       }
 
+      // POST-WRITE EXACT SCOPE VALIDATION. Measured from Git after the model stopped writing, over
+      // the union of tracked and untracked changes, against the exact lane rules. A single file
+      // outside the exact scope blocks the run before any gate, candidate or reviewer.
       const files = changedFiles(state.worktree, state.candidateSha ?? state.baseSha);
-      const violations = checkWriteScope(files, state.task.allowedWrite, state.task.deniedWrite);
-      if (violations.length) throw new Error(`allowed-write violation: ${violations.join(', ')}`);
+      const violations = validateExactScope({ files, allowedWrite: state.task.allowedWrite, deniedWrite: state.task.deniedWrite, lane });
+      if (violations.length) {
+        t.emit('scope.violation', { round, lane, authority_class: state.authorityClass, violations });
+        throw new Error(`allowed-write violation: ${formatScopeViolations(violations)}`);
+      }
       const gates = await runGates(state.task.gates, state.worktree);
       t.emit(gates.ok ? 'gates.passed' : 'gates.failed', { round, failures: gates.failures.length });
       if (!gates.ok) {
@@ -266,9 +333,18 @@ async function execute(repo: string, config: FactoryConfig, state: RunState): Pr
       }
       const changedNow = changedFiles(state.worktree, state.candidateSha ?? state.baseSha);
       if (changedNow.length) {
+        // Each round appends a NEW immutable candidate commit; nothing is ever amended or reset.
         state.candidateSha = commitCandidate(state.worktree, state.task.id, round);
         t.emit('candidate.created', { candidate_sha: state.candidateSha, round });
       } else if (!state.candidateSha) throw new Error('builder produced no candidate changes');
+
+      // Cumulative candidate scope: the whole candidate against the frozen base, not just this
+      // round's delta, so an out-of-scope file from an earlier round cannot survive into review.
+      const candidateViolations = validateExactScope({ files: changedFiles(state.worktree, state.baseSha), allowedWrite: state.task.allowedWrite, deniedWrite: state.task.deniedWrite, lane });
+      if (candidateViolations.length) {
+        t.emit('scope.violation', { round, lane, stage: 'candidate', violations: candidateViolations });
+        throw new Error(`candidate allowed-write violation: ${formatScopeViolations(candidateViolations)}`);
+      }
 
       state.phase = 'REVIEW'; state.findings = []; saveState(repo, state);
       t.emit('review.started', { candidate_sha: state.candidateSha, round });

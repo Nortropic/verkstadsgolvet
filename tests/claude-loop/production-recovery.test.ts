@@ -250,7 +250,11 @@ test('successful completion keeps the continuation audit count while clearing bl
 test('production supervisor path uses the continuation seam and the pre-claude resume gate', () => {
   const src = fs.readFileSync('scripts/claude-loop/supervisor.ts', 'utf8');
   assert.match(src, /const b = await runBuilderWithContinuation\(\{/, 'execute() must run the builder through the continuation loop');
-  assert.match(src, /runBuilderSegment: \(seg\) => runRole\(\{ role: 'builder'/, 'the seam must be wired to the real builder role runner');
+  // The write role is lane-derived: `builder` for an ordinary run, `owner-author` for an explicitly
+  // supervisor-selected owner-authority run. Both are real Claude write roles, and the continuation
+  // seam must be wired to whichever one this run actually uses.
+  assert.match(src, /const writeRole: RoleName = lane === 'owner-author' \? 'owner-author' : 'builder'/, 'the write role must be derived from the run lane');
+  assert.match(src, /runBuilderSegment: \(seg\) => runRole\(\{ role: writeRole/, 'the seam must be wired to the real write role runner');
   assert.match(src, /persist: \(s\) => saveState\(repo, s\)/, 'continuation persistence must be the real state writer');
   assert.match(src, /if \(builderContinuationResumeBlocked\(config, state\)\)/, 'resumeRun must gate before any Claude segment');
 });

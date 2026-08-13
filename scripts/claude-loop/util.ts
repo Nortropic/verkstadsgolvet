@@ -9,12 +9,42 @@ export function sh(cmd: string, args: string[], cwd?: string, allowFailure = fal
   return { code: p.status ?? 1, out };
 }
 
+/**
+ * Git subcommands that rewrite, destroy or re-point history, blocked before any process is spawned.
+ *
+ * Candidates are immutable evidence: a candidate commit is what an independent reviewer read and
+ * what publication proves as the merge's second parent. Every command here could make the object on
+ * disk stop being that object — by rewriting commits (`reset`, `rebase`, `filter-branch`,
+ * `filter-repo`, `commit-tree`), by re-pointing or forging refs (`update-ref`, `symbolic-ref`,
+ * `replace`, `fast-import`), or by destroying the reachability evidence itself (`reflog`, `gc`,
+ * `prune`). None of them is ever needed by the Factory, so all of them fail closed.
+ */
+export const FORBIDDEN_GIT_SUBCOMMANDS: readonly string[] = [
+  'reset', 'rebase', 'filter-branch', 'filter-repo', 'replace', 'update-ref', 'symbolic-ref',
+  'reflog', 'gc', 'prune', 'commit-tree', 'fast-import', 'cherry-pick', 'am',
+];
+
+/** Substring-matched rewriting/forcing option tokens. */
+export const FORBIDDEN_GIT_TOKENS: readonly string[] = [
+  '--force', '--force-with-lease', '--force-if-includes', '--amend', '--orphan', '--mirror',
+  '--prune', '--hard', '--soft', '--mixed', '--root', '--autosquash', '--fixup', '--squash',
+  '--filter=', '--delete', '--allow-empty-message',
+];
+
+/** Exact-match short flags whose git spelling means force/delete/move. `-m`/`-b` stay allowed. */
+export const FORBIDDEN_GIT_SHORT_FLAGS: readonly string[] = ['-f', '-D', '-M', '-d'];
+
 export function assertSafeGitArgs(args: string[]): void {
   const joined = args.join(' ');
-  const badTokens = ['--force', '--force-with-lease', '--amend'];
-  if (badTokens.some((x) => joined.includes(x))) throw new Error(`forbidden git semantics: ${joined}`);
-  if (['reset', 'rebase'].includes(args[0] || '')) throw new Error(`history rewrite command forbidden: ${joined}`);
+  const bad = FORBIDDEN_GIT_TOKENS.filter((x) => joined.includes(x));
+  if (bad.length) throw new Error(`forbidden git semantics: ${bad.join(' ')} in ${joined}`);
+  // Scanned over EVERY argument, not just argv[0]: `git -c core.x=y reset --hard` must fail too.
+  const subcommand = args.find((x) => FORBIDDEN_GIT_SUBCOMMANDS.includes(x));
+  if (subcommand) throw new Error(`history rewrite command forbidden: ${subcommand} in ${joined}`);
+  if (args.some((x) => FORBIDDEN_GIT_SHORT_FLAGS.includes(x))) throw new Error(`forbidden git short flag: ${joined}`);
   if (args.some((x) => x.startsWith('+'))) throw new Error(`leading + refspec forbidden: ${joined}`);
+  // `git push origin :branch` and `refs/heads/x:` delete or re-point a remote ref.
+  if ((args[0] || '') === 'push' && args.some((x) => x.startsWith(':'))) throw new Error(`refspec deletion forbidden: ${joined}`);
 }
 
 export function gitRun(cwd: string, args: string[], allowFailure = false): { code: number; out: string } {

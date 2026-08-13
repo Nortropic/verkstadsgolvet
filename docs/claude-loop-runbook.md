@@ -10,13 +10,99 @@ npm run claude:live-smoke
 npm run claude:empirical-smoke
 npm run claude:run -- --task path/to/task.json
 npm run claude:watch
+
+npm run claude:backlog             # executed evaluation of the canonical backlog
+npm run claude:autopilot           # deterministic backlog scheduler (disarmed by default)
+npm run claude:autopilot-status    # evaluation + ledger + claims
+npm run claude:autopilot-recover   # release stale claims; optionally clear a ledger entry
 ```
 
 `claude:live-smoke` and `claude:empirical-smoke` consume Claude usage. The empirical smoke uses a disposable Git repository/local bare origin and runs architect → builder → mechanical gate → immutable candidate → independent reviewer without publishing. `doctor`, `selftest` and `status` do not invoke a model.
 
 ## Task format
 
-Start from `.claude-loop.example-task.json`. A task defines exact allowed-write patterns, mechanical gates and whether visual review is required. Gates and preview commands are argv arrays, never shell strings. UI tasks with visual review must provide a preview argv and URL.
+Start from `.claude-loop.example-task.json`. A task defines exact allowed-write patterns, mechanical gates and whether visual review is required. Gates and preview commands are argv arrays, never shell strings. UI tasks with visual review must provide a preview argv and URL. `authorityClass` defaults to `ordinary` and is only a declaration — see [Owner-author lane](#owner-author-lane).
+
+## Canonical backlog
+
+`backlog/control-room-v1.json` is the tracked backlog of remaining control-room slices, derived from the plan's `IMPLEMENTATION_SLICES` and ordered by its `IMPLEMENTATION_ORDER`. `backlog/README.md` documents every field. It is repository data an operator reviews in a diff; it is never runtime state and never backend authority.
+
+A slice's effective status is computed, never read from the file:
+
+| Status | Meaning |
+|---|---|
+| `DONE` | Declared complete **and** every `completionEvidence` path exists **and** every slice it depends on is itself complete. |
+| `READY` | Dependencies complete and every prerequisite measured as met. Schedulable. |
+| `WAITING` | An unmet dependency, an unmet prerequisite, an existing ledger entry, or an unselected owner-author declaration. |
+| `BLOCKED` | A `DONE` claim that its own evidence or its dependencies do not support. Nothing downstream becomes schedulable. |
+
+Prerequisites are measured, not assumed. `local_file` is checked on disk and `local_test` is actually executed (cheap checks run first, and a failure short-circuits the expensive ones). `external_ref`, `external_file` and `external_slice` name things in `Nortropic/nortropic-system`, which this repository is not the authority for and cannot read: they are unmet until an owner records a measurement in `<common-git-dir>/claude-factory/backend-prerequisites.json` with `measuredBy: "owner"` and a 40-hex sha. No code here writes that file, so a Factory run can never satisfy its own backend prerequisite, and no model prose about a backend slice moves a live slice out of `WAITING`.
+
+Today `V1`–`V3` are `DONE`, `V8-FIXTURE` is the only `READY` slice — the intake UI against generated fixtures, explicitly `fixtureOnly` with `liveCounterpart: "V8"` — and every backend-live slice waits on the backend slices it names. **A fixture slice is never live-complete**; its materialized task says so in words.
+
+## Autopilot
+
+`npm run claude:autopilot` schedules backlog work. It is disarmed in the shipped configuration (`autopilot.enabled=false`) and then touches nothing at all: no fetch, no claim, no ledger write. `--force` runs a single explicit operator-driven pass.
+
+Each iteration re-reads `origin/main`, the backlog, the owner evidence, the claims and the ledger **from disk**, picks the lowest-`order` `READY` slice, takes an atomic claim, records `RUNNING` before the run starts, and then runs the ordinary supervised pipeline: architect → write role → post-write exact scope validation → mechanical gates → immutable candidate → independent review → bounded remediation.
+
+Because every decision is a pure function of files, a killed and restarted autopilot makes the same next decision instead of duplicating work. Chat context, model summaries and terminal output are never operational state.
+
+Afterwards the scheduler re-reads `origin/main` and decides mechanically:
+
+- **merged** — `origin/main` moved and Git proves it is a two-parent merge of the frozen base and the exact reviewed candidate. The ledger records `DONE`, and the next slice is based on that merged main (`autopilot.continueAfterMerge`).
+- **unmerged** — `origin/main` is unchanged. The ledger records `AWAITING_PUBLICATION` and the pass stops rather than stacking candidates on a base that lacks the previous one. Slices depending on it stay unschedulable.
+- **base drift** — `origin/main` moved to something that is not this candidate's merge. The ledger records `BLOCKED` and the pass stops. Nothing is published, rewritten or retried.
+- **blocked run** — including an exhausted remediation budget. The ledger records `BLOCKED` with the reason and the pass stops. A restart never retries it and never widens the budget; that needs an explicit owner decision.
+
+The autopilot never publishes and never moves `main`. Its entire Git vocabulary is `fetch`, `rev-parse` and `rev-list`; publication stays behind the unchanged Publication v2 guards below.
+
+### Claims, ledger and recovery
+
+Claims and the ledger live only under the Git common directory, shared by every worktree of the repository:
+
+```text
+<common-git-dir>/claude-factory/claims/<task|run>/<key>/<epoch>.json
+<common-git-dir>/claude-factory/autopilot/ledger.json
+<common-git-dir>/claude-factory/backend-prerequisites.json
+```
+
+A claim epoch is a file name, and creating that file is an exclusive create — that single kernel operation is the whole mutual exclusion, so two supervisors can never both own a slice and never both produce a candidate for it. Epochs are append-only, so a takeover preserves the evidence of the previous owner. A claim is stale only when its heartbeat is older than `autopilot.claimTtlSeconds`; a live claim is never overridden at any age below the TTL.
+
+```bash
+npm run claude:autopilot-status
+npm run claude:autopilot-recover
+npm run claude:autopilot-recover -- --clear V8-FIXTURE
+```
+
+Recovery releases **only** stale claims and demotes the `RUNNING` entries they abandoned to `BLOCKED` with an explicit reason. It never invents a completion: the abandoned run's worktree and run state are preserved for inspection, and rescheduling requires the deliberate `--clear`. A `DONE` entry is evidence and cannot be cleared.
+
+## Owner-author lane
+
+An owner-authority task edits the owner's workflow-authority documents (`CLAUDE.md`, `.claude/**`, `docs/claude-operating-model-v1.md`) that the ordinary product builder may never touch. It is **workflow authority only** — never a security boundary, never Nortropic Trust Kernel authority, never publication or promotion authority.
+
+The lane is entered **only** by an explicit supervisor selection:
+
+```bash
+npm run claude:autopilot -- --owner-author OM1
+npm run claude:run -- --task path/to/task.json --owner-author OM1
+```
+
+or the operator-local, git-ignored `.claude-loop.json` (`ownerAuthor.selectedTaskIds`). A backlog entry, a task file or model output can only ever *declare* `authorityClass: "owner-author"`; a declaration without a selection is an escalation attempt and fails the run closed with `OWNER_AUTHOR_SELF_CLAIM`. The scheduler additionally refuses to schedule an owner-author slice from repository data alone.
+
+When selected, the write role becomes `owner-author` and runs isolated under Claude Agent SDK 0.3.228:
+
+- `settingSources: []` — no project, user or local settings are loaded, so the lane cannot be widened by a file the same lane is allowed to rewrite;
+- `settings: scripts/claude-loop/owner-author/settings.json` — a dedicated, supervisor-owned settings file that denies `gh`, push, reset, rebase, amend, `update-ref`, `filter-branch`, all credentials and all network domains;
+- `systemPrompt: scripts/claude-loop/owner-author/system-prompt.md` — a dedicated prompt that states the lane is workflow authority only and that self-selection is impossible.
+
+Ordinary roles are unchanged (`settingSources: ['project']`). An owner-author run may never be armed for auto-merge: authority documents are not promoted by a model turn.
+
+## Write scope
+
+Scope is validated **after** the writes, on the changed-file set the supervisor derives from Git (tracked and untracked), and again cumulatively over the whole candidate against the frozen base. A single file outside the exact scope blocks the run before any gate, candidate or reviewer. The rules fail closed in order: unsafe path (absolute, traversal, home-relative, drive-qualified) → never-writable → task `deniedWrite` → workflow-authority path → not matched by any `allowedWrite` pattern.
+
+`docs/nortropic-control-room-plan-v1.md`, `docs/nortropic-control-room-codex-handoff.md`, every `.env*` and `.git/**` are never writable by **any** lane. `CLAUDE.md`, `.claude/**` and `docs/claude-operating-model-v1.md` are writable only by a supervisor-selected owner-author run whose task names them explicitly; an ordinary task may not even declare them.
 
 ## Publication
 
@@ -68,13 +154,15 @@ That sentence is **superseded by this Publication section and no longer describe
 
 Once that edit is applied, this supersession subsection can be deleted. `tests/claude-loop/publication-merge-commit.test.ts` mechanically enforces the pair: while the stale wording is present the notice above must quote it verbatim and carry the replacement, and once the operating model is corrected the test requires the corrected merge-commit semantics there instead.
 
-## Recovery
+## Run recovery
 
 A blocked run preserves its Git worktree and run state. Re-run:
 
 ```bash
 npm run claude:resume -- <run-id>
 ```
+
+A resume takes an atomic **run claim** for the duration, so two operators cannot put two model sessions on the same recorded run and the same candidate; a second resume is refused with the current owner, and an abandoned resume becomes recoverable through `npm run claude:autopilot-recover` once its claim goes stale.
 
 Do not reset/rebase/amend a blocked worktree. The supervisor resumes from recorded facts and existing immutable candidate commits. Terminal builder errors preserve the recoverable builder session ID in run state. A remediation-budget block does NOT gain another model round by repeated `resume`; it requires an explicit owner extension:
 

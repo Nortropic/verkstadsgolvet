@@ -12,5 +12,14 @@
     "enabled": false,
     "autoMerge": false,
     "mergeMethod": "merge"
+  },
+  "autopilot": {
+    "enabled": false,
+    "maxTasks": 1,
+    "claimTtlSeconds": 900,
+    "continueAfterMerge": true
+  },
+  "ownerAuthor": {
+    "selectedTaskIds": []
   }
 }
