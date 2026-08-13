@@ -64,7 +64,25 @@ export function commonGitDir(repo: string): string {
 }
 export function ensureDir(p: string): void { fs.mkdirSync(p, { recursive: true, mode: 0o700 }); }
 export function readJson<T>(p: string): T { return JSON.parse(fs.readFileSync(p, 'utf8')) as T; }
-export function writeJson(p: string, value: unknown): void { ensureDir(path.dirname(p)); fs.writeFileSync(p, JSON.stringify(value, null, 2) + '\n', { mode: 0o600 }); }
+/**
+ * Writes JSON atomically: a temp file in the SAME directory, then `rename`.
+ *
+ * `rename` within one filesystem is atomic, so a concurrent reader — another supervisor in another
+ * worktree reading the shared claim/ledger/run state under the Git common directory — sees either
+ * the whole previous file or the whole new one, never a truncated file. A torn state file would
+ * otherwise fail every later parse and take the whole scheduler down.
+ */
+export function writeJson(p: string, value: unknown): void {
+  ensureDir(path.dirname(p));
+  const tmp = `${p}.${process.pid}.${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.tmp`;
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(value, null, 2) + '\n', { mode: 0o600 });
+    fs.renameSync(tmp, p);
+  } catch (error) {
+    try { fs.rmSync(tmp, { force: true }); } catch { /* the temp file is best-effort cleanup only */ }
+    throw error;
+  }
+}
 export function slug(v: string): string { return v.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'task'; }
 export function nowId(): string { return new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14); }
 

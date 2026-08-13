@@ -42,18 +42,79 @@ export function autopilotDir(repo: string): string {
   return path.join(commonGitDir(repo), 'claude-factory', 'autopilot');
 }
 
+/** The aggregate view. Written whole only by tests and operator tooling, never per scheduling step. */
 export function ledgerPath(repo: string): string {
   return path.join(autopilotDir(repo), 'ledger.json');
 }
 
+/**
+ * One file per task id.
+ *
+ * The ledger is shared by every supervisor in every worktree of the repository, so it must never be
+ * rewritten as a whole from a snapshot: two supervisors whose snapshots predate each other's write
+ * would silently drop each other's entries, and a dropped `DONE` record would make already merged
+ * work schedulable again. Splitting the ledger by task id means a supervisor only ever writes the
+ * exact key it holds the claim for, so no interleaving can lose another supervisor's record.
+ */
+export function ledgerEntryDir(repo: string): string {
+  return path.join(autopilotDir(repo), 'ledger');
+}
+
+export const LEDGER_TASK_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+export function ledgerEntryPath(repo: string, taskId: string): string {
+  if (!LEDGER_TASK_ID_PATTERN.test(taskId)) throw new Error(`unsafe ledger task id '${taskId}'`);
+  return path.join(ledgerEntryDir(repo), `${taskId}.json`);
+}
+
+/**
+ * Reads the whole ledger: the aggregate file first, then the per-task files, which win.
+ *
+ * Reading is a merge rather than a single parse so that the aggregate view stays usable while every
+ * write stays narrow.
+ */
 export function loadLedger(repo: string): Ledger {
-  const file = ledgerPath(repo);
-  if (!fs.existsSync(file)) return { version: 1, entries: [] };
-  return LedgerSchema.parse(readJson(file));
+  const byTask = new Map<string, LedgerEntry>();
+  const aggregate = ledgerPath(repo);
+  if (fs.existsSync(aggregate)) {
+    for (const entry of LedgerSchema.parse(readJson(aggregate)).entries) byTask.set(entry.taskId, entry);
+  }
+  const dir = ledgerEntryDir(repo);
+  if (fs.existsSync(dir)) {
+    for (const name of fs.readdirSync(dir).sort()) {
+      if (!name.endsWith('.json')) continue;
+      const entry = LedgerEntrySchema.parse(readJson(path.join(dir, name)));
+      byTask.set(entry.taskId, entry);
+    }
+  }
+  const entries = [...byTask.values()].sort((a, b) => (a.taskId < b.taskId ? -1 : a.taskId > b.taskId ? 1 : 0));
+  return { version: 1, entries };
 }
 
 export function saveLedger(repo: string, ledger: Ledger): void {
   writeJson(ledgerPath(repo), LedgerSchema.parse(ledger));
+}
+
+/**
+ * Persists exactly ONE task's entry, atomically, touching no other task's record.
+ *
+ * This is the only write the scheduler performs during a pass.
+ */
+export function writeLedgerEntry(repo: string, entry: LedgerEntry): LedgerEntry {
+  const parsed = LedgerEntrySchema.parse(entry);
+  writeJson(ledgerEntryPath(repo, parsed.taskId), parsed);
+  return parsed;
+}
+
+/** Removes one task's record from both the per-task file and the aggregate view. */
+export function clearLedgerEntry(repo: string, taskId: string): void {
+  const file = ledgerEntryPath(repo, taskId);
+  if (fs.existsSync(file)) fs.rmSync(file);
+  const aggregate = ledgerPath(repo);
+  if (!fs.existsSync(aggregate)) return;
+  const current = LedgerSchema.parse(readJson(aggregate));
+  if (!current.entries.some((e) => e.taskId === taskId)) return;
+  saveLedger(repo, withoutEntry(current, taskId));
 }
 
 export function findEntry(ledger: Ledger, taskId: string): LedgerEntry | null {

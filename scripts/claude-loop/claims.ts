@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
-import { commonGitDir, ensureDir } from './util';
+import { commonGitDir, ensureDir, writeJson } from './util';
 
 /**
  * Atomic task/run claims with stale recovery.
@@ -164,15 +164,97 @@ export function acquireClaim(args: AcquireArgs): AcquireResult {
 
 export type HeartbeatResult = { ok: true; claim: ClaimRecord } | { ok: false; reason: 'LOST'; current: ClaimRecord | null };
 
-/** Refreshes the owner's own epoch in place. A taken-over owner learns it lost instead of writing. */
+/**
+ * Refreshes the owner's own epoch in place. A taken-over owner learns it lost instead of writing.
+ *
+ * The rewrite is atomic (temp + rename), so a concurrent reader never sees a half-written claim and
+ * can never mistake a torn file for an expired one.
+ */
 export function heartbeatClaim(args: { repo: string; claim: ClaimRecord; nowMs: number }): HeartbeatResult {
   if (!claimIsCurrent(args.repo, args.claim)) {
     return { ok: false, reason: 'LOST', current: currentClaim(args.repo, args.claim.scope, args.claim.key) };
   }
   const next: ClaimRecord = { ...args.claim, heartbeatAt: new Date(args.nowMs).toISOString() };
-  const file = epochFile(claimDir(args.repo, args.claim.scope, args.claim.key), args.claim.epoch);
-  fs.writeFileSync(file, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 });
+  writeJson(epochFile(claimDir(args.repo, args.claim.scope, args.claim.key), args.claim.epoch), next);
   return { ok: true, claim: next };
+}
+
+/** Thrown when a claim holder discovers it was taken over. It must stop writing, not continue. */
+export class ClaimLostError extends Error {
+  constructor(public readonly scope: ClaimScope, public readonly key: string, public readonly epoch: number, public readonly current: ClaimRecord | null) {
+    super(`claim lost: ${scope}/${key} epoch ${epoch} is no longer the current claim (now ${current ? `epoch ${current.epoch} owned by ${current.owner}` : 'absent'}); this supervisor must stop rather than keep writing as a taken-over owner`);
+    this.name = 'ClaimLostError';
+  }
+}
+
+/**
+ * Beat interval for a live claim: a third of the TTL, and never slower than once a minute.
+ *
+ * A claim must be refreshed several times inside its own TTL, otherwise "stale" degrades into "this
+ * run simply took longer than the TTL" and a live run becomes recoverable by anyone.
+ */
+export function heartbeatIntervalMs(ttlSeconds: number): number {
+  return Math.max(1000, Math.min(60_000, Math.floor((ttlSeconds * 1000) / 3)));
+}
+
+export type ClaimHeartbeat = {
+  /** Beats now and throws `ClaimLostError` if the claim was taken over. Fail closed at checkpoints. */
+  checkpoint: () => void;
+  /** Stops the background ticker. Always call it in a `finally`. */
+  stop: () => void;
+  /** The foreign claim that took this one over, once that has been observed. */
+  lostTo: () => ClaimRecord | null;
+  beats: () => number;
+};
+
+/**
+ * Keeps a held claim alive for the whole lifetime of a run.
+ *
+ * A claim that is only written once is not a heartbeat: its staleness would be measured from
+ * acquisition, so any run outliving the TTL would be recoverable while it is still working, and two
+ * write sessions could end up in one worktree on one candidate. The background ticker refreshes the
+ * claim several times inside every TTL, and `checkpoint()` gives the caller fail-closed points —
+ * phase transitions, round boundaries, state persistence — at which a lost claim stops the run
+ * instead of letting it keep writing.
+ */
+export function startClaimHeartbeat(args: {
+  repo: string;
+  claim: ClaimRecord;
+  ttlSeconds?: number;
+  now?: () => number;
+  beat?: (a: { repo: string; claim: ClaimRecord; nowMs: number }) => HeartbeatResult;
+  onLost?: (current: ClaimRecord | null) => void;
+}): ClaimHeartbeat {
+  const now = args.now ?? (() => Date.now());
+  const beat = args.beat ?? heartbeatClaim;
+  const ttlSeconds = args.ttlSeconds ?? args.claim.ttlSeconds;
+  let lost: ClaimRecord | null = null;
+  let observedLoss = false;
+  let beats = 0;
+  let timer: ReturnType<typeof setInterval> | null = null;
+
+  const stop = (): void => { if (timer) { clearInterval(timer); timer = null; } };
+  const tick = (): void => {
+    if (observedLoss) return;
+    const result = beat({ repo: args.repo, claim: args.claim, nowMs: now() });
+    beats += 1;
+    if (result.ok) return;
+    observedLoss = true; lost = result.current; stop(); args.onLost?.(result.current);
+  };
+
+  timer = setInterval(tick, heartbeatIntervalMs(ttlSeconds));
+  // Never keep the process alive just to heartbeat; the run itself decides when the process exits.
+  timer.unref?.();
+
+  return {
+    checkpoint: () => {
+      tick();
+      if (observedLoss) throw new ClaimLostError(args.claim.scope, args.claim.key, args.claim.epoch, lost);
+    },
+    stop,
+    lostTo: () => lost,
+    beats: () => beats,
+  };
 }
 
 export type ReleaseResult = { ok: true; claim: ClaimRecord } | { ok: false; reason: 'LOST'; current: ClaimRecord | null };

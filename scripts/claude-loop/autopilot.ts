@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { git, gitRun, repoRoot } from './util';
 import { type FactoryConfig, type RunState, type TaskSpec } from './schemas';
-import { loadConfig, startRunFromTask, supervisorAuthoritySelection } from './supervisor';
+import { loadConfig, startRunFromTask, supervisorAuthoritySelection, type RunHeartbeat } from './supervisor';
 import { resolveAuthorityClass, type AuthorityClass, type AuthoritySelection } from './authority';
 import {
   commandPrerequisiteRunner,
@@ -17,22 +17,25 @@ import {
   type ItemEvaluation,
 } from './backlog';
 import {
+  ClaimLostError,
   acquireClaim,
+  heartbeatClaim,
+  heartbeatIntervalMs,
   listClaims,
   ownerToken,
   recoverStaleClaims,
   releaseClaim,
   type ClaimRecord,
   type ClaimSummary,
+  type HeartbeatResult,
 } from './claims';
 import {
+  clearLedgerEntry,
   findEntry,
   ledgerCompletedIds,
   ledgerOccupiedIds,
   loadLedger,
-  saveLedger,
-  withEntry,
-  withoutEntry,
+  writeLedgerEntry,
   type Ledger,
   type LedgerEntry,
 } from './ledger';
@@ -56,6 +59,7 @@ export type AutopilotStopReason =
   | 'DISABLED'
   | 'BASE_DRIFT'
   | 'RUN_BLOCKED'
+  | 'CLAIM_LOST'
   | 'AWAITING_PUBLICATION'
   | 'CONTINUE_AFTER_MERGE_DISABLED'
   | 'CLAIM_UNAVAILABLE';
@@ -90,10 +94,13 @@ export type AutopilotDeps = {
   fileExists: (relativePath: string) => boolean;
   runPrerequisiteCommand: ((command: string[]) => boolean) | null;
   readLedger: () => Ledger;
-  writeLedger: (ledger: Ledger) => void;
+  /** Writes exactly ONE task's ledger entry. There is deliberately no whole-ledger write here. */
+  writeEntry: (entry: LedgerEntry) => void;
   acquire: (a: { key: string; owner: string; ttlSeconds: number; nowMs: number }) => ReturnType<typeof acquireClaim>;
   release: (a: { claim: ClaimRecord; nowMs: number; note: string }) => void;
-  startRun: (a: { task: TaskSpec; authorityClass: AuthorityClass; baseSha: string }) => Promise<RunState>;
+  /** Refreshes a held claim. The scheduler beats on a ticker and at every checkpoint. */
+  heartbeat: (a: { claim: ClaimRecord; nowMs: number }) => HeartbeatResult;
+  startRun: (a: { task: TaskSpec; authorityClass: AuthorityClass; baseSha: string; heartbeat: RunHeartbeat }) => Promise<RunState>;
   emit: (event: string, fields: Record<string, unknown>) => void;
 };
 
@@ -110,10 +117,11 @@ export function productionAutopilotDeps(repo: string, config: FactoryConfig): Au
     fileExists: (relativePath) => fs.existsSync(path.join(repo, relativePath)),
     runPrerequisiteCommand: commandPrerequisiteRunner(repo),
     readLedger: () => loadLedger(repo),
-    writeLedger: (ledger) => saveLedger(repo, ledger),
+    writeEntry: (entry) => { writeLedgerEntry(repo, entry); },
     acquire: (a) => acquireClaim({ repo, scope: 'task', key: a.key, owner: a.owner, nowMs: a.nowMs, ttlSeconds: a.ttlSeconds }),
     release: (a) => { releaseClaim({ repo, claim: a.claim, nowMs: a.nowMs, note: a.note }); },
-    startRun: (a) => startRunFromTask({ repo, config, task: a.task, authorityClass: a.authorityClass }),
+    heartbeat: (a) => heartbeatClaim({ repo, claim: a.claim, nowMs: a.nowMs }),
+    startRun: (a) => startRunFromTask({ repo, config, task: a.task, authorityClass: a.authorityClass, heartbeat: a.heartbeat }),
     emit: (event, fields) => { process.stdout.write(`CLAUDE_FACTORY ${event}: ${Object.entries(fields).map(([k, v]) => `${k}=${typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}`).join(' ')}\n`); },
   };
 }
@@ -137,6 +145,37 @@ export function evaluateNow(args: { deps: AutopilotDeps; selection: AuthoritySel
 
 function entry(fields: Omit<LedgerEntry, 'updatedAt'>, nowMs: number): LedgerEntry {
   return { ...fields, updatedAt: new Date(nowMs).toISOString() };
+}
+
+/**
+ * Keeps a held task claim alive across a whole run, and turns a lost claim into a hard stop.
+ *
+ * The ticker refreshes several times inside every TTL so a long but perfectly healthy run is never
+ * mistaken for an abandoned one by `claude:autopilot-recover`. `checkpoint` is handed to the
+ * supervisor, which calls it at every phase transition and state write, so a supervisor that WAS
+ * taken over stops instead of continuing to write.
+ */
+function claimKeepalive(args: { deps: AutopilotDeps; claim: ClaimRecord; ttlSeconds: number }): { checkpoint: RunHeartbeat; stop: () => void; lost: () => ClaimRecord | null } {
+  let lost: ClaimRecord | null = null;
+  let observedLoss = false;
+  const beat = (): void => {
+    if (observedLoss) return;
+    const result = args.deps.heartbeat({ claim: args.claim, nowMs: args.deps.now() });
+    if (result.ok) return;
+    observedLoss = true;
+    lost = result.current;
+    args.deps.emit('autopilot.claim_lost', { task: args.claim.key, epoch: args.claim.epoch, current_owner: result.current?.owner ?? null });
+  };
+  const timer = setInterval(beat, heartbeatIntervalMs(args.ttlSeconds));
+  timer.unref?.();
+  return {
+    checkpoint: () => {
+      beat();
+      if (observedLoss) throw new ClaimLostError(args.claim.scope, args.claim.key, args.claim.epoch, lost);
+    },
+    stop: () => clearInterval(timer),
+    lost: () => lost,
+  };
 }
 
 /**
@@ -172,10 +211,23 @@ export async function runAutopilot(args: {
 
   let base = deps.originMain();
 
+  /**
+   * Records ONE task's ledger entry.
+   *
+   * Every write is a fresh, narrow write of the exact key this supervisor holds the claim for.
+   * Nothing is ever rewritten from the iteration's snapshot, so a supervisor in another worktree
+   * cannot have its entries — least of all a `DONE` record, which is what keeps merged work from
+   * being scheduled again — dropped by this one.
+   */
+  const record = (fields: Omit<LedgerEntry, 'updatedAt'>): LedgerEntry => {
+    const written = entry(fields, deps.now());
+    deps.writeEntry(written);
+    return written;
+  };
+
   for (let i = 0; i < config.autopilot.maxTasks; i++) {
     const snapshot = evaluateNow({ deps, selection });
     evaluations = snapshot.evaluations;
-    let ledger = snapshot.ledger;
 
     const skipped = new Set<string>();
     let claimed: { claim: ClaimRecord; evaluation: ItemEvaluation } | null = null;
@@ -212,22 +264,34 @@ export async function runAutopilot(args: {
       throw error;
     }
 
-    ledger = withEntry(ledger, entry({ taskId: item.id, status: 'RUNNING', runId: null, baseSha: base, candidateSha: null, mergedMain: null, reason: 'claimed and started' }, deps.now()));
-    deps.writeLedger(ledger);
+    record({ taskId: item.id, status: 'RUNNING', runId: null, baseSha: base, candidateSha: null, mergedMain: null, reason: 'claimed and started' });
     deps.emit('autopilot.task_started', { task: item.id, base, authority_class: authorityClass, fixture_only: item.fixtureOnly });
 
+    // The claim stays alive for the WHOLE run: on a ticker inside the process, and at every
+    // supervisor checkpoint. Without it a run longer than claimTtlSeconds would look abandoned to
+    // `claude:autopilot-recover`, which would then release a live claim and record the false
+    // statement that the run was not completed.
+    const keepalive = claimKeepalive({ deps, claim: claimed.claim, ttlSeconds: config.autopilot.claimTtlSeconds });
     let state: RunState | null = null;
     let failure: Error | null = null;
     try {
-      state = await deps.startRun({ task, authorityClass, baseSha: base });
+      state = await deps.startRun({ task, authorityClass, baseSha: base, heartbeat: keepalive.checkpoint });
     } catch (error) {
       failure = error instanceof Error ? error : new Error(String(error));
+    } finally {
+      keepalive.stop();
+    }
+
+    if (failure instanceof ClaimLostError) {
+      // Taken over while running: this supervisor no longer owns the slice, so it must not write
+      // the ledger entry for it either. The owner that holds the claim decides the outcome.
+      deps.emit('autopilot.task_abandoned', { task: item.id, reason: failure.message });
+      return { stopReason: 'CLAIM_LOST', detail: failure.message, started, evaluations, base };
     }
 
     if (failure || !state || state.phase !== 'DONE') {
       const reason = failure ? failure.message : `run ended in phase ${state?.phase ?? 'UNKNOWN'}: ${state?.blockedReason ?? 'unknown reason'}`;
-      ledger = withEntry(ledger, entry({ taskId: item.id, status: 'BLOCKED', runId: state?.runId ?? null, baseSha: base, candidateSha: state?.candidateSha ?? null, mergedMain: null, reason }, deps.now()));
-      deps.writeLedger(ledger);
+      record({ taskId: item.id, status: 'BLOCKED', runId: state?.runId ?? null, baseSha: base, candidateSha: state?.candidateSha ?? null, mergedMain: null, reason });
       deps.release({ claim: claimed.claim, nowMs: deps.now(), note: 'released after blocked run' });
       started.push({ taskId: item.id, runId: state?.runId ?? null, baseSha: base, status: 'BLOCKED', candidateSha: state?.candidateSha ?? null, mergedMain: null, reason });
       deps.emit('autopilot.task_blocked', { task: item.id, reason });
@@ -245,8 +309,7 @@ export async function runAutopilot(args: {
       // would build the next slice on an unreviewed combination. Stop; never publish, never move
       // main, never rewrite the candidate.
       const reason = `base drift: origin/main moved from ${base} to ${mainAfter} during ${item.id}; the reviewed candidate ${state.candidateSha ?? '-'} is not that commit's merge`;
-      ledger = withEntry(ledger, entry({ taskId: item.id, status: 'BLOCKED', runId: state.runId, baseSha: base, candidateSha: state.candidateSha, mergedMain: null, reason }, deps.now()));
-      deps.writeLedger(ledger);
+      record({ taskId: item.id, status: 'BLOCKED', runId: state.runId, baseSha: base, candidateSha: state.candidateSha, mergedMain: null, reason });
       deps.release({ claim: claimed.claim, nowMs: deps.now(), note: 'released after base drift' });
       started.push({ taskId: item.id, runId: state.runId, baseSha: base, status: 'BLOCKED', candidateSha: state.candidateSha, mergedMain: null, reason });
       deps.emit('autopilot.base_drift', { task: item.id, expected: base, actual: mainAfter, candidate_sha: state.candidateSha });
@@ -257,8 +320,7 @@ export async function runAutopilot(args: {
     const reason = merged
       ? `merged into main as ${mainAfter}`
       : 'candidate complete and independently reviewed; main is unchanged because publication is not armed';
-    ledger = withEntry(ledger, entry({ taskId: item.id, status, runId: state.runId, baseSha: base, candidateSha: state.candidateSha, mergedMain: merged ? mainAfter : null, reason }, deps.now()));
-    deps.writeLedger(ledger);
+    record({ taskId: item.id, status, runId: state.runId, baseSha: base, candidateSha: state.candidateSha, mergedMain: merged ? mainAfter : null, reason });
     deps.release({ claim: claimed.claim, nowMs: deps.now(), note: `released after ${status}` });
     started.push({ taskId: item.id, runId: state.runId, baseSha: base, status, candidateSha: state.candidateSha, mergedMain: merged ? mainAfter : null, reason });
     deps.emit('autopilot.task_completed', { task: item.id, status, candidate_sha: state.candidateSha, merged_main: merged ? mainAfter : null });
@@ -310,28 +372,29 @@ export type AutopilotRecovery = {
  */
 export function autopilotRecover(args: { repo: string; nowMs: number; owner?: string; clearTaskIds?: readonly string[] }): AutopilotRecovery {
   const owner = args.owner ?? ownerToken('recover');
+  // Only claims whose HEARTBEAT has expired are recovered. A live run keeps beating, so recovery
+  // never touches it and never records the false claim that it was abandoned.
   const recoveredClaims = recoverStaleClaims({ repo: args.repo, nowMs: args.nowMs, owner });
-  let ledger = loadLedger(args.repo);
   const ledgerUpdates: AutopilotRecovery['ledgerUpdates'] = [];
 
   for (const recovered of recoveredClaims) {
     if (recovered.scope !== 'task') continue;
-    const existing = findEntry(ledger, recovered.key);
+    // Re-read per key: recovery must not rewrite entries it does not own either.
+    const existing = findEntry(loadLedger(args.repo), recovered.key);
     if (!existing || existing.status !== 'RUNNING') continue;
-    const reason = `stale claim recovered from ${recovered.claim.owner}; the run was abandoned and was NOT completed`;
-    ledger = withEntry(ledger, { ...existing, status: 'BLOCKED', reason, updatedAt: new Date(args.nowMs).toISOString() });
+    const reason = `stale claim recovered from ${recovered.claim.owner}; the run stopped heartbeating and was NOT completed`;
+    writeLedgerEntry(args.repo, { ...existing, status: 'BLOCKED', reason, updatedAt: new Date(args.nowMs).toISOString() });
     ledgerUpdates.push({ taskId: recovered.key, from: 'RUNNING', to: 'BLOCKED', reason });
   }
 
   for (const taskId of args.clearTaskIds ?? []) {
-    const existing = findEntry(ledger, taskId);
+    const existing = findEntry(loadLedger(args.repo), taskId);
     if (!existing) continue;
     if (existing.status === 'DONE') throw new Error(`refusing to clear completed ledger entry ${taskId}; completion is evidence, not scheduling state`);
-    ledger = withoutEntry(ledger, taskId);
+    clearLedgerEntry(args.repo, taskId);
     ledgerUpdates.push({ taskId, from: existing.status, to: 'CLEARED', reason: 'explicitly cleared by operator' });
   }
 
-  saveLedger(args.repo, ledger);
   return { recoveredClaims, ledgerUpdates };
 }
 

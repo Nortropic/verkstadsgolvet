@@ -5,17 +5,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import {
+  ClaimLostError,
   acquireClaim,
   claimDir,
   claimIsCurrent,
   claimsRoot,
   currentClaim,
   heartbeatClaim,
+  heartbeatIntervalMs,
   isClaimStale,
   listClaims,
   readClaimHistory,
   recoverStaleClaims,
   releaseClaim,
+  startClaimHeartbeat,
 } from '../../scripts/claude-loop/claims';
 import { commonGitDir } from '../../scripts/claude-loop/util';
 
@@ -182,6 +185,90 @@ test('task claims and run claims are separate namespaces', () => {
   assert.deepEqual(listClaims(repo, T0).map((c) => `${c.scope}/${c.key}/${c.claim.owner}`).sort(), ['run/V4/B', 'task/V4/A']);
 });
 
+test('a heartbeated claim never goes stale, so a live long run is never recovered from under it', () => {
+  const repo = disposableRepo();
+  const held = acquireClaim({ repo, scope: 'task', key: 'V4', owner: 'long-runner', nowMs: T0, ttlSeconds: TTL });
+  assert.equal(held.ok, true);
+  if (!held.ok) return;
+
+  // A run far longer than the TTL, beating on the interval the production ticker uses.
+  const interval = heartbeatIntervalMs(TTL);
+  assert.ok(interval < TTL * 1000, 'a claim must be refreshed several times inside its own TTL');
+  let now = T0;
+  for (const _step of Array.from({ length: 60 })) {
+    now += interval;
+    assert.equal(heartbeatClaim({ repo, claim: held.claim, nowMs: now }).ok, true);
+    assert.equal(isClaimStale(currentClaim(repo, 'task', 'V4')!, now), false, `still live at +${now - T0}ms`);
+    assert.equal(acquireClaim({ repo, scope: 'task', key: 'V4', owner: 'thief', nowMs: now, ttlSeconds: TTL }).ok, false);
+  }
+  assert.ok(now - T0 > TTL * 1000 * 3, 'the run outlived its TTL several times over');
+  // Operator recovery leaves it alone precisely because the heartbeat is fresh.
+  assert.deepEqual(recoverStaleClaims({ repo, nowMs: now, owner: 'operator' }).map((r) => r.key), []);
+  assert.equal(currentClaim(repo, 'task', 'V4')?.state, 'HELD');
+
+  // Stop beating, and only then does it become recoverable.
+  const afterSilence = now + TTL * 1000 + 1;
+  assert.equal(isClaimStale(currentClaim(repo, 'task', 'V4')!, afterSilence), true);
+  assert.deepEqual(recoverStaleClaims({ repo, nowMs: afterSilence, owner: 'operator' }).map((r) => r.key), ['V4']);
+});
+
+test('the heartbeat ticker beats on its own and a checkpoint fails closed once the claim is lost', () => {
+  const repo = disposableRepo();
+  const held = acquireClaim({ repo, scope: 'run', key: 'v8-fixture-20260813', owner: 'A', nowMs: T0, ttlSeconds: TTL });
+  assert.equal(held.ok, true);
+  if (!held.ok) return;
+
+  const beats: number[] = [];
+  let now = T0;
+  const heartbeat = startClaimHeartbeat({
+    repo,
+    claim: held.claim,
+    ttlSeconds: TTL,
+    now: () => now,
+    beat: (a) => { beats.push(a.nowMs); return heartbeatClaim(a); },
+  });
+  try {
+    now += 1000;
+    heartbeat.checkpoint();
+    assert.deepEqual(beats, [T0 + 1000], 'a checkpoint beats the claim');
+    assert.equal(Date.parse(currentClaim(repo, 'run', 'v8-fixture-20260813')!.heartbeatAt), T0 + 1000);
+
+    // Another supervisor recovers the claim as stale while this one is mid-run.
+    const takeover = acquireClaim({ repo, scope: 'run', key: 'v8-fixture-20260813', owner: 'B', nowMs: T0 + TTL * 1000 + 2000, ttlSeconds: TTL });
+    assert.equal(takeover.ok, true);
+
+    now += 2000;
+    assert.throws(() => heartbeat.checkpoint(), (e: unknown) => e instanceof ClaimLostError && e.key === 'v8-fixture-20260813' && e.epoch === 1);
+    assert.equal(heartbeat.lostTo()?.owner, 'B');
+    // The loser stops beating instead of fighting the new owner for the claim file.
+    const beatsAtLoss = beats.length;
+    assert.throws(() => heartbeat.checkpoint(), ClaimLostError);
+    assert.equal(beats.length, beatsAtLoss, 'a lost claim is never beaten again');
+    assert.equal(currentClaim(repo, 'run', 'v8-fixture-20260813')?.owner, 'B', 'the new owner is untouched');
+  } finally {
+    heartbeat.stop();
+  }
+});
+
+test('heartbeat interval always refreshes several times inside the TTL', () => {
+  for (const ttl of [30, 60, 300, 900, 3600, 86400]) {
+    const interval = heartbeatIntervalMs(ttl);
+    assert.ok(interval >= 1000, `interval for ttl=${ttl} must be sane`);
+    assert.ok(interval * 3 <= ttl * 1000, `ttl=${ttl} must fit at least three beats`);
+  }
+});
+
+test('claim files are written atomically, so a reader never sees a torn claim', () => {
+  const repo = disposableRepo();
+  const held = acquireClaim({ repo, scope: 'task', key: 'V4', owner: 'A', nowMs: T0, ttlSeconds: TTL });
+  assert.equal(held.ok, true);
+  if (!held.ok) return;
+  heartbeatClaim({ repo, claim: held.claim, nowMs: T0 + 1000 });
+  const dir = claimDir(repo, 'task', 'V4');
+  assert.deepEqual(fs.readdirSync(dir), ['0000000001.json'], 'the atomic temp file is renamed, never left behind');
+  assert.doesNotThrow(() => currentClaim(repo, 'task', 'V4'));
+});
+
 test('operator recovery releases only stale claims and never a live one', () => {
   const repo = disposableRepo();
   const stale = acquireClaim({ repo, scope: 'task', key: 'V5', owner: 'crashed', nowMs: T0, ttlSeconds: TTL });
@@ -209,11 +296,24 @@ test('claim state lives only under the Git common directory, never in a worktree
   assert.deepEqual(fs.readdirSync(repo).filter((n) => n !== '.git'), []);
 });
 
-test('the production resume path really takes, and releases, a run claim', () => {
+test('the production resume path takes, heartbeats and releases a run claim', () => {
   const src = fs.readFileSync('scripts/claude-loop/supervisor.ts', 'utf8');
   assert.match(src, /acquireClaim\(\{ repo, scope: 'run', key: runId/, 'resumeRun must claim the run before any Claude segment');
   assert.match(src, /is already claimed by/, 'a second resume of the same run must be refused');
-  assert.match(src, /} finally {\n\s*releaseClaim\(\{ repo, claim: claim\.claim/, 'the run claim is released even when the run blocks');
+  assert.match(src, /const heartbeat = startClaimHeartbeat\(\{ repo, claim: claim\.claim, ttlSeconds: config\.autopilot\.claimTtlSeconds \}\)/, 'the run claim must be kept alive for the whole resume');
+  assert.match(src, /execute\(repo, config, state, heartbeat\.checkpoint\)/, 'the supervisor must beat at its own checkpoints');
+  assert.match(src, /} finally {\n\s*heartbeat\.stop\(\);\n\s*releaseClaim\(\{ repo, claim: claim\.claim/, 'the ticker stops and the claim is released even when the run blocks');
+  // Every state write inside execute() beats first and refuses to write once the claim is lost.
+  assert.match(src, /const persistRunState = \(s: RunState\): void => \{\n\s*heartbeat\?\.\(\);\n\s*saveState\(repo, s\);/);
+  assert.match(src, /if \(e instanceof ClaimLostError\) \{/, 'a taken-over supervisor must not write the run state it no longer owns');
+  // Exactly one raw write survives inside execute(): the terminal BLOCKED record, which is reached
+  // only AFTER the claim-loss branch has returned, so it can never write on a lost claim and a
+  // heartbeat failure there can never mask the real blocking error.
+  const executeBody = src.slice(src.indexOf('async function execute('));
+  const rawWrites = executeBody.match(/saveState\(repo, state\)/g) ?? [];
+  assert.equal(rawWrites.length, 1, 'execute() persists through the heartbeat-checked path everywhere except the documented terminal block');
+  assert.match(executeBody, /saveState\(repo, state\); t\.emit\('run\.blocked'/);
+  assert.ok(executeBody.indexOf('if (e instanceof ClaimLostError) {') < executeBody.indexOf("saveState(repo, state); t.emit('run.blocked'"), 'the claim-loss branch must return before the terminal write');
 });
 
 test('unsafe claim keys and corrupt claim files fail closed', () => {

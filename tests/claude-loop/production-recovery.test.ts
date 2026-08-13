@@ -255,7 +255,10 @@ test('production supervisor path uses the continuation seam and the pre-claude r
   // seam must be wired to whichever one this run actually uses.
   assert.match(src, /const writeRole: RoleName = lane === 'owner-author' \? 'owner-author' : 'builder'/, 'the write role must be derived from the run lane');
   assert.match(src, /runBuilderSegment: \(seg\) => runRole\(\{ role: writeRole/, 'the seam must be wired to the real write role runner');
-  assert.match(src, /persist: \(s\) => saveState\(repo, s\)/, 'continuation persistence must be the real state writer');
+  // The continuation persists through the run's single heartbeat-checked persistence point, so a
+  // spent continuation is recorded with the same liveness guarantee as every other state write.
+  assert.match(src, /persist: \(s\) => persistRunState\(s\)/, 'continuation persistence must be the real state writer');
+  assert.match(src, /const persistRunState = \(s: RunState\): void => \{/, 'the state writer beats the claim before writing');
   assert.match(src, /if \(builderContinuationResumeBlocked\(config, state\)\)/, 'resumeRun must gate before any Claude segment');
 });
 

@@ -54,6 +54,7 @@ Afterwards the scheduler re-reads `origin/main` and decides mechanically:
 - **unmerged** — `origin/main` is unchanged. The ledger records `AWAITING_PUBLICATION` and the pass stops rather than stacking candidates on a base that lacks the previous one. Slices depending on it stay unschedulable.
 - **base drift** — `origin/main` moved to something that is not this candidate's merge. The ledger records `BLOCKED` and the pass stops. Nothing is published, rewritten or retried.
 - **blocked run** — including an exhausted remediation budget. The ledger records `BLOCKED` with the reason and the pass stops. A restart never retries it and never widens the budget; that needs an explicit owner decision.
+- **claim lost** — this supervisor was taken over while running. It records nothing for the slice and stops; the outcome belongs to whoever holds the claim now.
 
 The autopilot never publishes and never moves `main`. Its entire Git vocabulary is `fetch`, `rev-parse` and `rev-list`; publication stays behind the unchanged Publication v2 guards below.
 
@@ -63,11 +64,18 @@ Claims and the ledger live only under the Git common directory, shared by every 
 
 ```text
 <common-git-dir>/claude-factory/claims/<task|run>/<key>/<epoch>.json
-<common-git-dir>/claude-factory/autopilot/ledger.json
+<common-git-dir>/claude-factory/autopilot/ledger/<taskId>.json
+<common-git-dir>/claude-factory/autopilot/ledger.json      (aggregate view; merged on read)
 <common-git-dir>/claude-factory/backend-prerequisites.json
 ```
 
-A claim epoch is a file name, and creating that file is an exclusive create — that single kernel operation is the whole mutual exclusion, so two supervisors can never both own a slice and never both produce a candidate for it. Epochs are append-only, so a takeover preserves the evidence of the previous owner. A claim is stale only when its heartbeat is older than `autopilot.claimTtlSeconds`; a live claim is never overridden at any age below the TTL.
+A claim epoch is a file name, and creating that file is an exclusive create — that single kernel operation is the whole mutual exclusion, so two supervisors can never both own a slice and never both produce a candidate for it. Epochs are append-only, so a takeover preserves the evidence of the previous owner.
+
+**Liveness is a heartbeat, not an age.** A held claim is refreshed for the whole lifetime of its run: a background ticker beats at `min(60s, claimTtlSeconds/3)`, and the supervisor beats again at every checkpoint — each phase transition, each remediation round, each builder continuation and every run-state write. A claim is stale only when that heartbeat is older than `autopilot.claimTtlSeconds`, so a run that legitimately takes hours is never mistaken for an abandoned one, and `claimTtlSeconds` bounds *silence*, not run length.
+
+The beat is also a fail-closed checkpoint. If a supervisor discovers that its claim was taken over, it raises `ClaimLostError` and stops: it writes no further run state, records no ledger outcome for the slice, and leaves both to the supervisor that now holds the claim.
+
+Every ledger mutation writes exactly **one** file — the task id the writing supervisor holds the claim for — through a temp file and `rename`. A supervisor therefore cannot drop another supervisor's record from a stale snapshot (a lost `DONE` record would make already merged work schedulable again), and a concurrent reader never sees a partially written file. `loadLedger` merges the aggregate view with the per-task files, which win.
 
 ```bash
 npm run claude:autopilot-status
@@ -75,7 +83,7 @@ npm run claude:autopilot-recover
 npm run claude:autopilot-recover -- --clear V8-FIXTURE
 ```
 
-Recovery releases **only** stale claims and demotes the `RUNNING` entries they abandoned to `BLOCKED` with an explicit reason. It never invents a completion: the abandoned run's worktree and run state are preserved for inspection, and rescheduling requires the deliberate `--clear`. A `DONE` entry is evidence and cannot be cleared.
+Recovery releases **only** claims that stopped heartbeating and demotes the `RUNNING` entries they abandoned to `BLOCKED` with an explicit reason. It never invents a completion: the abandoned run's worktree and run state are preserved for inspection, and rescheduling requires the deliberate `--clear`. A `DONE` entry is evidence and cannot be cleared.
 
 ## Owner-author lane
 
@@ -162,7 +170,7 @@ A blocked run preserves its Git worktree and run state. Re-run:
 npm run claude:resume -- <run-id>
 ```
 
-A resume takes an atomic **run claim** for the duration, so two operators cannot put two model sessions on the same recorded run and the same candidate; a second resume is refused with the current owner, and an abandoned resume becomes recoverable through `npm run claude:autopilot-recover` once its claim goes stale.
+A resume takes an atomic **run claim** and keeps it heartbeating for the whole resume, so two operators cannot put two model sessions on the same recorded run and the same candidate however long the resume takes; a second resume is refused with the current owner's identity. If a resume is killed, its claim stops beating and becomes recoverable through `npm run claude:autopilot-recover`.
 
 Do not reset/rebase/amend a blocked worktree. The supervisor resumes from recorded facts and existing immutable candidate commits. Terminal builder errors preserve the recoverable builder session ID in run state. A remediation-budget block does NOT gain another model round by repeated `resume`; it requires an explicit owner extension:
 

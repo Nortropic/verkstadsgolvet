@@ -54,7 +54,7 @@ async function main(): Promise<void> {
     console.log(`AUTOPILOT_DETAIL=${result.detail}`);
     for (const s of result.started) console.log(`${s.taskId}\t${s.status}\t${s.runId ?? '-'}\t${s.candidateSha ?? '-'}\t${s.mergedMain ?? '-'}`);
     printEvaluations(result.evaluations);
-    if (result.stopReason === 'BASE_DRIFT' || result.stopReason === 'RUN_BLOCKED') process.exitCode = 2;
+    if (result.stopReason === 'BASE_DRIFT' || result.stopReason === 'RUN_BLOCKED' || result.stopReason === 'CLAIM_LOST') process.exitCode = 2;
     return;
   }
   if (cmd === 'autopilot-status') {

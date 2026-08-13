@@ -3,12 +3,12 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { ConfigSchema, RunStateSchema, type FactoryConfig, type RunState, type TaskSpec } from '../../scripts/claude-loop/schemas';
 import { BacklogSchema, materializeTask, type Backlog, type ExternalMeasurement } from '../../scripts/claude-loop/backlog';
 import { autopilotRecover, autopilotStatus, runAutopilot, type AutopilotDeps } from '../../scripts/claude-loop/autopilot';
-import { acquireClaim, currentClaim, listClaims, releaseClaim } from '../../scripts/claude-loop/claims';
-import { autopilotDir, ledgerPath, loadLedger, saveLedger, type Ledger } from '../../scripts/claude-loop/ledger';
+import { acquireClaim, currentClaim, heartbeatClaim, isClaimStale, listClaims, recoverStaleClaims, releaseClaim } from '../../scripts/claude-loop/claims';
+import { autopilotDir, ledgerEntryDir, ledgerPath, loadLedger, saveLedger, writeLedgerEntry, type Ledger } from '../../scripts/claude-loop/ledger';
 import { commonGitDir } from '../../scripts/claude-loop/util';
 import type { AuthorityClass, AuthoritySelection } from '../../scripts/claude-loop/authority';
 
@@ -31,6 +31,9 @@ const CANDIDATE_A = 'd'.repeat(40);
 const CANDIDATE_B = 'e'.repeat(40);
 
 const EMPTY_SELECTION: AuthoritySelection = { selectedTaskIds: [] };
+
+/** The harness clock. Claim freshness is asserted against it, never against the wall clock. */
+const NOW = Date.parse('2026-08-13T10:00:00.000Z');
 
 function disposableRepo(): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-autopilot-'));
@@ -58,7 +61,7 @@ function twoSliceBacklog(): Backlog {
   });
 }
 
-type StartCall = { taskId: string; baseSha: string; authorityClass: AuthorityClass; task: TaskSpec };
+type StartCall = { taskId: string; baseSha: string; authorityClass: AuthorityClass; task: TaskSpec; heartbeat: () => void };
 
 function doneState(a: { task: TaskSpec; baseSha: string; candidateSha: string | null; authorityClass: AuthorityClass }): RunState {
   return RunStateSchema.parse({
@@ -85,6 +88,7 @@ type Harness = {
   starts: StartCall[];
   events: Array<{ event: string; fields: Record<string, unknown> }>;
   mainRef: { value: string };
+  beats: () => number;
 };
 
 function harness(repo: string, o: {
@@ -99,6 +103,7 @@ function harness(repo: string, o: {
   const events: Array<{ event: string; fields: Record<string, unknown> }> = [];
   const mainRef = { value: o.main ?? BASE_A };
   const backlog = o.backlog ?? twoSliceBacklog();
+  let beats = 0;
   const deps: AutopilotDeps = {
     now: () => o.now ?? Date.parse('2026-08-13T10:00:00.000Z'),
     originMain: () => mainRef.value,
@@ -108,18 +113,20 @@ function harness(repo: string, o: {
     fileExists: () => true,
     runPrerequisiteCommand: () => true,
     readLedger: () => loadLedger(repo),
-    writeLedger: (ledger) => saveLedger(repo, ledger),
+    // The real per-task write path: one file per task id, never a whole-ledger rewrite.
+    writeEntry: (e) => { writeLedgerEntry(repo, e); },
     acquire: (a) => acquireClaim({ repo, scope: 'task', key: a.key, owner: a.owner, nowMs: a.nowMs, ttlSeconds: a.ttlSeconds }),
     // The real release path, so the claim epochs in these tests are the production epochs.
     release: (a) => { releaseClaim({ repo, claim: a.claim, nowMs: a.nowMs, note: a.note }); },
+    heartbeat: (a) => { beats += 1; return heartbeatClaim({ repo, claim: a.claim, nowMs: a.nowMs }); },
     startRun: async (a) => {
-      const call: StartCall = { taskId: a.task.id, baseSha: a.baseSha, authorityClass: a.authorityClass, task: a.task };
+      const call: StartCall = { taskId: a.task.id, baseSha: a.baseSha, authorityClass: a.authorityClass, task: a.task, heartbeat: a.heartbeat };
       starts.push(call);
       return await o.run(call);
     },
     emit: (event, fields) => { events.push({ event, fields }); },
   };
-  return { deps, starts, events, mainRef };
+  return { deps, starts, events, mainRef, beats: () => beats };
 }
 
 test('autopilot is disabled in the shipped configuration and starts nothing', async () => {
@@ -327,9 +334,139 @@ test('all autopilot runtime state lives under the Git common directory, never in
 
   const common = commonGitDir(repo);
   assert.equal(ledgerPath(repo), path.join(common, 'claude-factory', 'autopilot', 'ledger.json'));
+  assert.equal(ledgerEntryDir(repo), path.join(common, 'claude-factory', 'autopilot', 'ledger'));
   assert.ok(autopilotDir(repo).startsWith(common + path.sep));
-  assert.ok(fs.existsSync(ledgerPath(repo)));
+  // The scheduler writes per-task entry files, never the aggregate view.
+  assert.deepEqual(fs.readdirSync(ledgerEntryDir(repo)), ['A.json']);
+  assert.equal(fs.existsSync(ledgerPath(repo)), false, 'no whole-ledger rewrite happens during a pass');
+  assert.equal(loadLedger(repo).entries.find((e) => e.taskId === 'A')?.status, 'AWAITING_PUBLICATION');
   assert.deepEqual(fs.readdirSync(repo).filter((n) => n !== '.git'), [], 'no operational state is written into the checkout');
+});
+
+/* ------------------------------------------------------------------ shared-ledger integrity */
+
+test('two supervisors interleaving on the shared ledger never lose each others entries', async () => {
+  const repo = disposableRepo();
+  const at = '2026-08-13T10:00:00.000Z';
+
+  // Supervisor A finished slice A and recorded DONE. Supervisor B is mid-run on slice B, with a
+  // ledger snapshot taken BEFORE A's write — the classic lost-update setup.
+  writeLedgerEntry(repo, { taskId: 'A', status: 'DONE', runId: 'a-run', baseSha: BASE_A, candidateSha: CANDIDATE_A, mergedMain: MERGE_A, reason: 'merged', updatedAt: at });
+  const staleSnapshot = { version: 1, entries: [] } as Ledger;
+  assert.deepEqual(staleSnapshot.entries, [], 'B holds a snapshot that predates A');
+
+  // B now writes ITS entry. Because a write is per task id, A's record is untouched.
+  writeLedgerEntry(repo, { taskId: 'B', status: 'RUNNING', runId: 'b-run', baseSha: BASE_A, candidateSha: null, mergedMain: null, reason: 'claimed and started', updatedAt: at });
+
+  const merged = loadLedger(repo);
+  assert.deepEqual(merged.entries.map((e) => `${e.taskId}:${e.status}`), ['A:DONE', 'B:RUNNING'], 'neither supervisor dropped the other');
+
+  // A then writes a later update for its own key; B's RUNNING entry still stands.
+  writeLedgerEntry(repo, { taskId: 'A', status: 'DONE', runId: 'a-run', baseSha: BASE_A, candidateSha: CANDIDATE_A, mergedMain: MERGE_A, reason: 'merged (re-recorded)', updatedAt: at });
+  assert.deepEqual(loadLedger(repo).entries.map((e) => `${e.taskId}:${e.status}`), ['A:DONE', 'B:RUNNING']);
+
+  // The consequence that matters: a surviving DONE record keeps merged work from being scheduled
+  // again, and a surviving RUNNING record keeps a live slice unschedulable.
+  const h = harness(repo, { main: MERGE_A, run: async (call) => doneState({ task: call.task, baseSha: call.baseSha, candidateSha: CANDIDATE_B, authorityClass: call.authorityClass }) });
+  const result = await runAutopilot({ config: config({ maxTasks: 1 }), deps: h.deps, selection: EMPTY_SELECTION });
+  assert.deepEqual(h.starts.map((s) => s.taskId), ['C'], 'only the untouched slice is schedulable');
+  assert.equal(result.evaluations.find((e) => e.id === 'A')?.status, 'DONE');
+  assert.equal(result.evaluations.find((e) => e.id === 'B')?.status, 'WAITING');
+});
+
+test('two concurrent supervisor processes both keep their ledger records', async () => {
+  const repo = disposableRepo();
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-ledger-race-'));
+  const childFile = path.join(scratch, 'writer.ts');
+  const ledgerModule = path.resolve('scripts/claude-loop/ledger.ts');
+  fs.writeFileSync(childFile, `
+import { writeLedgerEntry } from ${JSON.stringify(ledgerModule)};
+const [repo, taskId, status, startAt] = process.argv.slice(2);
+while (Date.now() < Number(startAt)) { /* spin to the shared start instant */ }
+for (let i = 0; i < 40; i++) {
+  writeLedgerEntry(repo, { taskId, status: status as never, runId: taskId + '-run', baseSha: null, candidateSha: null, mergedMain: null, reason: 'iteration ' + i, updatedAt: new Date().toISOString() });
+}
+process.stdout.write('done');
+`, 'utf8');
+
+  const startAt = Date.now() + 2000;
+  await Promise.all([['A', 'DONE'], ['B', 'RUNNING'], ['C', 'AWAITING_PUBLICATION']].map(([taskId, status]) => new Promise<void>((resolve, reject) => {
+    const child = spawn(process.execPath, ['--import', 'tsx', childFile, repo, taskId, status, String(startAt)], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let err = '';
+    child.stderr.on('data', (d) => { err += String(d); });
+    child.on('error', reject);
+    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`writer ${taskId} exited ${code}: ${err}`))));
+  })));
+  fs.rmSync(scratch, { recursive: true, force: true });
+
+  const ledger = loadLedger(repo);
+  assert.deepEqual(ledger.entries.map((e) => `${e.taskId}:${e.status}`), ['A:DONE', 'B:RUNNING', 'C:AWAITING_PUBLICATION'], 'no concurrent writer lost another writer record');
+  // And nothing partial survived: every file parses, so the scheduler is never failed closed by a torn write.
+  assert.deepEqual(fs.readdirSync(ledgerEntryDir(repo)).sort(), ['A.json', 'B.json', 'C.json']);
+});
+
+test('the scheduler writes only its own task key, never the aggregate ledger', async () => {
+  const repo = disposableRepo();
+  const foreign = { taskId: 'B', status: 'DONE' as const, runId: 'b-run', baseSha: BASE_A, candidateSha: CANDIDATE_B, mergedMain: MERGE_A, reason: 'merged by another supervisor', updatedAt: '2026-08-13T09:00:00.000Z' };
+  writeLedgerEntry(repo, foreign);
+
+  const written: string[] = [];
+  const h = harness(repo, { main: BASE_A, run: async (call) => doneState({ task: call.task, baseSha: call.baseSha, candidateSha: CANDIDATE_A, authorityClass: call.authorityClass }) });
+  const realWrite = h.deps.writeEntry;
+  h.deps.writeEntry = (e) => { written.push(e.taskId); realWrite(e); };
+
+  await runAutopilot({ config: config({ maxTasks: 1 }), deps: h.deps, selection: EMPTY_SELECTION });
+
+  assert.deepEqual([...new Set(written)], ['A'], 'the pass touched exactly the key it claimed');
+  assert.deepEqual(loadLedger(repo).entries.find((e) => e.taskId === 'B'), foreign, 'the foreign DONE record is byte-identical afterwards');
+});
+
+/* ----------------------------------------------------------------------- claim keepalive */
+
+test('the claim is heartbeated across the whole run, so recovery cannot steal a live slice', async () => {
+  const repo = disposableRepo();
+  const h = harness(repo, {
+    main: BASE_A,
+    run: async (call) => {
+      // A long run: the supervisor beats at its own checkpoints while it works.
+      for (const _round of Array.from({ length: 5 })) call.heartbeat();
+      const live = currentClaim(repo, 'task', 'A')!;
+      assert.equal(isClaimStale(live, NOW + 899_000), false, 'the claim is fresh while the run works');
+      assert.deepEqual(recoverStaleClaims({ repo, nowMs: NOW + 899_000, owner: 'operator' }).map((r) => r.key), [], 'recovery must not touch a beating claim');
+      return doneState({ task: call.task, baseSha: call.baseSha, candidateSha: CANDIDATE_A, authorityClass: call.authorityClass });
+    },
+  });
+
+  await runAutopilot({ config: config({ maxTasks: 1 }), deps: h.deps, selection: EMPTY_SELECTION });
+
+  assert.ok(h.beats() >= 5, `the run beat its claim, got ${h.beats()}`);
+  assert.equal(loadLedger(repo).entries.find((e) => e.taskId === 'A')?.status, 'AWAITING_PUBLICATION');
+});
+
+test('a supervisor whose claim was taken over stops instead of writing the slice outcome', async () => {
+  const repo = disposableRepo();
+  const h = harness(repo, {
+    main: BASE_A,
+    run: async (call) => {
+      // Another supervisor recovers this claim as stale mid-run.
+      const takeover = acquireClaim({ repo, scope: 'task', key: 'A', owner: 'supervisor-B', nowMs: NOW + 901_000, ttlSeconds: 900 });
+      assert.equal(takeover.ok, true);
+      call.heartbeat(); // fail-closed: this must throw
+      throw new Error('the taken-over supervisor kept running');
+    },
+  });
+
+  const result = await runAutopilot({ config: config({ maxTasks: 2 }), deps: h.deps, selection: EMPTY_SELECTION });
+
+  assert.equal(result.stopReason, 'CLAIM_LOST');
+  assert.match(result.detail, /claim lost: task\/A/);
+  assert.deepEqual(h.starts.map((s) => s.taskId), ['A'], 'it does not roll on to another slice after losing its claim');
+  // It recorded RUNNING before starting, but wrote NOTHING once it no longer owned the slice.
+  const entry = loadLedger(repo).entries.find((e) => e.taskId === 'A')!;
+  assert.equal(entry.status, 'RUNNING', 'the outcome belongs to the supervisor that holds the claim now');
+  assert.equal(currentClaim(repo, 'task', 'A')?.owner, 'supervisor-B', 'the new owner is untouched');
+  assert.ok(h.events.some((e) => e.event === 'autopilot.claim_lost'));
+  assert.ok(h.events.some((e) => e.event === 'autopilot.task_abandoned'));
 });
 
 test('the materialized task carries the exact backlog scope into the run', async () => {
