@@ -39,6 +39,26 @@ import {
 } from "@/lib/loop/intake";
 
 /**
+ * DOM-identiteter för kopplingen etikett ↔ kontroll och kontroll ↔ förklaring.
+ *
+ * Bärs som konstanter (och exporteras) av två skäl: en `htmlFor` som pekar på ett id som inte
+ * finns är en TYST tillgänglighetsregression som ingen ser i en skärmdump, och provet ska kunna
+ * mäta att varje koppling faktiskt landar i markupen. Ytan renderas en gång per sida, så
+ * stabila id är korrekta här — ingen id-kollision kan uppstå.
+ */
+export const INTAKE_DOM_IDS = {
+  filePicker: "intake-filvaljare",
+  fileLimits: "intake-filgranser",
+  pasteArea: "intake-inklistrad-text",
+  pasteStats: "intake-inklistrad-matt",
+  pasteRule: "intake-inklistrad-regel",
+  blockedOn: "intake-blockerad-pa",
+  disabledReason: "intake-avstangd-orsak",
+} as const;
+
+const IDS = INTAKE_DOM_IDS;
+
+/**
  * Det klienten läser ur en vald fil: namn, storlek och webbläsarens påstådda typ.
  * INNEHÅLLET rörs inte. Exporterad så provet kan mäta exakt den avbildningen.
  */
@@ -131,15 +151,21 @@ export default function IntakeDropzone() {
         }}
       >
         <span className="mk-drop-title">Dra Markdown-filer hit</span>
-        <span className="mk-hint">
+        <span className="mk-hint" id={IDS.fileLimits}>
           Endast {INTAKE_ACCEPTED_EXTENSIONS.join(" och ")} · högst {INTAKE_MAX_FILES} filer per
           inlämning · högst {groupDigits(INTAKE_MAX_FILE_BYTES)} byte per fil
         </span>
+        {/* Riktig <label htmlFor> — husets form för formulärkontroller (OnboardingForm, DocPanel). */}
+        <label className="mk-label" htmlFor={IDS.filePicker}>
+          Välj Markdown-filer
+        </label>
         <input
           className="mk-file-input"
+          id={IDS.filePicker}
           type="file"
           multiple
           accept={INTAKE_ACCEPT_ATTRIBUTE}
+          aria-describedby={`${IDS.fileLimits} ${IDS.disabledReason}`}
           data-file-picker="true"
           onChange={(event) => classify(Array.from(event.target.files ?? []))}
         />
@@ -148,42 +174,53 @@ export default function IntakeDropzone() {
       <SelectionReport selection={selection} />
 
       <div className="mk-group">
-        <span className="mk-label">Klistra in text</span>
+        {/* Programmatiskt namn på ytan, inte bara en visuell rubrik: placeholder är inget namn. */}
+        <label className="mk-label" htmlFor={IDS.pasteArea}>
+          Klistra in text
+        </label>
         <textarea
           className="mk-textarea"
+          id={IDS.pasteArea}
           rows={8}
           value={pasted}
+          aria-describedby={`${IDS.pasteStats} ${IDS.pasteRule} ${IDS.disabledReason}`}
           data-paste-area="true"
           placeholder="Klistra in Markdown här. Texten sparas som en egen källa med genererat filnamn."
           onChange={(event) => setPasted(event.target.value)}
         />
-        <p className="mk-hint" data-paste-stats="true">
+        <p className="mk-hint" id={IDS.pasteStats} data-paste-stats="true">
           {pasted === ""
             ? "Ingen text inklistrad ännu."
             : `${pasteSourceName(1)} · ${stats.characters} tecken · ${stats.lines} rader · ${groupDigits(stats.bytes)} byte`}
         </p>
-        <p className="mk-hint">
+        <p className="mk-hint" id={IDS.pasteRule}>
           Verkstadsgolvet räknar tecken och rader — inget annat. Rubriker läses inte, källan delas
           inte upp och antalet uppgifter uppskattas aldrig här. Tolkningen är Nortropics.
         </p>
       </div>
 
       <div className="mk-actions">
+        {/*
+          Orsaken till att knappen är avstängd hör IHOP med knappen, inte bredvid den: utan
+          aria-describedby hör en skärmläsare "Lämna in källan, otillgänglig" och får aldrig veta
+          varför. Ärligheten om fixturläget ska nå alla, inte bara den som ser den gula rutan.
+        */}
         <button
           type="button"
           className="mk-button"
           disabled={!enabled}
           aria-disabled={enabled ? undefined : "true"}
+          aria-describedby={enabled ? undefined : `${IDS.blockedOn} ${IDS.disabledReason}`}
           data-submit-disabled={enabled ? "false" : "true"}
         >
           Lämna in källan
         </button>
-        <span className="mk-hint" data-blocked-on={INTAKE_BLOCKED_ON}>
+        <span className="mk-hint" id={IDS.blockedOn} data-blocked-on={INTAKE_BLOCKED_ON}>
           Blockerad på {INTAKE_BLOCKED_ON}.
         </span>
       </div>
 
-      <p className="mk-note mk-tone-warning" data-disabled-reason="true">
+      <p className="mk-note mk-tone-warning" id={IDS.disabledReason} data-disabled-reason="true">
         {INTAKE_DISABLED_REASON}
       </p>
     </section>

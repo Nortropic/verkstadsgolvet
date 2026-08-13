@@ -31,7 +31,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 (globalThis as unknown as { React: typeof React }).React = React;
 
-import IntakeDropzone, { SelectionReport, toCandidate } from "../../components/loop/IntakeDropzone";
+import IntakeDropzone, {
+  INTAKE_DOM_IDS,
+  SelectionReport,
+  toCandidate,
+} from "../../components/loop/IntakeDropzone";
 import IntakeResult from "../../components/loop/IntakeResult";
 import IntakeShell from "../../components/loop/IntakeShell";
 import MataMaskinenPage from "../../app/(app)/loop/mata/page";
@@ -383,6 +387,57 @@ test("V8*-I2: inlämningsknappen är avstängd med ORDAGRANN orsak — ingen fej
   assert.ok(/<button[^>]*disabled/.test(html), "knappen saknar disabled-attribut");
   assert.ok(decodeEntities(html).includes(INTAKE_DISABLED_REASON), "orsaken visas inte ordagrant");
   assert.ok(html.includes(INTAKE_BLOCKED_ON));
+});
+
+/* ── 4b · Tillgänglighet: varje kontroll har ett namn, varje orsak en koppling ─ */
+
+test("V8*-A11Y: kontrollerna har programmatiska namn via riktiga label-element", () => {
+  const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+
+  for (const control of [INTAKE_DOM_IDS.filePicker, INTAKE_DOM_IDS.pasteArea] as const) {
+    const label = html.match(new RegExp(`<label[^>]*for="${control}"[^>]*>([^<]+)</label>`));
+    assert.ok(label, `kontrollen ${control} saknar en <label for>`);
+    assert.ok(label[1].trim().length > 0, `etiketten för ${control} är tom`);
+    assert.ok(html.includes(`id="${control}"`), `kontrollen ${control} saknar sitt id`);
+  }
+
+  // Ingen kvarlämnad platshållare-som-namn: textarean har både label OCH placeholder.
+  assert.ok(/<textarea[^>]*id="intake-inklistrad-text"/.test(html));
+  assert.ok(/<input[^>]*id="intake-filvaljare"[^>]*type="file"/.test(html));
+});
+
+test("V8*-A11Y: den avstängda knappens ORSAK är kopplad till knappen, inte bara placerad bredvid", () => {
+  const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+  const button = html.match(/<button[^>]*>/);
+  assert.ok(button, "knappen saknas");
+  const describedBy = attr(button[0], "aria-describedby");
+  assert.ok(describedBy, "den avstängda knappen förklarar sig inte för hjälpmedel");
+  assert.ok(
+    describedBy.split(/\s+/).includes(INTAKE_DOM_IDS.disabledReason),
+    "orsakstexten är inte kopplad till knappen",
+  );
+  assert.ok(describedBy.split(/\s+/).includes(INTAKE_DOM_IDS.blockedOn));
+  assert.ok(html.includes(`id="${INTAKE_DOM_IDS.disabledReason}"`));
+});
+
+test("V8*-A11Y-NEG: ingen koppling pekar på ett id som saknas i markupen", () => {
+  const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+  const present = new Set((html.match(/ id="([^"]+)"/g) ?? []).map((m) => m.slice(5, -1)));
+
+  const referenced = [
+    ...(html.match(/(?:for|aria-describedby|aria-labelledby)="([^"]+)"/g) ?? []),
+  ].flatMap((match) => match.replace(/^[^"]+"/, "").replace(/"$/, "").split(/\s+/));
+
+  assert.ok(referenced.length > 0, "inga kopplingar hittades — provet mäter ingenting");
+  for (const id of referenced) {
+    assert.ok(present.has(id), `kopplingen pekar på ett id som inte finns: ${id}`);
+  }
+  // Varje id är unikt: en dubblett hade gjort kopplingen tvetydig.
+  const all = (html.match(/ id="([^"]+)"/g) ?? []).map((m) => m.slice(5, -1));
+  assert.equal(new Set(all).size, all.length, "samma id förekommer två gånger");
+  for (const id of Object.values(INTAKE_DOM_IDS)) {
+    assert.ok(present.has(id), `id ${id} bärs som konstant men når aldrig markupen`);
+  }
 });
 
 /* ── 5 · I3 · originalkällan bevaras byte-identisk och kan visas ──────────── */
