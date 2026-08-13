@@ -1,0 +1,67 @@
+[
+  {
+    "file_name": "backlog-aug.md",
+    "byte_size": 2048,
+    "mime_type": "text/markdown"
+  },
+  {
+    "file_name": "PLAN.MD",
+    "byte_size": 512,
+    "mime_type": ""
+  },
+  {
+    "file_name": "anteckningar.markdown",
+    "byte_size": 4096,
+    "mime_type": "text/plain"
+  },
+  {
+    "file_name": "med-parametrar.md",
+    "byte_size": 1024,
+    "mime_type": "text/markdown; charset=utf-8"
+  },
+  {
+    "file_name": "exakt-gransen.md",
+    "byte_size": 1048576,
+    "mime_type": "text/markdown"
+  },
+  {
+    "file_name": "over-gransen.md",
+    "byte_size": 1048577,
+    "mime_type": "text/markdown"
+  },
+  {
+    "file_name": "tom.md",
+    "byte_size": 0,
+    "mime_type": "text/markdown"
+  },
+  {
+    "file_name": "anteckningar.txt",
+    "byte_size": 1024,
+    "mime_type": "text/plain"
+  },
+  {
+    "file_name": "rapport.pdf",
+    "byte_size": 1024,
+    "mime_type": "application/pdf"
+  },
+  {
+    "file_name": "verktyg.exe",
+    "byte_size": 1024,
+    "mime_type": "application/octet-stream"
+  },
+  {
+    "file_name": "README",
+    "byte_size": 1024,
+    "mime_type": "text/plain"
+  },
+  {
+    "file_name": "falsk.md",
+    "byte_size": 1024,
+    "mime_type": "application/pdf"
+  },
+  {
+    "file_name": "dubbel.md.exe",
+    "byte_size": 1024,
+    "mime_type": "application/octet-stream"
+  }
+]

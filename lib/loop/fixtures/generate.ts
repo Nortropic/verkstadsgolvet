@@ -25,10 +25,19 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  INTAKE_MAX_FILES,
+  INTAKE_MAX_FILE_BYTES,
+  pasteSourceName,
+  type IntakeCandidate,
+  type IntakeOutcome,
+} from "../intake";
+import {
   COMMAND_VERBS,
   KNOWN_EVENT_TYPES,
   TASK_LIFECYCLE,
+  dedupKey,
   type Command,
+  type CommandRecord,
   type LoopEvent,
   type LoopSnapshot,
   type TaskLifecycle,
@@ -284,6 +293,197 @@ export function buildCommandFixtures(): Command[] {
   return commands;
 }
 
+/* ── V8* · Markdown-intake i fixturläge ────────────────────────────────────── */
+
+/**
+ * En källa med TVÅ tydliga arbetsmål. Den finns för planens negativa kontroll (I6): en källa
+ * som en människa skulle säga "innehåller två uppgifter" om, och som UI:t ändå ska rendera med
+ * NOLL uppgifter tills controllern svarat. Verkstadsgolvet läser aldrig rubrikerna.
+ */
+const INTAKE_SOURCE_TWO_GOALS = [
+  "# Backlog augusti",
+  "",
+  "## Mål 1 — byt telefonnumret i sidfoten",
+  "Numret i sidfoten är gammalt och ska bytas på samtliga sidor.",
+  "",
+  "## Mål 2 — lägg till en offertsida",
+  "En ny sida med formulär för offertförfrågan, länkad från menyn.",
+  "",
+].join("\n");
+
+/** En kort källa som saknar acceptanskriterier — controllerns svar blir NEEDS_SPEC. */
+const INTAKE_SOURCE_THIN = ["# Fixa hemsidan", "", "Gör den bättre.", ""].join("\n");
+
+/**
+ * Deterministisk UUIDv4 ur en etikett: sha256 av etiketten, med versionsnibblen och
+ * variantbitarna satta så att strängen uppfyller schemats UUIDv4-regel. Ingen slump och ingen
+ * klocka — samma fixtur ska ge samma bytes vid varje körning.
+ */
+function uuidV4(label: string): string {
+  const hex = sha256(label).slice(0, 32).split("");
+  hex[12] = "4";
+  hex[16] = "89ab"[parseInt(hex[16], 16) & 3];
+  const s = hex.join("");
+  return `${s.slice(0, 8)}-${s.slice(8, 12)}-${s.slice(12, 16)}-${s.slice(16, 20)}-${s.slice(20, 32)}`;
+}
+
+/**
+ * Transportraden för en intake.submit.
+ *
+ * `source_sha256` är transitens PÅSTÅENDE, beräknat server-side i den levande skivan och
+ * ALDRIG i webbläsaren. Det är aldrig ett trust-anchor: controllern läser bytes själv, räknar
+ * om hashen och avvisar vid avvikelse (B5, låst). Fixturen bär det för kontraktstrohet —
+ * intake-vyn visar det inte som en sanning om källan.
+ *
+ * `result` är en OPAK karta vars form är OLÖST (S13/B5). Nyckelnamnet nedan är därför INGET
+ * kontrakt: UI:t läser aldrig ett namngivet fält ur kartan utan renderar hela kartan ordagrant.
+ */
+function buildIntakeCommandRecord(args: {
+  label: string;
+  sourceText: string;
+  index: number;
+  status: CommandRecord["status"];
+  result: Record<string, unknown> | null;
+  claimed: boolean;
+}): CommandRecord {
+  const command: Command = {
+    verb: "intake.submit",
+    payload: {
+      // OPAK transportreferens (B5). Formen ägs av S10/S13 och uppfinns inte här.
+      source_ref: `source-ref-fixture-${String(args.index).padStart(4, "0")}`,
+      source_sha256: sha256(args.sourceText),
+    },
+  };
+  const issuedMs = BASE_TS_MS + args.index * STEP_MS;
+  return {
+    command_id: uuidV4(`command:${args.label}`),
+    verb: command.verb,
+    payload: command.payload,
+    dedup_key: dedupKey(command),
+    // Ingen session och ingen transport i fixturläge — utfärdaren är fixturen själv.
+    issued_by: "fixtur",
+    issued_at: iso(issuedMs),
+    expires_at: iso(issuedMs + 600 * STEP_MS),
+    expected_watermark: null,
+    status: args.status,
+    claimed_at: args.claimed ? iso(issuedMs + STEP_MS) : null,
+    result: args.result,
+  };
+}
+
+/**
+ * Fyra utfall som täcker planens intake-krav i fixturläge:
+ *   1. inlämnad och obesvarad  → väntetext, NOLL uppgifter, antal "—" (I6)
+ *   2. avvisad av controllern  → orsaken ordagrant med rå command_id och status (I5)
+ *   3. NEEDS_SPEC              → arbetsläge i warning, aldrig ett fel (S4t)
+ *   4. besvarad med uppgifter  → antalet kommer ur CONTROLLERNS svar, aldrig ur källan
+ *
+ * Utfall 1 och 4 delar källa: samma två arbetsmål ger noll uppgifter före svaret och exakt de
+ * uppgifter controllern svarat med efteråt. Utfall 2 kommer från INKLISTRAD text — samma väg
+ * som en fil, med genererat filnamn (I7).
+ */
+export function buildIntakeOutcomeFixtures(): IntakeOutcome[] {
+  return [
+    {
+      submission_id: "sub-fixture-0001",
+      source: { source_name: "backlog-aug.md", origin: "file", text: INTAKE_SOURCE_TWO_GOALS },
+      submission_state: "submission.command_queued",
+      command: buildIntakeCommandRecord({
+        label: "awaiting",
+        sourceText: INTAKE_SOURCE_TWO_GOALS,
+        index: 1,
+        status: "pending",
+        result: null,
+        claimed: false,
+      }),
+      // Controllern har INTE svarat → noll uppgifter och OKÄNT antal.
+      controller_answer: null,
+    },
+    {
+      submission_id: "sub-fixture-0002",
+      source: { source_name: pasteSourceName(1), origin: "paste", text: INTAKE_SOURCE_THIN },
+      submission_state: "submission.rejected",
+      command: buildIntakeCommandRecord({
+        label: "rejected",
+        sourceText: INTAKE_SOURCE_THIN,
+        index: 2,
+        status: "rejected",
+        // OPAK karta (S13/B5 olöst). Nyckelnamnet är inget kontrakt — kartan renderas i sin helhet.
+        result: {
+          message:
+            "Inlämningen avvisades: sha256 för de bytes controllern läste matchade inte " +
+            "source_sha256 i kommandot. Ingen källa skapades och ingen planering startades.",
+        },
+        claimed: true,
+      }),
+      controller_answer: null,
+    },
+    {
+      submission_id: "sub-fixture-0003",
+      source: { source_name: "fixa-hemsidan.md", origin: "file", text: INTAKE_SOURCE_THIN },
+      submission_state: "submission.claimed_by_controller",
+      command: buildIntakeCommandRecord({
+        label: "needs-spec",
+        sourceText: INTAKE_SOURCE_THIN,
+        index: 3,
+        status: "applied",
+        result: null,
+        claimed: true,
+      }),
+      // Controllerns svar, ur dess eget vokabulär: NEEDS_SPEC är ett arbetsläge, inte ett fel.
+      controller_answer: { tasks: [buildTask("NEEDS_SPEC", 20)] },
+    },
+    {
+      submission_id: "sub-fixture-0004",
+      source: { source_name: "backlog-aug.md", origin: "file", text: INTAKE_SOURCE_TWO_GOALS },
+      submission_state: "submission.claimed_by_controller",
+      command: buildIntakeCommandRecord({
+        label: "answered",
+        sourceText: INTAKE_SOURCE_TWO_GOALS,
+        index: 4,
+        status: "applied",
+        result: null,
+        claimed: true,
+      }),
+      // Antalet är CONTROLLERNS, inte en tolkning av källans rubriker.
+      controller_answer: { tasks: [buildTask("READY", 21), buildTask("QUEUED", 22)] },
+    },
+  ];
+}
+
+/**
+ * Kandidatfiler för den FORMELLA klientvalideringen: godkända ändelser, versaler, tom MIME,
+ * exakt gränsvärde, över gränsen, tom fil, fel ändelser och en fil med rätt ändelse men
+ * uppenbart fel MIME. Fixturen bär INDATA — domarna hör hemma i provet, annars hade fixturen
+ * bara upprepat klassificerarens eget svar.
+ */
+export function buildIntakeCandidateFixtures(): IntakeCandidate[] {
+  return [
+    { file_name: "backlog-aug.md", byte_size: 2_048, mime_type: "text/markdown" },
+    { file_name: "PLAN.MD", byte_size: 512, mime_type: "" },
+    { file_name: "anteckningar.markdown", byte_size: 4_096, mime_type: "text/plain" },
+    { file_name: "med-parametrar.md", byte_size: 1_024, mime_type: "text/markdown; charset=utf-8" },
+    { file_name: "exakt-gransen.md", byte_size: INTAKE_MAX_FILE_BYTES, mime_type: "text/markdown" },
+    { file_name: "over-gransen.md", byte_size: INTAKE_MAX_FILE_BYTES + 1, mime_type: "text/markdown" },
+    { file_name: "tom.md", byte_size: 0, mime_type: "text/markdown" },
+    { file_name: "anteckningar.txt", byte_size: 1_024, mime_type: "text/plain" },
+    { file_name: "rapport.pdf", byte_size: 1_024, mime_type: "application/pdf" },
+    { file_name: "verktyg.exe", byte_size: 1_024, mime_type: "application/octet-stream" },
+    { file_name: "README", byte_size: 1_024, mime_type: "text/plain" },
+    { file_name: "falsk.md", byte_size: 1_024, mime_type: "application/pdf" },
+    { file_name: "dubbel.md.exe", byte_size: 1_024, mime_type: "application/octet-stream" },
+  ];
+}
+
+/** Ett urval som överskrider antalsgränsen med exakt en fil — alla formellt felfria. */
+export function buildIntakeOverCountSelectionFixtures(): IntakeCandidate[] {
+  return Array.from({ length: INTAKE_MAX_FILES + 1 }, (_unused, index) => ({
+    file_name: `kalla-${String(index + 1).padStart(2, "0")}.md`,
+    byte_size: 1_024,
+    mime_type: "text/markdown",
+  }));
+}
+
 /* ── Filer ─────────────────────────────────────────────────────────────────── */
 
 export const FIXTURE_FILES = {
@@ -294,6 +494,9 @@ export const FIXTURE_FILES = {
   "snapshot.json": buildSnapshotFixture,
   "snapshot-empty.json": buildEmptySnapshotFixture,
   "commands.json": buildCommandFixtures,
+  "intake-outcomes.json": buildIntakeOutcomeFixtures,
+  "intake-candidates.json": buildIntakeCandidateFixtures,
+  "intake-over-count.json": buildIntakeOverCountSelectionFixtures,
 } as const;
 
 export type FixtureFileName = keyof typeof FIXTURE_FILES;

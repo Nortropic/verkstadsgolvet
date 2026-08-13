@@ -130,6 +130,43 @@ export const LOOP_CSS = `
 .mk-phase.mk-mark-failed { background: var(--tint-danger-bg); box-shadow: inset 0 0 0 1px var(--tint-danger-border); }
 .mk-phase.mk-mark-failed .mk-phase-mark, .mk-phase.mk-mark-failed .mk-phase-name { color: var(--danger-text); }
 
+/* V8* · Markdown-intake (fixturläge). Samma tokens, samma namnrymd, ingen ny färg. */
+.mk-intake { display: flex; flex-direction: column; gap: var(--gap-md); }
+.mk-panel { background: var(--bg-panel); box-shadow: var(--hairline), 0 2px 10px -4px rgba(0,0,0,0.45);
+  border-radius: var(--radius-card); padding: var(--pad-card) 18px; display: flex;
+  flex-direction: column; gap: var(--gap-sm); min-width: 0; }
+.mk-panel-title { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--text-secondary); display: flex; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; }
+.mk-panel-title .mk-col-count { color: var(--text-muted); font-weight: 400; letter-spacing: 0.6px; }
+.mk-drop { border-radius: var(--radius-control); background: var(--bg-surface-0);
+  box-shadow: inset 0 0 0 1px var(--border-strong); padding: 22px 18px; display: flex;
+  flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.mk-drop-over { background: var(--tint-accent-bg); box-shadow: inset 0 0 0 1px var(--tint-accent-border); }
+.mk-drop-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.mk-file-input { font-size: 12px; color: var(--text-secondary); }
+.mk-textarea { font-family: var(--font-mono); font-size: 12px; line-height: 18px; color: var(--text-primary);
+  background: var(--bg-surface-0); box-shadow: inset 0 0 0 1px var(--border-strong);
+  border: 0; border-radius: var(--radius-control); padding: 10px 11px; resize: vertical; min-height: 120px; }
+.mk-list { display: flex; flex-direction: column; gap: 6px; }
+.mk-file { display: flex; flex-direction: column; gap: 3px; background: var(--bg-surface-1);
+  box-shadow: var(--hairline); border-radius: var(--radius-control); padding: 9px 11px; min-width: 0; }
+.mk-file.mk-tone-danger { background: var(--tint-danger-bg); box-shadow: inset 0 0 0 1px var(--tint-danger-border); }
+.mk-file.mk-tone-success { background: var(--tint-success-bg); box-shadow: inset 0 0 0 1px var(--tint-success-border); }
+.mk-file-name { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-primary); overflow-wrap: anywhere; }
+.mk-file-reason { font-size: 11.5px; line-height: 1.5; color: var(--text-secondary); }
+.mk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.mk-button { height: 30px; padding: 0 14px; border: 0; border-radius: var(--radius-control);
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.6px; background: var(--bg-surface-1);
+  color: var(--text-disabled); box-shadow: inset 0 0 0 1px var(--border-strong); cursor: not-allowed; }
+.mk-link { font-size: 12px; color: var(--accent-text); text-decoration: none; box-shadow: var(--hairline);
+  border-radius: var(--radius-control); padding: 7px 11px; background: var(--bg-surface-1); display: inline-block; }
+.mk-raw { font-family: var(--font-mono); font-size: 11.5px; line-height: 17px; color: var(--text-secondary);
+  background: var(--bg-surface-0); box-shadow: inset 0 0 0 1px var(--border-strong);
+  border-radius: var(--radius-control); padding: 10px 11px; margin: 0; overflow-x: auto;
+  white-space: pre; max-height: 420px; overflow-y: auto; }
+.mk-intake-results { display: flex; flex-direction: column; gap: var(--gap-md); }
+
 @media (max-width: 1279px) { .mk-cols { gap: var(--gap-sm); } }
 @media (max-width: 959px) {
   .mk-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }

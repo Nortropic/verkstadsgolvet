@@ -1,0 +1,231 @@
+[
+  {
+    "submission_id": "sub-fixture-0001",
+    "source": {
+      "source_name": "backlog-aug.md",
+      "origin": "file",
+      "text": "# Backlog augusti\n\n## Mål 1 — byt telefonnumret i sidfoten\nNumret i sidfoten är gammalt och ska bytas på samtliga sidor.\n\n## Mål 2 — lägg till en offertsida\nEn ny sida med formulär för offertförfrågan, länkad från menyn.\n"
+    },
+    "submission_state": "submission.command_queued",
+    "command": {
+      "command_id": "94e67784-c80b-4e77-a9d3-136752929fc8",
+      "verb": "intake.submit",
+      "payload": {
+        "source_ref": "source-ref-fixture-0001",
+        "source_sha256": "16d3f826a89efeb4d8e596a999f8a348c6dbc0c03df36bf99cdfe1429a7c1e39"
+      },
+      "dedup_key": "intake.submit:16d3f826a89efeb4d8e596a999f8a348c6dbc0c03df36bf99cdfe1429a7c1e39",
+      "issued_by": "fixtur",
+      "issued_at": "2026-01-01T00:00:01.000Z",
+      "expires_at": "2026-01-01T00:10:01.000Z",
+      "expected_watermark": null,
+      "status": "pending",
+      "claimed_at": null,
+      "result": null
+    },
+    "controller_answer": null
+  },
+  {
+    "submission_id": "sub-fixture-0002",
+    "source": {
+      "source_name": "inklistrad-kalla-01.md",
+      "origin": "paste",
+      "text": "# Fixa hemsidan\n\nGör den bättre.\n"
+    },
+    "submission_state": "submission.rejected",
+    "command": {
+      "command_id": "876611f5-5f71-4cda-a3a0-ef07b711078f",
+      "verb": "intake.submit",
+      "payload": {
+        "source_ref": "source-ref-fixture-0002",
+        "source_sha256": "f4dce851ab6e84617fc1d648983af5b3bedb1638da2f847988f3447d1c7a0134"
+      },
+      "dedup_key": "intake.submit:f4dce851ab6e84617fc1d648983af5b3bedb1638da2f847988f3447d1c7a0134",
+      "issued_by": "fixtur",
+      "issued_at": "2026-01-01T00:00:02.000Z",
+      "expires_at": "2026-01-01T00:10:02.000Z",
+      "expected_watermark": null,
+      "status": "rejected",
+      "claimed_at": "2026-01-01T00:00:03.000Z",
+      "result": {
+        "message": "Inlämningen avvisades: sha256 för de bytes controllern läste matchade inte source_sha256 i kommandot. Ingen källa skapades och ingen planering startades."
+      }
+    },
+    "controller_answer": null
+  },
+  {
+    "submission_id": "sub-fixture-0003",
+    "source": {
+      "source_name": "fixa-hemsidan.md",
+      "origin": "file",
+      "text": "# Fixa hemsidan\n\nGör den bättre.\n"
+    },
+    "submission_state": "submission.claimed_by_controller",
+    "command": {
+      "command_id": "a17207bf-e99d-4731-981b-f262540922f0",
+      "verb": "intake.submit",
+      "payload": {
+        "source_ref": "source-ref-fixture-0003",
+        "source_sha256": "f4dce851ab6e84617fc1d648983af5b3bedb1638da2f847988f3447d1c7a0134"
+      },
+      "dedup_key": "intake.submit:f4dce851ab6e84617fc1d648983af5b3bedb1638da2f847988f3447d1c7a0134",
+      "issued_by": "fixtur",
+      "issued_at": "2026-01-01T00:00:03.000Z",
+      "expires_at": "2026-01-01T00:10:03.000Z",
+      "expected_watermark": null,
+      "status": "applied",
+      "claimed_at": "2026-01-01T00:00:04.000Z",
+      "result": null
+    },
+    "controller_answer": {
+      "tasks": [
+        {
+          "task_id": "p-220",
+          "title": "Fixturuppgift p-220",
+          "state": "NEEDS_SPEC",
+          "source": {
+            "source_id": "src-020",
+            "sha256": "ed5173d38daaee9ea199ed9244b709cfa52b1fd9ce3a7c72bdba6044b279ad85",
+            "locator": "backlog-aug.md"
+          },
+          "attempt": {
+            "n": 1,
+            "budget": null
+          },
+          "phase": null,
+          "builder": {
+            "agent": null,
+            "model": null
+          },
+          "risk_class": null,
+          "base_sha": "a7153194b3350c15e3eb9b09b139904f756229aa",
+          "candidate_sha": null,
+          "first_seen_ts": "2026-01-01T00:00:20.000Z",
+          "policy": "NOT_RUN",
+          "verification": "NOT_RUN",
+          "task_gate": {
+            "verdict": "NOT_RUN",
+            "grind_id": null,
+            "grind_sha256": null
+          },
+          "evaluation": {
+            "required": null,
+            "verdict": "NOT_RUN",
+            "findings": null
+          },
+          "attestation": null,
+          "merge": null,
+          "promotion": null,
+          "evidence_refs": []
+        }
+      ]
+    }
+  },
+  {
+    "submission_id": "sub-fixture-0004",
+    "source": {
+      "source_name": "backlog-aug.md",
+      "origin": "file",
+      "text": "# Backlog augusti\n\n## Mål 1 — byt telefonnumret i sidfoten\nNumret i sidfoten är gammalt och ska bytas på samtliga sidor.\n\n## Mål 2 — lägg till en offertsida\nEn ny sida med formulär för offertförfrågan, länkad från menyn.\n"
+    },
+    "submission_state": "submission.claimed_by_controller",
+    "command": {
+      "command_id": "374ee829-ead5-4610-89ca-368958869a74",
+      "verb": "intake.submit",
+      "payload": {
+        "source_ref": "source-ref-fixture-0004",
+        "source_sha256": "16d3f826a89efeb4d8e596a999f8a348c6dbc0c03df36bf99cdfe1429a7c1e39"
+      },
+      "dedup_key": "intake.submit:16d3f826a89efeb4d8e596a999f8a348c6dbc0c03df36bf99cdfe1429a7c1e39",
+      "issued_by": "fixtur",
+      "issued_at": "2026-01-01T00:00:04.000Z",
+      "expires_at": "2026-01-01T00:10:04.000Z",
+      "expected_watermark": null,
+      "status": "applied",
+      "claimed_at": "2026-01-01T00:00:05.000Z",
+      "result": null
+    },
+    "controller_answer": {
+      "tasks": [
+        {
+          "task_id": "p-221",
+          "title": "Fixturuppgift p-221",
+          "state": "READY",
+          "source": {
+            "source_id": "src-021",
+            "sha256": "d599536d5f6357a06c276af47b04dc5d5461b81b96f8e86b6d9940d978e49af3",
+            "locator": null
+          },
+          "attempt": {
+            "n": 1,
+            "budget": null
+          },
+          "phase": null,
+          "builder": {
+            "agent": null,
+            "model": null
+          },
+          "risk_class": null,
+          "base_sha": "d7cf647892b81fdb0bee250cbc24487876f82bb6",
+          "candidate_sha": null,
+          "first_seen_ts": "2026-01-01T00:00:21.000Z",
+          "policy": "NOT_RUN",
+          "verification": "NOT_RUN",
+          "task_gate": {
+            "verdict": "NOT_RUN",
+            "grind_id": null,
+            "grind_sha256": null
+          },
+          "evaluation": {
+            "required": null,
+            "verdict": "NOT_RUN",
+            "findings": null
+          },
+          "attestation": null,
+          "merge": null,
+          "promotion": null,
+          "evidence_refs": []
+        },
+        {
+          "task_id": "p-222",
+          "title": "Fixturuppgift p-222",
+          "state": "QUEUED",
+          "source": {
+            "source_id": "src-022",
+            "sha256": "cdefcc2bf212c276225afc02d2c0d663b2edd8cfb24e7c236a0c9fa4229bc7d9",
+            "locator": "backlog-aug.md"
+          },
+          "attempt": {
+            "n": 1,
+            "budget": null
+          },
+          "phase": null,
+          "builder": {
+            "agent": null,
+            "model": null
+          },
+          "risk_class": null,
+          "base_sha": "d87ecfbf5176006defb8dbe2abd7e6edcd2643c3",
+          "candidate_sha": null,
+          "first_seen_ts": "2026-01-01T00:00:22.000Z",
+          "policy": "NOT_RUN",
+          "verification": "NOT_RUN",
+          "task_gate": {
+            "verdict": "NOT_RUN",
+            "grind_id": null,
+            "grind_sha256": null
+          },
+          "evaluation": {
+            "required": null,
+            "verdict": "NOT_RUN",
+            "findings": null
+          },
+          "attestation": null,
+          "merge": null,
+          "promotion": null,
+          "evidence_refs": []
+        }
+      ]
+    }
+  }
+]
