@@ -90,6 +90,7 @@ const INTAKE_FILES = [
   "components/loop/IntakeDropzone.tsx",
   "components/loop/IntakeResult.tsx",
   "components/loop/IntakeShell.tsx",
+  "components/loop/IntakeValidationShowcase.tsx",
   "app/(app)/loop/mata/page.tsx",
 ] as const;
 
@@ -135,7 +136,12 @@ function renderResult(outcome: IntakeOutcome): string {
 
 function renderShell(): string {
   return renderToStaticMarkup(
-    createElement(IntakeShell, { outcomes: outcomes(), fixture: FIXTURE_MODE }),
+    createElement(IntakeShell, {
+      outcomes: outcomes(),
+      candidates: fixtureIntakeCandidates(),
+      overCount: fixtureIntakeOverCountSelection(),
+      fixture: FIXTURE_MODE,
+    }),
   );
 }
 
@@ -493,6 +499,60 @@ test("V8*-I2: inlämningsknappen är avstängd med ORDAGRANN orsak — ingen fej
   assert.ok(/<button[^>]*disabled/.test(html), "knappen saknar disabled-attribut");
   assert.ok(decodeEntities(html).includes(INTAKE_DISABLED_REASON), "orsaken visas inte ordagrant");
   assert.ok(html.includes(INTAKE_BLOCKED_ON));
+});
+
+/* ── 4a · Avslagen syns UTAN interaktion — annars kan de aldrig granskas ──── */
+
+test("V8*-SYNLIG: avslagsrader och antalsgränsens banner renderas serverside, inte bara efter drag", () => {
+  /*
+    Utan den här panelen uppstår avvisningarna först efter att någon dragit in filer, och en
+    granskning av faktiska skärmbilder ser dem aldrig — kriteriet vore bevisat i prov men
+    osett i verkligheten. Panelen kör fixturkandidaterna genom samma validering och samma
+    komponent som dropzonen.
+  */
+  const html = renderShell();
+  assert.ok(html.includes('data-validation-showcase="true"'), "valideringspanelen saknas");
+  assert.ok(html.includes('data-sample="mixed"'));
+  assert.ok(html.includes('data-sample="over-count"'));
+
+  // Varje avslagskod i det blandade urvalet syns med sin orsak, utan en enda klickning.
+  const mixed = validateIntakeSelection(fixtureIntakeCandidates());
+  const codes = new Set(
+    mixed.verdicts.flatMap((verdict) => (verdict.accepted ? [] : [verdict.code])),
+  );
+  assert.ok(codes.size >= 4, "fixturen täcker för få avslagsorsaker för att panelen ska bevisa något");
+  for (const code of codes) {
+    assert.ok(html.includes(`data-rejection-code="${code}"`), `orsaken ${code} syns inte`);
+  }
+  assert.ok(html.includes("mk-tone-danger"), "ingen avvisad rad renderades i danger");
+
+  // Och antalsgränsens fail-closed-banner syns i samma vy.
+  assert.ok(html.includes('data-selection-rejection="too_many_files"'));
+  assert.ok(html.includes('data-selection-fell="true"'));
+});
+
+test("V8*-SYNLIG-NEG: panelen är märkt som fixtur och kan aldrig läsas som ett gjort urval", () => {
+  const html = renderShell();
+  assert.ok(html.includes('data-fixture-driven="true"'), "panelen är inte märkt som fixturdriven");
+  assert.ok(
+    html.includes("GENERERADE fixturfiler"),
+    "panelen säger inte i klartext att raderna är fixturer",
+  );
+  assert.ok(html.includes("inget urval, ingen inlämning"));
+  // Dropzonens EGNA rapport är fortfarande tom — panelen har inte förvandlats till ett urval.
+  assert.ok(html.includes('data-selection="empty"'), "dropzonens tomma läge försvann");
+  assert.ok(!/har valts|dina filer|vald fil/i.test(html), "panelen påstod att filer valts");
+
+  // Panelen får inte bära en egen kopia av reglerna: enda vägen till en dom är lib/loop/intake.ts.
+  const source = sourceOf("components/loop/IntakeValidationShowcase.tsx");
+  assert.ok(
+    /validateIntakeSelection/.test(source),
+    "panelen använder inte den delade valideringen",
+  );
+  assert.ok(
+    !/\.md\b|text\/markdown|1048576|1_048_576|too_many_files/.test(source),
+    "panelen bär en parallell kopia av valideringsreglerna",
+  );
 });
 
 /* ── 4b · Tillgänglighet: varje kontroll har ett namn, varje orsak en koppling ─ */

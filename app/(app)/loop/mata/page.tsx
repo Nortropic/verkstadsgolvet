@@ -21,7 +21,12 @@ import { notFound } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import { isLoopEnabled } from "@/components/loop/flag";
 import IntakeShell from "@/components/loop/IntakeShell";
-import { FIXTURE_MODE, fixtureIntakeOutcomes } from "@/lib/loop/fixtures";
+import {
+  FIXTURE_MODE,
+  fixtureIntakeCandidates,
+  fixtureIntakeOutcomes,
+  fixtureIntakeOverCountSelection,
+} from "@/lib/loop/fixtures";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +34,8 @@ export default function MataMaskinenPage() {
   if (!isLoopEnabled()) notFound();
 
   const outcomes = fixtureIntakeOutcomes();
+  const candidates = fixtureIntakeCandidates();
+  const overCount = fixtureIntakeOverCountSelection();
 
   return (
     <>
@@ -36,7 +43,12 @@ export default function MataMaskinenPage() {
         title="Mata maskinen"
         sub="Markdown-intake i fixturläge — ingen transport, ingen inlämning, ingen hash. Nortropic tolkar källan, aldrig Verkstadsgolvet."
       />
-      <IntakeShell outcomes={outcomes} fixture={FIXTURE_MODE} />
+      <IntakeShell
+        outcomes={outcomes}
+        candidates={candidates}
+        overCount={overCount}
+        fixture={FIXTURE_MODE}
+      />
     </>
   );
 }

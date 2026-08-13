@@ -21,17 +21,25 @@ import {
   INTAKE_MODE,
   INTAKE_TRANSPORT,
   INTAKE_TRUST_ANCHOR,
+  type IntakeCandidate,
   type IntakeOutcome,
 } from "@/lib/loop/intake";
 import IntakeDropzone from "./IntakeDropzone";
 import IntakeResult from "./IntakeResult";
+import IntakeValidationShowcase from "./IntakeValidationShowcase";
 import { LOOP_CSS } from "./ui";
 
 export default function IntakeShell({
   outcomes,
+  candidates,
+  overCount,
   fixture = false,
 }: {
   outcomes: readonly IntakeOutcome[];
+  /** Fixturens kandidatfiler för den formella valideringens synliga panel. */
+  candidates: readonly IntakeCandidate[];
+  /** Ett urval över antalsgränsen — fail-closed-banderollen ska gå att SE, inte bara prova. */
+  overCount: readonly IntakeCandidate[];
   fixture?: boolean;
 }) {
   return (
@@ -55,6 +63,8 @@ export default function IntakeShell({
       </p>
 
       <IntakeDropzone />
+
+      <IntakeValidationShowcase candidates={candidates} overCount={overCount} />
 
       <div className="mk-intake-results" data-intake-results="true">
         {outcomes.length === 0 ? (
