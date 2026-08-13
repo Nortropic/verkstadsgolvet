@@ -10,6 +10,7 @@ import { autopilotRecover, autopilotStatus, runAutopilot, type AutopilotDeps } f
 import { acquireClaim, currentClaim, heartbeatClaim, isClaimStale, listClaims, recoverStaleClaims, releaseClaim } from '../../scripts/claude-loop/claims';
 import { autopilotDir, ledgerEntryDir, ledgerPath, ledgerOccupiedIds, loadLedger, saveLedger, writeLedgerEntry, type Ledger } from '../../scripts/claude-loop/ledger';
 import { commonGitDir } from '../../scripts/claude-loop/util';
+import { NO_PROGRESS_BLOCK_PREFIX } from '../../scripts/claude-loop/progress';
 import type { AuthorityClass, AuthoritySelection } from '../../scripts/claude-loop/authority';
 
 /**
@@ -240,26 +241,29 @@ test('base drift stops the autopilot without publishing, merging or rewriting an
   assert.equal(after.evaluations.find((e) => e.id === 'A')?.status, 'WAITING');
 });
 
-test('remediation exhaustion blocks the slice, stops the pass and survives a restart', async () => {
+test('a no-progress circuit-breaker block stops the slice, stops the pass and survives a restart', async () => {
   const repo = disposableRepo();
-  const exhausted = 'remediation budget exhausted after 4 rounds';
+  // The scheduler treats a blocked run as blocked whatever stopped it; what it must never do is
+  // retry it. The reason string is the CURRENT one the supervisor writes: the fixed remediation
+  // budget was replaced by the progress-aware circuit breaker.
+  const exhausted = `${NO_PROGRESS_BLOCK_PREFIX}identical-repeat: the reviewer finding set is materially identical to the one the preceding remediation round was asked to fix`;
   const first = harness(repo, { main: BASE_A, run: async () => { throw new Error(exhausted); } });
 
   const result = await runAutopilot({ config: config(), deps: first.deps, selection: EMPTY_SELECTION });
 
   assert.equal(result.stopReason, 'RUN_BLOCKED');
-  assert.match(result.detail, /remediation budget exhausted/);
+  assert.match(result.detail, /no-progress circuit breaker/);
   assert.deepEqual(first.starts.map((s) => s.taskId), ['A'], 'a blocked slice never silently rolls on to the next one');
   const entry = loadLedger(repo).entries.find((e) => e.taskId === 'A')!;
   assert.equal(entry.status, 'BLOCKED');
-  assert.match(entry.reason ?? '', /remediation budget exhausted/);
+  assert.match(entry.reason ?? '', /no-progress circuit breaker/);
 
   // RESTART: a brand new process with an empty heap must not retry the blocked slice, and must not
-  // widen the remediation budget by rescheduling it. Independent slices remain available.
+  // manufacture fresh remediation entitlement by rescheduling it. Independent slices remain available.
   const restarted = harness(repo, {
     main: BASE_A,
     run: async (call) => {
-      assert.notEqual(call.taskId, 'A', 'a slice blocked by remediation exhaustion must never be retried by a restart');
+      assert.notEqual(call.taskId, 'A', 'a slice blocked by the circuit breaker must never be retried by a restart');
       return doneState({ task: call.task, baseSha: call.baseSha, candidateSha: CANDIDATE_B, authorityClass: call.authorityClass });
     },
   });
@@ -543,19 +547,26 @@ test('a correctly configured visual slice reaches the run with its proven previe
   assert.equal(loadLedger(repo).entries.find((e) => e.taskId === 'A')?.status, 'AWAITING_PUBLICATION');
 });
 
-test('the persisted V8-FIXTURE record carries no Factory run or candidate, and this repair creates none', () => {
+test('reading the canonical backlog mutates no live autopilot state, and a persisted ledger entry stays occupied and internally consistent', () => {
   const repo = process.cwd();
   // Everything this test does is READ-ONLY against the real runtime state; the snapshot proves it.
   const snapshot = () => JSON.stringify({ ledger: loadLedger(repo), claims: listClaims(repo, NOW) });
   const before = snapshot();
 
+  // DURABLE invariants only. A live run legitimately advances — it starts, produces a candidate,
+  // and may merge — so pinning this entry's run id, sha or status would make a tracked test fail on
+  // an untouched checkout the moment reality moved on. What must hold forever is that an existing
+  // entry keeps the slice out of the scheduler, and that the entry never claims more than it proves.
   const entry = loadLedger(repo).entries.find((e) => e.taskId === 'V8-FIXTURE');
   if (entry) {
-    assert.equal(entry.runId, null, 'the discovered defect stopped V8-FIXTURE before any Factory run existed');
-    assert.equal(entry.candidateSha, null, 'no V8-FIXTURE candidate was ever produced');
-    assert.equal(entry.mergedMain, null, 'nothing about V8-FIXTURE was ever merged into main');
-    assert.notEqual(entry.status, 'DONE', 'the slice is not complete and this repair does not claim it is');
     assert.equal(ledgerOccupiedIds(loadLedger(repo)).has('V8-FIXTURE'), true, 'the persisted entry keeps V8-FIXTURE unschedulable until an operator clears it deliberately');
+    if (entry.status === 'DONE') {
+      assert.notEqual(entry.candidateSha, null, 'a DONE ledger entry must name the exact candidate it completed');
+      assert.notEqual(entry.mergedMain, null, 'a DONE ledger entry must name the main it merged into');
+    }
+    if (entry.mergedMain !== null) {
+      assert.equal(entry.status, 'DONE', 'a recorded merge may only ever be carried by a DONE entry');
+    }
   }
 
   // Loading, validating and materializing the canonical backlog is a pure read: it starts no run,

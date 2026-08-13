@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ConfigSchema, TaskSchema, type FactoryConfig, type Finding, type RoleResult, type RunState, type TaskSpec } from './schemas';
-import { repoRoot, readJson, nowId, slug, mainCheckout } from './util';
-import { originMain, createWorktree, changedFiles, commitCandidate, clean } from './git';
+import { ConfigSchema, TaskSchema, type FactoryConfig, type Finding, type ProgressRecord, type RoleResult, type RunState, type TaskSpec } from './schemas';
+import { repoRoot, readJson, nowId, slug, mainCheckout, git, gitRun } from './util';
+import { originMain, createWorktree, changedFiles, commitCandidate, clean, candidateTree } from './git';
 import { ClaudeRoleFailure, runRole, WRITE_ROLES, type RoleName } from './claude';
 import { assertOwnerAuthorPublicationGuard, laneForAuthorityClass, resolveAuthorityClass, type AuthorityClass, type AuthoritySelection } from './authority';
 import { assertDeclaredScope, assertNoForbiddenWorktreeFiles, formatScopeViolations, validateExactScope } from './scope';
@@ -12,8 +12,25 @@ import { runGates } from './gates';
 import { saveState, loadState } from './state';
 import { Telemetry } from './telemetry';
 import { captureVisualEvidence } from './visual-review';
-import { publish } from './publication';
+import { publish, type PublishArgs, type PublishResult } from './publication';
 import { builderRemediationFindings, reviewDisposition } from './review-policy';
+import {
+  ABSOLUTE_BACKSTOP_BLOCK_PREFIX,
+  ABSOLUTE_ROUND_BACKSTOP,
+  absoluteBackstopBlockedReason,
+  absoluteBackstopReached,
+  classifyProgress,
+  endsWithOwnerExtension,
+  findingFiles,
+  findingSetFingerprint,
+  gateFailureSetFingerprint,
+  isAbsoluteBackstopBlockedReason,
+  isLegacyBudgetBlockedReason,
+  isNoProgressBlockedReason,
+  isOwnerExtendableBlockedReason,
+  isRelevantChange,
+  ownerExtensionRecord,
+} from './progress';
 
 function mergeAdvisories(current: Finding[], next: Finding[]): Finding[] {
   const seen = new Set<string>();
@@ -131,19 +148,70 @@ export async function runBuilderWithContinuation(args: {
 
 export function nextRoundAfterRemediation(round: number): number { return round + 1; }
 
+/**
+ * The RETIRED fixed round bound.
+ *
+ * `maxRemediationRounds` remains in `ConfigSchema` because operator configuration files carry it,
+ * and this helper remains because the legacy resume/extension arithmetic for run states persisted
+ * before the circuit breaker is defined in terms of it. It no longer bounds a progressing loop:
+ * a run that keeps making progress continues past it with no operator extension at all.
+ */
 export function allowedMaxRound(config: FactoryConfig, state: RunState): number {
   return config.maxRemediationRounds + state.ownerRemediationExtensionRounds;
 }
 
+/**
+ * Owner re-open of a blocked run.
+ *
+ * Accepts BOTH the retired fixed-budget prefix (runs persisted before the breaker must stay
+ * extendable) and the no-progress breaker prefix. The absolute backstop is never extendable.
+ *
+ * The extension appends an explicit `owner-extension` marker to the append-only history, which is
+ * what gives the re-opened run a genuine fresh chance instead of re-deriving the same stale verdict
+ * from the same stale evidence. `state.attempt` is never reset, history is never truncated, and no
+ * permission, lane or scope is widened by any of this.
+ */
 export function extendRemediationState(state: RunState, config: FactoryConfig, rounds: number): RunState {
   if (!Number.isInteger(rounds) || rounds < 1 || rounds > 3) throw new Error('owner remediation extension must be 1..3 rounds');
-  if (state.phase !== 'BLOCKED' || !state.blockedReason?.startsWith('remediation budget exhausted after ')) {
-    throw new Error('owner remediation extension requires a remediation-budget BLOCKED run');
+  if (isAbsoluteBackstopBlockedReason(state.blockedReason)) {
+    throw new Error(`${ABSOLUTE_BACKSTOP_BLOCK_PREFIX}run ${state.runId} is terminally blocked and is never extendable; start a fresh sequential run`);
+  }
+  if (state.phase !== 'BLOCKED' || !isOwnerExtendableBlockedReason(state.blockedReason)) {
+    throw new Error('owner remediation extension requires a remediation-budget BLOCKED run or a no-progress circuit-breaker BLOCKED run');
+  }
+  if (absoluteBackstopReached(state.attempt)) {
+    throw new Error(`${ABSOLUTE_BACKSTOP_BLOCK_PREFIX}run ${state.runId} is at the frozen ${ABSOLUTE_ROUND_BACKSTOP}-round backstop and is never extendable; start a fresh sequential run`);
   }
   if (state.ownerRemediationExtensionRounds + rounds > 10) throw new Error('owner remediation extension exceeds state maximum');
+  // Legacy budget arithmetic is preserved EXACTLY for legacy blocked runs. A breaker-blocked run
+  // keeps the round it reached: the attempt counter only ever moves forward.
   const currentMax = allowedMaxRound(config, state);
-  const nextAttempt = state.attempt <= currentMax ? currentMax + 1 : state.attempt;
-  return { ...state, attempt: nextAttempt, ownerRemediationExtensionRounds: state.ownerRemediationExtensionRounds + rounds };
+  const nextAttempt = isLegacyBudgetBlockedReason(state.blockedReason) && state.attempt <= currentMax ? currentMax + 1 : state.attempt;
+  return {
+    ...state,
+    attempt: nextAttempt,
+    ownerRemediationExtensionRounds: state.ownerRemediationExtensionRounds + rounds,
+    progressHistory: [...state.progressHistory, ownerExtensionRecord({ round: nextAttempt, rounds })],
+  };
+}
+
+/**
+ * Pure resume guard for a run stopped by the circuit breaker.
+ *
+ * Returns the refusal message, or `null` when the resume may proceed. A breaker-blocked run needs a
+ * PRIOR owner extension exactly as a legacy budget-blocked run does; a restart on its own never
+ * manufactures fresh retry entitlement, because the entitlement is a persisted append-only marker
+ * rather than an in-memory counter. The backstop is terminal and no marker re-opens it.
+ */
+export function circuitBreakerResumeRefusal(state: RunState): string | null {
+  if (state.phase !== 'BLOCKED') return null;
+  if (isAbsoluteBackstopBlockedReason(state.blockedReason)) {
+    return `run ${state.runId} reached the frozen ${ABSOLUTE_ROUND_BACKSTOP}-round absolute backstop; it is terminally blocked and not extendable, so the only escape is a fresh sequential run`;
+  }
+  if (isNoProgressBlockedReason(state.blockedReason) && !endsWithOwnerExtension(state.progressHistory)) {
+    return `run ${state.runId} is blocked by the no-progress circuit breaker; explicit owner extend-remediation is required before resume`;
+  }
+  return null;
 }
 
 /**
@@ -231,12 +299,44 @@ export async function startRun(taskFile: string, cliOwnerAuthorTaskIds: readonly
  */
 export type RunHeartbeat = () => void;
 
+/**
+ * The supervisor's effectful seams, so the loop itself can be exercised deterministically.
+ *
+ * Production always uses `productionRunDeps`. Tests inject scripted role results and gate outcomes
+ * against DISPOSABLE Git repositories, which is what makes the circuit-breaker regressions
+ * hermetic. Nothing here is an authority seam: lane resolution, scope validation, claims, candidate
+ * lineage and the publication guards are unchanged and are not injectable.
+ */
+export type RunDeps = {
+  runRole: (args: { role: RoleName; prompt: string; cwd: string; resume?: string | null; maxTurns?: number; model?: string }) => Promise<{ sessionId: string; result: RoleResult }>;
+  runGates: (commands: string[][], cwd: string) => Promise<{ ok: boolean; failures: Array<{ command: string[]; output: string }> }>;
+  captureVisualEvidence: (task: TaskSpec, cwd: string, outDir: string) => Promise<{ files: string[]; stop: () => void }>;
+  publish: (args: PublishArgs) => PublishResult;
+  /** Where run worktrees are created. Production uses the operator's worktree root. */
+  worktreeRoot?: string;
+};
+
+export const productionRunDeps: RunDeps = { runRole, runGates, captureVisualEvidence, publish };
+
+/**
+ * The exact content identity of the worktree as a stage judged it.
+ *
+ * `write-tree` hashes the index and creates NO commit and moves NO ref, so this is a read of
+ * content rather than a mutation of history. It gives the breaker an exact answer to "did anything
+ * at all change between these two gate runs", which a changed-file name list cannot give.
+ */
+function worktreeTreeSha(worktree: string): string {
+  gitRun(worktree, ['add', '--all']);
+  return git(worktree, 'write-tree');
+}
+
 export async function startRunFromTask(args: {
   repo?: string;
   config?: FactoryConfig;
   task: TaskSpec;
   authorityClass: AuthorityClass;
   heartbeat?: RunHeartbeat;
+  deps?: RunDeps;
 }): Promise<RunState> {
   const repo = args.repo ?? repoRoot();
   const config = args.config ?? loadConfig(repo);
@@ -249,12 +349,16 @@ export async function startRunFromTask(args: {
   const main = originMain(repo);
   const baseSha = task.baseSha ?? main;
   if (task.baseSha && task.baseSha !== main) throw new Error(`explicit task base is not current origin/main`);
+  const deps = args.deps ?? productionRunDeps;
   const runId = `${slug(task.id)}-${nowId()}`;
-  const wtRoot = path.join(os.homedir(), 'nortropic', 'worktrees', 'claude-factory');
+  const wtRoot = deps.worktreeRoot ?? path.join(os.homedir(), 'nortropic', 'worktrees', 'claude-factory');
   const { worktree, branch } = createWorktree(repo, wtRoot, task.id, runId, baseSha);
-  let state: RunState = { version: 1, runId, task, authorityClass, baseSha, branch, worktree, phase: 'ARCHITECT', attempt: 0, candidateSha: null, sessions: { architect: null, builder: null, reviewer: null, visualReviewer: null }, ownerRemediationExtensionRounds: 0, builderContinuationResumesUsed: 0, findings: [], advisoryFindings: [], prUrl: null, blockedReason: null };
+  // The frozen base is the first entry of the append-only progress history, so a later candidate
+  // that undoes the whole run back to the base tree is recognised as oscillation rather than work.
+  const baseRecord: ProgressRecord = { round: 0, source: 'builder', kind: 'base', candidateSha: baseSha, candidateTree: candidateTree(worktree), fingerprint: '', files: [], relevantChange: false, detail: 'frozen base' };
+  let state: RunState = { version: 1, runId, task, authorityClass, baseSha, branch, worktree, phase: 'ARCHITECT', attempt: 0, candidateSha: null, sessions: { architect: null, builder: null, reviewer: null, visualReviewer: null }, ownerRemediationExtensionRounds: 0, builderContinuationResumesUsed: 0, progressHistory: [baseRecord], findings: [], advisoryFindings: [], prUrl: null, blockedReason: null };
   saveState(repo, state);
-  return await execute(repo, config, state, args.heartbeat);
+  return await execute(repo, config, state, args.heartbeat, deps);
 }
 
 export async function resumeRun(runId: string, cliOwnerAuthorTaskIds: readonly string[] = []): Promise<RunState> {
@@ -279,9 +383,14 @@ export async function resumeRun(runId: string, cliOwnerAuthorTaskIds: readonly s
   if (builderContinuationResumeBlocked(config, state)) {
     throw new Error(`builder continuation budget exhausted (${state.builderContinuationResumesUsed}/${config.maxBuilderContinuationResumes}); raise maxBuilderContinuationResumes above ${state.builderContinuationResumesUsed} before resume`);
   }
+  // A run stopped by the circuit breaker is re-opened by an owner extension, never by a restart:
+  // the entitlement is the persisted append-only marker, so repeating `resume` changes nothing.
+  const breakerRefusal = circuitBreakerResumeRefusal(state);
+  if (breakerRefusal) throw new Error(breakerRefusal);
+  // Legacy fixed-budget blocked runs keep their EXACT previous resume semantics and message.
   const maxRound = allowedMaxRound(config, state);
   const legacyExhausted = state.ownerRemediationExtensionRounds === 0 && state.attempt === config.maxRemediationRounds;
-  if (state.phase === 'BLOCKED' && state.blockedReason?.startsWith('remediation budget exhausted after ') && (legacyExhausted || state.attempt > maxRound)) {
+  if (state.phase === 'BLOCKED' && isLegacyBudgetBlockedReason(state.blockedReason) && (legacyExhausted || state.attempt > maxRound)) {
     throw new Error('remediation budget exhausted; explicit owner extend-remediation is required before resume');
   }
 
@@ -315,11 +424,15 @@ export function extendRemediationBudget(runId: string, rounds: number): RunState
     rounds,
     total_extension_rounds: next.ownerRemediationExtensionRounds,
     next_round: next.attempt,
+    progress_history: next.progressHistory.length,
   });
   return next;
 }
 
-async function execute(repo: string, config: FactoryConfig, state: RunState, heartbeat?: RunHeartbeat): Promise<RunState> {
+export async function execute(repo: string, config: FactoryConfig, state: RunState, heartbeat?: RunHeartbeat, runDeps: RunDeps = productionRunDeps): Promise<RunState> {
+  // Shadowed deliberately: the production wiring below is byte-for-byte the same call it always
+  // was, and the seam only decides WHICH implementation those exact call sites reach.
+  const { runRole, runGates, captureVisualEvidence, publish } = runDeps;
   const t = new Telemetry(repo, state.runId);
   // The lane is derived from the PERSISTED effective authority class, never from task file data
   // that could have changed since the run started.
@@ -339,6 +452,25 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
     saveState(repo, s);
   };
 
+  /**
+   * The single circuit-breaker point of the run.
+   *
+   * The verdict is computed from the PERSISTED history plus the record about to be appended, the
+   * record is appended and persisted whether or not it blocks (evidence is never withheld from the
+   * audit trail), and a BLOCK then throws so the run fails closed before the next remediation round
+   * can start. History is append-only here and nowhere else rewrites it.
+   */
+  const recordProgress = (record: ProgressRecord): void => {
+    const verdict = classifyProgress(state.progressHistory, record);
+    state.progressHistory = [...state.progressHistory, record];
+    persistRunState(state);
+    t.emit('progress.recorded', { round: record.round, source: record.source, kind: record.kind, fingerprint: record.fingerprint, files: record.files, relevant_change: record.relevantChange, candidate_sha: record.candidateSha, candidate_tree: record.candidateTree, verdict: verdict.verdict });
+    if (verdict.verdict === 'BLOCK') {
+      t.emit('circuit_breaker.blocked', { rule: verdict.rule, round: record.round, source: record.source, fingerprint: record.fingerprint, reason: verdict.reason });
+      throw new Error(verdict.reason);
+    }
+  };
+
   try {
     assertOwnerAuthorPublicationGuard({ authorityClass: state.authorityClass, autoMerge: config.publish.autoMerge });
     assertDeclaredScope({ taskId: state.task.id, allowedWrite: state.task.allowedWrite, lane });
@@ -350,8 +482,19 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
       if (a.result.outcome !== 'READY') throw new Error(`architect not READY outcome=${a.result.outcome}: ${a.result.summary}`);
     }
 
-    const maxRound = allowedMaxRound(config, state);
-    for (let round = state.attempt; round <= maxRound; round++) {
+    // NO fixed round bound. The loop continues for as long as every completed round is PROGRESS;
+    // the progress-aware circuit breaker below is what stops it, and the frozen absolute backstop
+    // is the terminal defense against pathological always-different churn.
+    for (let round = state.attempt; ; round++) {
+      if (absoluteBackstopReached(round)) {
+        t.emit('circuit_breaker.blocked', { rule: 'absolute-backstop', round, backstop: ABSOLUTE_ROUND_BACKSTOP });
+        throw new Error(absoluteBackstopBlockedReason({ runId: state.runId, round }));
+      }
+      // What THIS round was asked to fix, captured before the write role can change it.
+      const remediating = state.findings.map((f) => ({ ...f }));
+      const remediatingFingerprint = findingSetFingerprint(remediating);
+      const remediatingFiles = findingFiles(remediating);
+      const roundBase = state.candidateSha ?? state.baseSha;
       state.attempt = round; state.phase = round === 0 ? 'BUILD' : 'REMEDIATE'; persistRunState(state);
       t.emit(round === 0 ? 'builder.started' : 'builder.remediation_started', { task: state.task.id, round, role: writeRole, authority_class: state.authorityClass });
       const supervisorGateHandoff = `If a required task gate is blocked inside the Claude sandbox by network or permission limits, do not bypass it and do not spend turns trying to prove the environment failure. Record the limitation and return READY when implementation is complete; the supervisor executes task.gates mechanically outside the model sandbox.`;
@@ -377,6 +520,17 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
       if (builderRemediation) {
         state.findings = builderRemediation; state.attempt = nextRoundAfterRemediation(round); persistRunState(state);
         t.emit('builder.self_remediation_requested', { round, findings: builderRemediation });
+        recordProgress({
+          round,
+          source: 'builder',
+          kind: 'findings',
+          candidateSha: state.candidateSha,
+          candidateTree: worktreeTreeSha(state.worktree),
+          fingerprint: findingSetFingerprint(builderRemediation),
+          files: findingFiles(builderRemediation),
+          relevantChange: isRelevantChange({ findingFiles: remediatingFiles, changedFiles: changedFiles(state.worktree, roundBase) }),
+          detail: 'write role requested its own remediation',
+        });
         continue;
       }
 
@@ -398,6 +552,20 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
       if (!gates.ok) {
         state.findings = gates.failures.map((g, i) => ({ id: `gate-${i+1}`, severity: 'major' as const, message: `${g.command.join(' ')} failed\n${g.output}` }));
         state.attempt = nextRoundAfterRemediation(round); persistRunState(state);
+        // A gate failure is fingerprinted from the exact argv and the first output line, and judged
+        // against the exact content the gate ran on, so "the same failure on the same tree" is a
+        // mechanical fact rather than an impression.
+        recordProgress({
+          round,
+          source: 'gates',
+          kind: 'findings',
+          candidateSha: state.candidateSha,
+          candidateTree: worktreeTreeSha(state.worktree),
+          fingerprint: gateFailureSetFingerprint(gates.failures),
+          files: [],
+          relevantChange: isRelevantChange({ findingFiles: remediatingFiles, changedFiles: files }),
+          detail: gates.failures.map((g) => g.command.join(' ')).join(' ; '),
+        });
         continue;
       }
       const changedNow = changedFiles(state.worktree, state.candidateSha ?? state.baseSha);
@@ -405,7 +573,34 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
         // Each round appends a NEW immutable candidate commit; nothing is ever amended or reset.
         state.candidateSha = commitCandidate(state.worktree, state.task.id, round);
         t.emit('candidate.created', { candidate_sha: state.candidateSha, round });
+        recordProgress({
+          round,
+          source: 'builder',
+          kind: 'candidate',
+          candidateSha: state.candidateSha,
+          candidateTree: candidateTree(state.worktree),
+          fingerprint: remediatingFingerprint,
+          files: remediatingFiles,
+          relevantChange: isRelevantChange({ findingFiles: remediatingFiles, changedFiles: changedNow }),
+          detail: `candidate round ${round}`,
+        });
       } else if (!state.candidateSha) throw new Error('builder produced no candidate changes');
+      else if (remediating.length) {
+        // READY without a single change while findings were pending. The FIRST one is recorded and
+        // the unchanged candidate still goes to a fresh independent review, because an independent
+        // reviewer may legitimately withdraw its own finding; a second consecutive one blocks.
+        recordProgress({
+          round,
+          source: 'builder',
+          kind: 'no-change-ready',
+          candidateSha: state.candidateSha,
+          candidateTree: candidateTree(state.worktree),
+          fingerprint: remediatingFingerprint,
+          files: remediatingFiles,
+          relevantChange: false,
+          detail: 'write role reported READY without creating any change',
+        });
+      }
 
       // Cumulative candidate scope: the whole candidate against the frozen base, not just this
       // round's delta, so an out-of-scope file from an earlier round cannot survive into review.
@@ -415,6 +610,25 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
         t.emit('scope.violation', { round, lane, stage: 'candidate', violations: candidateViolations });
         throw new Error(`candidate allowed-write violation: ${formatScopeViolations(candidateViolations)}`);
       }
+
+      /**
+       * One independent-review stage, as breaker evidence.
+       *
+       * `relevantChange` answers the question the identical-repeat rule asks: did the remediation
+       * that led INTO this review touch any file the finding set it was remediating named? A
+       * finding set naming no file is answered by any candidate change at all.
+       */
+      const reviewProgressRecord = (a: { round: number; source: 'reviewer' | 'visual-reviewer'; actionable: Finding[]; action: 'PASS' | 'REMEDIATE' }): ProgressRecord => ({
+        round: a.round,
+        source: a.source,
+        kind: a.action === 'REMEDIATE' ? 'findings' : 'clear',
+        candidateSha: state.candidateSha,
+        candidateTree: candidateTree(state.worktree),
+        fingerprint: findingSetFingerprint(a.actionable),
+        files: findingFiles(a.actionable),
+        relevantChange: isRelevantChange({ findingFiles: remediatingFiles, changedFiles: files }),
+        detail: a.action === 'REMEDIATE' ? `${a.actionable.length} actionable finding${a.actionable.length === 1 ? '' : 's'}` : 'no actionable findings',
+      });
 
       state.phase = 'REVIEW'; state.findings = []; persistRunState(state);
       t.emit('review.started', { candidate_sha: state.candidateSha, round });
@@ -426,6 +640,9 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
       state.findings = rd.actionable; persistRunState(state);
       t.emit(rd.action === 'REMEDIATE' ? 'review.findings' : rd.advisories.length ? 'review.passed_with_advisories' : 'review.passed', { session_id: r.sessionId, outcome: r.result.outcome, findings: r.result.findings.length, actionable: rd.actionable, advisories: rd.advisories, round });
       if (rd.action === 'BLOCK') throw new Error(`reviewer blocked: ${r.result.summary}`);
+      // Advisories are excluded by construction: only the ACTIONABLE set is ever fingerprinted, so
+      // notes can accumulate forever without ever producing a breaker verdict.
+      recordProgress(reviewProgressRecord({ round, source: 'reviewer', actionable: rd.actionable, action: rd.action }));
       if (rd.action === 'REMEDIATE') { state.attempt = nextRoundAfterRemediation(round); persistRunState(state); continue; }
 
       if (state.task.visualReview) {
@@ -441,12 +658,29 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
           state.findings = vd.actionable; persistRunState(state);
           t.emit(vd.action === 'REMEDIATE' ? 'visual.findings' : vd.advisories.length ? 'visual.passed_with_advisories' : 'visual.passed', { session_id: v.sessionId, outcome: v.result.outcome, findings: v.result.findings.length, actionable: vd.actionable, advisories: vd.advisories, round });
           if (vd.action === 'BLOCK') throw new Error(`visual reviewer blocked: ${v.result.summary}`);
+          // Visual findings drive exactly the same progress semantics as reviewer findings.
+          recordProgress(reviewProgressRecord({ round, source: 'visual-reviewer', actionable: vd.actionable, action: vd.action }));
           if (vd.action === 'REMEDIATE') { state.attempt = nextRoundAfterRemediation(round); persistRunState(state); continue; }
         } finally { capture.stop(); }
       }
 
       const finalGates = await runGates(state.task.gates, state.worktree);
-      if (!finalGates.ok) { state.findings = finalGates.failures.map((g,i) => ({ id:`final-gate-${i+1}`, severity:'major' as const, message:`${g.command.join(' ')} failed\n${g.output}` })); state.attempt = nextRoundAfterRemediation(round); persistRunState(state); continue; }
+      if (!finalGates.ok) {
+        state.findings = finalGates.failures.map((g,i) => ({ id:`final-gate-${i+1}`, severity:'major' as const, message:`${g.command.join(' ')} failed\n${g.output}` }));
+        state.attempt = nextRoundAfterRemediation(round); persistRunState(state);
+        recordProgress({
+          round,
+          source: 'gates',
+          kind: 'findings',
+          candidateSha: state.candidateSha,
+          candidateTree: candidateTree(state.worktree),
+          fingerprint: gateFailureSetFingerprint(finalGates.failures),
+          files: [],
+          relevantChange: isRelevantChange({ findingFiles: remediatingFiles, changedFiles: files }),
+          detail: `final ${finalGates.failures.map((g) => g.command.join(' ')).join(' ; ')}`,
+        });
+        continue;
+      }
       if (!clean(state.worktree)) throw new Error('worktree dirty after final candidate/gates');
 
       if (config.publish.enabled) {
@@ -458,7 +692,6 @@ async function execute(repo: string, config: FactoryConfig, state: RunState, hea
       persistRunState(completed); t.emit('run.completed', { task: completed.task.id, candidate_sha: completed.candidateSha, pr: completed.prUrl, advisory_findings: completed.advisoryFindings });
       return completed;
     }
-    throw new Error(`remediation budget exhausted after ${maxRound + 1} rounds`);
   } catch (e) {
     state.phase = 'BLOCKED'; state.blockedReason = e instanceof Error ? e.message : String(e);
     if (e instanceof ClaimLostError) {

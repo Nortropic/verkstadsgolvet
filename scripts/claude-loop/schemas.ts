@@ -161,6 +161,42 @@ export const ConfigSchema = z.object({
 });
 export type FactoryConfig = z.infer<typeof ConfigSchema>;
 
+/**
+ * The stage whose judgement a progress record captures.
+ *
+ * `owner-extension` is not a stage: it is the explicit marker an owner re-open appends, so the
+ * append-only history itself records that a human, not a countdown, re-opened the run.
+ */
+export const ProgressSourceSchema = z.enum(['gates', 'reviewer', 'visual-reviewer', 'builder', 'owner-extension']);
+export type ProgressSource = z.infer<typeof ProgressSourceSchema>;
+
+export const ProgressRecordKindSchema = z.enum(['findings', 'clear', 'candidate', 'base', 'no-change-ready', 'owner-extension']);
+export type ProgressRecordKind = z.infer<typeof ProgressRecordKindSchema>;
+
+/**
+ * One append-only observation the remediation circuit breaker reasons over.
+ *
+ * Records are evidence. They are never rewritten, never removed and never reordered, and a resume
+ * loads and continues the SAME history — so a restart re-derives the identical verdict instead of
+ * manufacturing fresh retry entitlement.
+ */
+export const ProgressRecordSchema = z.object({
+  round: z.number().int().nonnegative(),
+  source: ProgressSourceSchema,
+  kind: ProgressRecordKindSchema,
+  /** The candidate the stage judged, and its exact content identity. */
+  candidateSha: z.string().nullable().default(null),
+  candidateTree: z.string().nullable().default(null),
+  /** Stable fingerprint of the actionable finding set (or gate failure set) produced. */
+  fingerprint: z.string(),
+  /** The exact repo-relative paths those findings named. */
+  files: z.array(z.string()).default([]),
+  /** Did the remediation leading into this stage change a file the finding set named? */
+  relevantChange: z.boolean(),
+  detail: z.string().nullable().default(null),
+});
+export type ProgressRecord = z.infer<typeof ProgressRecordSchema>;
+
 export const RunStateSchema = z.object({
   version: z.literal(1),
   runId: z.string(),
@@ -186,6 +222,13 @@ export const RunStateSchema = z.object({
    * files without the field parse as 0.
    */
   builderContinuationResumesUsed: z.number().int().nonnegative().default(0),
+  /**
+   * APPEND-ONLY progress evidence, owned by the remediation circuit breaker.
+   *
+   * `.default([])` so every run state persisted before the breaker existed keeps parsing, and so a
+   * legacy BLOCKED run stays loadable, extendable and resumable exactly as it was.
+   */
+  progressHistory: z.array(ProgressRecordSchema).default([]),
   findings: z.array(FindingSchema),
   advisoryFindings: z.array(FindingSchema).default([]),
   prUrl: z.string().nullable(),
