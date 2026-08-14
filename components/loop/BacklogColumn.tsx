@@ -14,6 +14,7 @@
  * · Kolumnen äger ingen datahämtning.
  */
 import * as React from "react";
+import Link from "next/link";
 import { TASK_LIFECYCLE_PRESENTATION } from "@/lib/loop/labels";
 import { TASK_LIFECYCLE, type TaskLifecycle, type TaskView } from "@/lib/loop/schema";
 import TaskCard from "./TaskCard";
@@ -38,13 +39,18 @@ export default function BacklogColumn({ tasks }: { tasks: readonly TaskView[] })
       </h2>
 
       {/*
-        V8* · planens primära CTA överst i kolumnen. En vanlig `<a>`, inte `next/link`: hela
-        /loop-trädet renderas i prov utan Next-router, och en full sidnavigering är rätt
-        beteende för en egen route. Knappen ÖPPNAR bara intake-ytan — den lämnar inte in något.
+        V8* · planens primära CTA överst i kolumnen — nu via `next/link`.
+
+        En rå `<a>` tvingar fram en FULL omladdning av kontrollrummet: sidan rivs, klientens
+        tillstånd slängs och operatören betalar en kall start för att öppna en intern route.
+        `next/link` gör samma navigering på appens egna villkor (klientnavigering + prefetch)
+        och renderar fortfarande ett vanligt `<a href>` — samma markup, samma URL, samma
+        beteende för mitten-klick och skärmläsare. Länken ÖPPNAR bara intake-ytan; den lämnar
+        inte in något.
       */}
-      <a className="mk-link" href="/loop/mata" data-intake-cta="true">
+      <Link className="mk-link" href="/loop/mata" data-intake-cta="true">
         + Mata maskinen
-      </a>
+      </Link>
 
       {groups.length === 0 && (
         <p className="mk-empty">Snapshoten har ingen uppgift i backlog.</p>

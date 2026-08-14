@@ -139,10 +139,18 @@ export const LOOP_CSS = `
   text-transform: uppercase; color: var(--text-secondary); display: flex; justify-content: space-between;
   gap: 10px; flex-wrap: wrap; }
 .mk-panel-title .mk-col-count { color: var(--text-muted); font-weight: 400; letter-spacing: 0.6px; }
-.mk-drop { border-radius: var(--radius-control); background: var(--bg-surface-0);
-  box-shadow: inset 0 0 0 1px var(--border-strong); padding: 22px 18px; display: flex;
+/* Zonen ska SE droppbar ut i vila. En jämn kant läser som en vanlig ruta; den streckade kanten
+   är den etablerade affordansen för "något kan släppas här" och kräver ingen ny färg och ingen
+   ny text. Regeln position: relative är inte kosmetik: den dolda filkontrollen (.mk-sr-only)
+   positioneras absolut och skulle utan en positionerad förälder lägga sig mot viewporten i
+   stället för mot sin egen zon. */
+.mk-drop { position: relative; border-radius: var(--radius-control); background: var(--bg-surface-0);
+  border: 1px dashed var(--border-strong); padding: 21px 17px; display: flex;
   flex-direction: column; align-items: center; gap: 8px; text-align: center; }
-.mk-drop-over { background: var(--tint-accent-bg); box-shadow: inset 0 0 0 1px var(--tint-accent-border); }
+/* Aktivt läge: samma tint som förut, men kanten blir HEL — skillnaden mellan "kan släppas här"
+   och "släpp nu" syns då även utan färgseende. */
+.mk-drop-over { background: var(--tint-accent-bg); border-style: solid; border-color: var(--tint-accent-border);
+  box-shadow: inset 0 0 0 1px var(--tint-accent-border); }
 .mk-drop-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
 /* Namnet PÅ en kontroll, inte en sektionsrubrik: .mk-label:s versala 9.5px-mono läses som
    kapitälrubrik och gör kontrollens namn otydligt. Egen klass, samma tokens. */
@@ -165,14 +173,22 @@ export const LOOP_CSS = `
   border: 0; border-radius: var(--radius-control); padding: 10px 11px; resize: vertical; min-height: 120px; }
 .mk-list { display: flex; flex-direction: column; gap: 6px; }
 /* Ett fällt urval listar fortfarande VARJE fil — ingen faller bort tyst — men raderna bär då
-   ingen egen orsak och kan därför stå i flera spalter på breda vyer. */
-@media (min-width: 960px) {
+   ingen egen orsak och kan därför stå i flera spalter så snart bredden räcker. Regeln sitter på
+   den BEFINTLIGA 720-pinnen (ingen ny brytpunkt införs): vid 960px stackades tjugoen orsakslösa
+   kort till en enda spalt på surfplattans 900px — exakt den vy de var tänkta att komprimera.
+   Radernas namn bryts vid behov (overflow-wrap i .mk-file-name), så en smalare spalt kapar
+   ingenting. */
+@media (min-width: 720px) {
   .mk-list-dense { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 .mk-file { display: flex; flex-direction: column; gap: 3px; background: var(--bg-surface-1);
   box-shadow: var(--hairline); border-radius: var(--radius-control); padding: 9px 11px; min-width: 0; }
 .mk-file.mk-tone-danger { background: var(--tint-danger-bg); box-shadow: inset 0 0 0 1px var(--tint-danger-border); }
 .mk-file.mk-tone-success { background: var(--tint-success-bg); box-shadow: inset 0 0 0 1px var(--tint-success-border); }
+/* En formellt felfri fil i ett FÄLLT urval: varken grön (den lämnas inte in) eller röd (den är
+   inte fel). Nedtonad — utfallet ska läsas blockerat i sin helhet. */
+.mk-file.mk-file-blocked { background: var(--bg-surface-0); box-shadow: var(--hairline); }
+.mk-file.mk-file-blocked .mk-file-name { color: var(--text-muted); }
 .mk-file-name { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-primary); overflow-wrap: anywhere; }
 .mk-file-reason { font-size: 11.5px; line-height: 1.5; color: var(--text-secondary); }
 .mk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -185,7 +201,17 @@ export const LOOP_CSS = `
 .mk-button:not(:disabled) { color: var(--text-primary); background: var(--bg-surface-2);
   box-shadow: inset 0 0 0 1px var(--border-strong); cursor: pointer; }
 .mk-button:not(:disabled):hover { background: var(--bg-surface-3); }
+/* En knapp med aria-disabled är blockerad utan att vara nativt avstängd: fokus når den,
+   så att orsaken FAKTISKT läses upp (nativt disabled hoppas över av flera skärmläsarpar). Då
+   måste den också SE avstängd ut — annars ser en stängd kanal öppen ut. Reglerna står efter
+   :not(:disabled)-paret och vinner på ordning vid samma specificitet. */
+.mk-button[aria-disabled="true"], .mk-button[aria-disabled="true"]:hover {
+  color: var(--text-disabled); background: var(--bg-surface-1);
+  box-shadow: inset 0 0 0 1px var(--border-strong); cursor: not-allowed; }
 .mk-button:focus-visible { box-shadow: var(--focus-ring); }
+/* Fokusringen måste vinna över den avstängda formens egen skugga — annars blir en blockerad
+   knapp osynlig för tangentbordet i samma stund den blir fokuserbar. */
+.mk-button[aria-disabled="true"]:focus-visible { box-shadow: var(--focus-ring); }
 .mk-command { display: flex; flex-direction: column; gap: 6px; }
 .mk-link { font-size: 12px; color: var(--accent-text); text-decoration: none; box-shadow: var(--hairline);
   border-radius: var(--radius-control); padding: 7px 11px; background: var(--bg-surface-1); display: inline-block; }

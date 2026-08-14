@@ -15,7 +15,9 @@
  *   resultatkarta är OPAK (S13/B5 olöst): inget namngivet fält läses ur den, hela kartan visas.
  *   Ingen orsak skrivs om till något vänligare och ingen "försök igen"-knapp erbjuds.
  * · NEEDS_SPEC är ett ARBETSLÄGE i warning — aldrig en röd feldialog. Åtgärden är att
- *   komplettera källan, som visas oförändrad nedanför.
+ *   komplettera källan, som visas oförändrad OVANFÖR arbetsläget: originalkällan renderas före
+ *   tolkningsgruppen, och varje riktningsangivelse i den här ytan ska peka åt det håll texten
+ *   faktiskt står.
  * · Inlämningsläget (`submission.*`) är en UI-LOKAL namnrymd (B1) och är ALDRIG task state.
  * · Ingen transport, ingen hash, ingen klocka. Komponenten renderar det den fått.
  */
@@ -26,9 +28,9 @@ import {
   SUBMISSION_PRESENTATION,
   SUBMISSION_WAITING_TEXT,
   controllerTaskCount,
-  groupDigits,
   isRejected,
   sourceStats,
+  sourceStatsText,
   uiGeneratedTaskCount,
   verbatimRejection,
   type IntakeOutcome,
@@ -50,9 +52,9 @@ function SourcePanel({ outcome }: { outcome: IntakeOutcome }) {
           {outcome.source.source_name}
         </span>
       </div>
+      {/* Samma måttformatering som dropzonens rad — samma gruppering på tecken, rader OCH byte. */}
       <p className="mk-hint" data-source-stats="true">
-        {stats.characters} tecken · {stats.lines} rader · {groupDigits(stats.bytes)} byte. Räkningen
-        är hela den tolkning Verkstadsgolvet gör av källan.
+        {sourceStatsText(stats)}. Räkningen är hela den tolkning Verkstadsgolvet gör av källan.
       </p>
       <pre className="mk-raw" data-source-raw="true">
         {outcome.source.text}
