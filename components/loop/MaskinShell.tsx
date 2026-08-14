@@ -36,7 +36,6 @@ import BacklogColumn from "./BacklogColumn";
 import CommandDeck from "./CommandDeck";
 import LiveEventStream from "./LiveEventStream";
 import FactoryRoomHeader from "./room/FactoryRoomHeader";
-import IdentityStrip from "./room/IdentityStrip";
 import OutputTray from "./room/OutputTray";
 import RoomStep from "./room/RoomStep";
 import RoomTimeline from "./room/RoomTimeline";
@@ -80,6 +79,15 @@ export default function MaskinShell({
           */}
           <FactoryRoomHeader snapshot={snapshot} fixture={fixture} />
 
+          {/*
+            SCENEN ÄR TVÅ BANOR, INTE TRE.
+
+            Ingången (mata + kö) och arbetet står sida vid sida; UTMATNINGEN är en HYLLA under
+            dem, i rummets fulla bredd. Skälet är mätt, inte smaksatt: kön är lång och
+            utmatningen kort, så en tredje smal bana lämnade drygt en skärmhöjd tomt rutnät till
+            höger — precis den "vägg av kort" som en rumsvy inte får bli. Ordningen är fortfarande
+            planens: in → arbete → ut, nu som läsordning i stället för tre lika tunga spalter.
+          */}
           <div className="rm-stage" data-room-stage="true">
             <div className="rm-lane rm-lane-in" data-room-lane="in">
               <RoomStep ordinal="1" name="in" />
@@ -87,28 +95,23 @@ export default function MaskinShell({
               <BacklogColumn tasks={snapshot.backlog} />
             </div>
 
-            <TaskFocusRail task={snapshot.current_task} fixture={fixture} />
-
-            <OutputTray tasks={snapshot.completed} />
+            {/*
+              Fokusbanan bär det som handlar om det pågående arbetet: uppgiften, identiteten och
+              V7:s kommandoyta. Kommandoytan monteras HÄR av skalet (den läser bara snapshotens
+              egna värden — run_id, aktuell uppgift och det vattenmärke vyn såg) och skickas in
+              som barn, så att banan äger placeringen utan att äga ytan.
+            */}
+            <TaskFocusRail task={snapshot.current_task}>
+              <CommandDeck
+                runId={snapshot.run_id}
+                watermark={snapshot.seq_watermark}
+                currentTaskId={snapshot.current_task?.task_id ?? null}
+              />
+            </TaskFocusRail>
           </div>
 
-          {/*
-            Identitetsremsan hör till den uppgift rummet tittar på: registrerad builder-agent och
-            modell ur snapshoten, allt annat som "—". En workflowsroll är arbetsflöde, aldrig en
-            säkerhetsgräns — och ett rollnamn bevisar aldrig en mekanisk förmåga.
-          */}
-          <IdentityStrip task={snapshot.current_task} />
-
-          {/*
-            V7 · kommandoytan. Den läser BARA snapshotens egna värden (run_id, aktuell uppgift
-            och det vattenmärke vyn såg) och ändrar aldrig något i ytorna ovan: task state
-            kommer ur controllerns snapshot, aldrig ur ett klick.
-          */}
-          <CommandDeck
-            runId={snapshot.run_id}
-            watermark={snapshot.seq_watermark}
-            currentTaskId={snapshot.current_task?.task_id ?? null}
-          />
+          {/* Hyllan: klart och ej promoverat, i full bredd under scenen. */}
+          <OutputTray tasks={snapshot.completed} />
 
           {/*
             Tidslinjen är SEGMENTERAD presentation: operatörens poster och fabrikens kvitton ur

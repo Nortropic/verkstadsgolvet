@@ -17,6 +17,7 @@
  */
 import * as React from "react";
 import CurrentTaskPanel from "../CurrentTaskPanel";
+import IdentityStrip from "./IdentityStrip";
 import RoomStep from "./RoomStep";
 import type { TaskView } from "@/lib/loop/schema";
 
@@ -25,35 +26,39 @@ export const FOCUS_STEP = "arbetet";
 export const FOCUS_STEP_ORDINAL = "2";
 
 /**
- * KÄLLAN HÄRLEDS UR LÄGET, REGELN GÖR DET INTE.
+ * NOTISEN SÄGER BARA DET SOM BARA DEN KAN SÄGA.
  *
- * Vilken KÄLLA mitten läser är olika i fixturläge och live — och en mening som påstår
- * controllerpublicerad härkomst för fixturdata motsäger både statusradens FIXTUR-märke och
- * sidhuvudets egen sanningsrad. REGELN är däremot densamma i båda lägena: tillståndet kommer ur
- * den snapshot vyn fått, aldrig ur strömmen. Därför byter första meningen med läget, medan andra
- * meningen står fast.
+ * Härkomsten (fixtur eller controllerns snapshot) står EN gång, i rummets ingress, och bärs
+ * dessutom av statusradens FIXTUR-märke. Att upprepa den här hade varit samma påstående i två
+ * intilliggande stycken. Kvar står det som är MITTENS eget och som gäller i båda lägena:
+ * tillståndet kommer ur snapshoten, aldrig ur strömmen nedan.
  */
-export function focusNote(fixture: boolean): string {
-  const source = fixture
-    ? "Mitten kommer ur den genererade fixturen — inte ur controllern."
-    : "Mitten kommer ur controllerns publicerade snapshot.";
-  return `${source} Regeln är densamma i båda lägena: tillståndet kommer ur snapshoten, aldrig ur strömmen nedan.`;
-}
+export const FOCUS_NOTE = "Tillståndet kommer ur snapshoten, aldrig ur strömmen nedan.";
 
 export default function TaskFocusRail({
   task,
-  fixture,
+  children,
 }: {
   task: TaskView | null;
-  fixture: boolean;
+  /**
+   * Ytor som hör till det fokuserade arbetet och som skalet äger monteringen av (V7:s
+   * kommandoyta). De läggs SIST i banan, under identiteten.
+   */
+  children?: React.ReactNode;
 }) {
   return (
     <div className="rm-lane rm-lane-focus" data-task-focus-rail="true">
       <RoomStep ordinal={FOCUS_STEP_ORDINAL} name={FOCUS_STEP} />
       <CurrentTaskPanel task={task} />
-      <p className="rm-head-note" data-focus-source={fixture ? "fixture" : "snapshot"}>
-        {focusNote(fixture)}
-      </p>
+      <p className="rm-head-note">{FOCUS_NOTE}</p>
+      {/*
+        Identitetsremsan handlar om DEN HÄR uppgiften — vem/vad som registrerats, och allt det
+        rummet inte vet. Den hör därför hemma i fokusbanan, inte som ett eget fullbrett band
+        under scenen: där låg den både längre från sitt föremål och lämnade mitten så kort att
+        scenen blev ett halvtomt rutnät.
+      */}
+      <IdentityStrip task={task} />
+      {children}
     </div>
   );
 }

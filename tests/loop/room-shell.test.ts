@@ -35,7 +35,7 @@ import MaskinShell from "../../components/loop/MaskinShell";
 import IdentityStrip from "../../components/loop/room/IdentityStrip";
 import RoomTimeline from "../../components/loop/room/RoomTimeline";
 import WorkComposer from "../../components/loop/room/WorkComposer";
-import { FOCUS_STEP, focusNote } from "../../components/loop/room/TaskFocusRail";
+import { FOCUS_NOTE, FOCUS_STEP } from "../../components/loop/room/TaskFocusRail";
 import { TRAY_NOTE, TRAY_STEP } from "../../components/loop/room/OutputTray";
 import { ROOM_CSS, ROOM_CSS_PREFIX } from "../../components/loop/room/ui";
 import { LOOP_CSS } from "../../components/loop/ui";
@@ -336,35 +336,34 @@ test("ROOM-KÄLLA: rummets egen prosa påstår ALDRIG controllerpublicerad härk
 
   assert.ok(text.includes(roomIntro(true)), "fixturlägets ingress renderas inte");
   assert.ok(!text.includes(roomIntro(false)), "ingressen påstår controllerpublicerad härkomst");
-  assert.ok(text.includes(focusNote(true)), "fixturlägets fokusnotis renderas inte");
-  assert.ok(!text.includes(focusNote(false)), "fokusnotisen påstår controllerpublicerad härkomst");
   assert.ok(
     !/controllerns publicerade snapshot/i.test(text),
     "en mening i rummet påstår controllerpublicerad härkomst i fixturläge",
   );
 
-  // Fixturlägets meningar NAMNGER fixturen — de är inte bara tystare, de är ärliga.
+  // Fixturlägets ingress NAMNGER fixturen — den är inte bara tystare, den är ärlig.
   assert.match(roomIntro(true), /fixtur/i);
-  assert.match(focusNote(true), /fixtur/i);
   assert.ok(text.includes("FIXTUR"), "fixturmärket saknas i samma vy");
 
   // Och lägena är FAKTISKT olika texter — annars vore växlingen kosmetik.
   assert.notEqual(roomIntro(true), roomIntro(false));
-  assert.notEqual(focusNote(true), focusNote(false));
   assert.match(roomIntro(false), /controllerns publicerade snapshot/i);
 
-  // Regeln om authority står kvar i BÅDA lägena: state kommer ur snapshoten, aldrig ur strömmen.
-  for (const mode of [true, false]) {
-    assert.match(focusNote(mode), /aldrig ur strömmen/i, "authority-regeln föll bort");
-  }
+  /*
+    HÄRKOMSTEN SÄGS EN GÅNG PÅ RUMSNIVÅ. Fokusnotisen upprepar den inte — den bär bara det som
+    är mittens eget och som gäller i båda lägena: tillståndet kommer ur snapshoten, aldrig ur
+    strömmen. Ett påstående som görs två gånger i intilliggande stycken är dubblerad status,
+    inte extra tydlighet.
+  */
+  assert.match(FOCUS_NOTE, /aldrig ur strömmen/i, "authority-regeln föll bort ur fokusnotisen");
+  assert.ok(!/fixtur|controllern/i.test(FOCUS_NOTE), "fokusnotisen upprepar härkomsten");
+  assert.ok(text.includes(FOCUS_NOTE), "fokusnotisen renderas inte");
 
   // Märkningen är maskinläsbar, så växlingen kan mätas utan att läsa prosa.
   const markup = withoutStyles(renderRoom(snapshot, true));
   assert.ok(markup.includes('data-room-intro-source="fixture"'));
-  assert.ok(markup.includes('data-focus-source="fixture"'));
   const live = withoutStyles(renderRoom(snapshot, false));
   assert.ok(live.includes('data-room-intro-source="snapshot"'));
-  assert.ok(live.includes('data-focus-source="snapshot"'));
 });
 
 test("ROOM-KOPIA: transportläget påstås EN gång i rummet — ingen tredje formulering", () => {
@@ -680,7 +679,7 @@ test("ROOM-LAYOUT: banornas ordning är DOM-ordning — etikett, yta, notis, i a
     at(`data-room-step="${FOCUS_STEP}"`) < at('data-column="current"'),
     "aktuell uppgift ligger före sin etikett",
   );
-  assert.ok(at('data-column="current"') < at(focusNote(true)), "fokusnotisen ligger före sin yta");
+  assert.ok(at('data-column="current"') < at(FOCUS_NOTE), "fokusnotisen ligger före sin yta");
   assert.ok(
     at(`data-room-step="${TRAY_STEP}"`) < at('data-column="completed"'),
     "utmatningen ligger före sin etikett",
@@ -845,6 +844,68 @@ test("ROOM-HUVUD: controllerns bekräftade main och dess ålder visas — ålder
   assert.ok(positions.transport > positions.boundary, "transportnotisen ligger kvar ovanför rummet");
   assert.ok(positions.transport < positions.stream, "transportnotisen hamnade efter panelen");
   assert.ok(positions.header < positions.boundary);
+});
+
+test("ROOM-BALANS: scenen är två banor, hyllan ligger under dem, identiteten står i fokusbanan", () => {
+  /*
+    Med tre smala spalter blev höjdskillnaden mellan en lång kö och en kort utmatning drygt en
+    skärmhöjd tomt rutnät till höger — en vägg av kort i stället för ett rum. Scenen bär därför
+    ingången och arbetet; utmatningen är en hylla i full bredd under dem, och identitetsremsan
+    står där den hör hemma: hos den uppgift den beskriver.
+  */
+  const markup = withoutStyles(renderRoom(snapshotOrThrow()));
+
+  const stageStart = markup.indexOf('data-room-stage="true"');
+  const trayStart = markup.indexOf('data-output-tray="true"');
+  assert.ok(stageStart >= 0, "scenen renderas inte");
+  assert.ok(trayStart > stageStart, "hyllan ligger före scenen");
+
+  const stage = markup.slice(stageStart, trayStart);
+  assert.ok(stage.includes('data-column="backlog"'), "kön ligger utanför scenen");
+  assert.ok(stage.includes('data-column="current"'), "arbetet ligger utanför scenen");
+  assert.ok(
+    !stage.includes('data-column="completed"'),
+    "utmatningen ligger kvar som en tredje smal spalt i scenen",
+  );
+
+  const focus = markup.slice(markup.indexOf('data-task-focus-rail="true"'), trayStart);
+  for (const marker of ['data-identity-strip="true"', 'data-command-deck="true"']) {
+    assert.ok(focus.includes(marker), `${marker} ligger utanför fokusbanan`);
+  }
+
+  // Och CSS:en säger samma sak: scenen har TVÅ spalter, inte tre.
+  const stageRule = ROOM_CSS.slice(
+    ROOM_CSS.indexOf(".rm-stage {"),
+    ROOM_CSS.indexOf("}", ROOM_CSS.indexOf(".rm-stage {")),
+  );
+  assert.equal(
+    (stageRule.match(/minmax\(/g) ?? []).length,
+    2,
+    `scenen har inte två spalter: ${stageRule}`,
+  );
+});
+
+test("ROOM-A11Y: varje interaktiv yta rummet inför bär en synlig fokusring", () => {
+  /*
+    Exit-kriterium 15 kräver att tangentbordsfokus SYNS. Här mäts att varje interaktiv yta rummet
+    självt inför har en :focus-visible-regel med husets --focus-ring — och att ytorna faktiskt
+    renderas. Ett skärmklipp med fokus är fortfarande den empiriska bekräftelsen; det här provet
+    ser till att regeln inte kan försvinna utan att någon märker det.
+  */
+  const selectors = [".rm-cta", ".rm-details > summary", '.rm-lane-in .mk-col [data-intake-cta="true"]'];
+  const escapeSelector = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const selector of selectors) {
+    assert.match(
+      ROOM_CSS,
+      new RegExp(`${escapeSelector(selector)}:focus-visible\\s*\\{[^}]*box-shadow:\\s*var\\(--focus-ring\\)`),
+      `${selector} saknar synlig fokusring`,
+    );
+  }
+
+  const markup = withoutStyles(renderRoom(snapshotOrThrow()));
+  assert.ok(markup.includes('class="rm-cta"'), "den primära handlingen renderas inte");
+  assert.ok(markup.includes("<summary>"), "rådataväxeln renderas inte");
+  assert.ok(markup.includes('data-intake-cta="true"'), "kolumnens genväg renderas inte");
 });
 
 test("ROOM-A11Y: rubriknivåerna syns — h2 lånar aldrig h3-rubrikernas form", () => {

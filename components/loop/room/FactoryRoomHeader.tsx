@@ -62,15 +62,21 @@ export default function FactoryRoomHeader({ snapshot, fixture, now }: FactoryRoo
 
   return (
     <header className="rm-head" data-factory-room-header="true">
-      <h2 className="rm-head-title">{ROOM_TITLE}</h2>
       {/*
-        KÄLLAN FÖLJER LÄGET. Ingressen får aldrig påstå controllerpublicerad härkomst för data
+        Rubrik och källa på SAMMA rad. Rummet öppnar redan under appens egen h1 "Maskinen"; en
+        andra titel med ett eget stycke under sig blir en andra ingress, och varje rad här är
+        höjd som trycker ned arbetsytorna.
+
+        KÄLLAN FÖLJER LÄGET: ingressen får aldrig påstå controllerpublicerad härkomst för data
         som statusraden två rader ned märker som fixtur — samma disciplin som sidhuvudets egen
         sanningsrad. `fixture` är redan skalets flagga; den härleds inte om här.
       */}
-      <p className="rm-head-intro" data-room-intro-source={fixture ? "fixture" : "snapshot"}>
-        {roomIntro(fixture)}
-      </p>
+      <div className="rm-head-top">
+        <h2 className="rm-head-title">{ROOM_TITLE}</h2>
+        <p className="rm-head-intro" data-room-intro-source={fixture ? "fixture" : "snapshot"}>
+          — {roomIntro(fixture)}.
+        </p>
+      </div>
 
       {/* Maskinens egen statusrad — samma värden, samma märkning, en enda ägare. */}
       <RunStatusBar snapshot={snapshot} fixture={fixture} />

@@ -24,6 +24,8 @@ export const ROOM_CSS = `
 
 /* ── Rummets huvud ─────────────────────────────────────────────────────────── */
 .rm-head { display: flex; flex-direction: column; gap: var(--gap-sm); }
+/* Rubrik + källa på en rad; källan bryts till egen rad först när bredden inte räcker. */
+.rm-head-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
 .rm-head-title { font-size: var(--fs-heading); line-height: var(--lh-heading); font-weight: 600;
   color: var(--text-primary); margin: 0; }
 .rm-head-intro { margin: 0; font-size: 12.5px; line-height: 18px; color: var(--text-secondary);
@@ -55,8 +57,11 @@ export const ROOM_CSS = `
   overflow-wrap: anywhere; }
 
 /* ── Rummets scen: in → arbete → ut ────────────────────────────────────────── */
+/* TVÅ banor sida vid sida: ingången och arbetet. Utmatningen är en hylla UNDER scenen, i full
+   bredd — se MaskinShell. Med tre smala spalter blev höjdskillnaden mellan en lång kö och en kort
+   utmatning drygt en skärmhöjd tomt rutnät till höger. */
 .rm-stage { display: grid; gap: var(--gap-md); align-items: start;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.7fr) minmax(0, 0.85fr); }
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.55fr); }
 .rm-lane { display: flex; flex-direction: column; gap: var(--gap-sm); min-width: 0; }
 /*
   BANANS EGEN ORDNING ÄR DOM-ORDNINGEN: stegetikett → ytan → notis.
@@ -87,6 +92,20 @@ export const ROOM_CSS = `
 .rm-lane-focus .mk-col-title { color: var(--text-primary); }
 /* Sidorna är stödytor och ska INTE väga lika tungt som mitten. */
 .rm-lane-in .mk-col, .rm-lane-out .mk-col { background: var(--bg-surface-0); }
+/*
+  KÖN ÄR EN LISTA ÖVER VÄNTANDE ARBETE, INTE TIO LIKVÄRDIGA PANELER.
+
+  Varje kort behåller ALLA sina fält och sin färgroll — NEEDS_SPEC:s warning-ton och STOPPED:s
+  danger-ton kommer ur klasserna och rörs inte här. Det som ändras är vikten: tätare luft, lägre
+  radhöjd och en nedtonad titel, så att blicken landar i mitten i stället för att räkna kort.
+  Detta är viktning, inte datareduktion: ingenting kortas bort och ingenting döljs.
+*/
+.rm-lane-in .mk-col .mk-card { padding: 8px 10px; gap: 6px; }
+.rm-lane-in .mk-col .mk-card-title { font-size: 12px; line-height: 16px; font-weight: 500;
+  color: var(--text-secondary); }
+.rm-lane-in .mk-col .mk-fields { gap: 5px 10px; }
+.rm-lane-in .mk-col .mk-value { font-size: 11.5px; line-height: 15px; }
+.rm-lane-in .mk-col .mk-group { gap: 5px; }
 /* Backlog-kolumnens egen CTA pekar på SAMMA inlämningsyta som kompositören ovanför. Den tas
    inte bort (den är kolumnens etablerade ingång och provad som sådan i H3-grinden) men den får
    inte se ut som en andra knapp för samma sak: EN knappform i banan, och den tillhör rummets
@@ -169,17 +188,22 @@ export const ROOM_CSS = `
 .rm-scroll-x { overflow-x: auto; min-width: 0; }
 
 @media (max-width: 1279px) {
-  .rm-stage { gap: var(--gap-sm);
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.5fr) minmax(0, 0.9fr); }
+  .rm-stage { gap: var(--gap-sm); grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
 }
+/* Hyllan är bred: klart och ej promoverat står SIDA VID SIDA så att bandet blir en hylla och
+   inte en smal remsa. Rubriken spänner över båda. */
+@media (min-width: 960px) {
+  .rm-lane-out .mk-col { display: grid; align-items: start; gap: var(--gap-sm) var(--gap-md);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .rm-lane-out .mk-col > .mk-col-title { grid-column: 1 / -1; }
+}
+/* Remsan ligger numera i fokusbanan, inte i full sidbredd: två spalter är rätt täthet där.
+   Fyra spalter hade klämt ihop sju fält och deras förklaringar i en halv sidbredd. */
 @media (min-width: 720px) {
   .rm-identity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (min-width: 1280px) {
-  .rm-identity-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
 @media (max-width: 959px) {
-  .rm-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .rm-stage { grid-template-columns: minmax(0, 1fr); }
   /* Arbetet först på smala vyer — samma disciplin som Maskinens mk-col-current haft sedan V2. */
   .rm-lane-focus { grid-column: 1 / -1; order: -1; }
   /* …och då tystnar ordningstalet: layouten visar inte längre 1, 2, 3, så etiketten får inte

@@ -34,20 +34,21 @@ export const ROOM_FACTS = {
 export const ROOM_TITLE = "Fabriksrummet";
 
 /**
- * Rummets ingress: axeln till vänster om tankstrecket, KÄLLAN till höger.
+ * Rummets ingress: EN sats om KÄLLAN, renderad på samma rad som rubriken.
  *
  * KÄLLAN HÄRLEDS, DEN SKRIVS INTE FÖR HAND. Samma disciplin som `maskinHeaderTruth()` i
  * components/loop/ui.ts: är vyn matad med den genererade fixturen SÄGER ingressen fixtur, annars
  * säger den controllerns snapshot. En mening som påstår controllerpublicerad härkomst medan
  * statusraden två rader ned bär märket "FIXTUR · INTE LIVEDATA" är två motstridiga påståenden om
  * samma data — och det är precis det en fixturbaserad skiva aldrig får göra.
+ *
+ * AXELN STÅR INTE HÄR. Banornas egna etiketter (1 · IN, 2 · ARBETET, 3 · UT) säger redan i vilken
+ * ordning rummet läses; en mening som upprepar det kostar bara höjd ovanför arbetsytorna.
  */
-const ROOM_AXIS = "In till vänster, arbetet i mitten, ut till höger";
-
 export function roomIntro(fixture: boolean): string {
   return fixture
-    ? `${ROOM_AXIS} — allt ur den genererade fixturen, aldrig livedata.`
-    : `${ROOM_AXIS} — allt ur controllerns publicerade snapshot.`;
+    ? "allt här kommer ur den genererade fixturen, aldrig ur livedata"
+    : "allt här kommer ur controllerns publicerade snapshot";
 }
 
 /**
