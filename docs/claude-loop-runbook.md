@@ -219,6 +219,50 @@ The breaker is a stop condition only. It never widens a permission, never upgrad
 
 For UI tasks, the supervisor starts `visual.previewCommand`, waits for `visual.previewUrl`, captures configured viewports with Playwright, and asks the independent `visual-reviewer` to inspect those PNGs. Browser screenshots are evidence for workflow review, not Nortropic trust authority.
 
+### What is captured
+
+Per viewport, every run now writes two images:
+
+- `<viewport>-<w>x<h>.png` — the fullPage shot (unchanged filename and unchanged behavior).
+- `<viewport>-<w>x<h>-clip.png` — the viewport-sized top-of-page clip. A tall fullPage image is downscaled to a few percent when a reviewer looks at it, so legibility, touch-target and focus judgements are made from the clip.
+
+### `visual.captureStates` (optional)
+
+`visual.captureStates` declares additional capture situations. It is optional and additive: a task without it keeps exactly the previous evidence set (plus the clips above), and existing task JSON keeps validating unchanged. Each entry produces both a fullPage shot and a clip per viewport, named `<state>-<viewport>-<w>x<h>.png` and `<state>-<viewport>-<w>x<h>-clip.png`.
+
+| Field | Meaning |
+| --- | --- |
+| `name` (required) | Evidence filename segment. Filename-safe alphabet only (`[A-Za-z0-9][A-Za-z0-9._-]*`), so a state can never steer a screenshot out of the run's evidence directory. |
+| `url` | URL to capture for this state. Defaults to `previewUrl`. Declaring several states with different URLs captures several routes in one run — the fix for "the task's `previewUrl` points at the wrong route", which a builder cannot repair because task data is frozen for the run. |
+| `openDisclosures` | Opens every `<details>` on the page before the shot, so collapsed content is actually reviewable. |
+| `focusSelector` | Parks real keyboard focus on the element before the shot, so the screenshot carries genuine focus-ring evidence. |
+| `scrollToSelector` | Scrolls the named element into view before the shot, which frames the clip on the region under review. |
+
+Applied in that order (disclosures, then focus, then scroll), so a declared scroll target wins the final framing.
+
+Example:
+
+```json
+"visual": {
+  "previewCommand": ["npm", "run", "dev"],
+  "previewUrl": "http://localhost:3000/loop",
+  "authenticated": true,
+  "captureStates": [
+    { "name": "loop-expanded", "openDisclosures": true },
+    { "name": "loop-focus", "focusSelector": "#primary-action" },
+    { "name": "mata", "url": "http://localhost:3000/loop/mata", "openDisclosures": true }
+  ]
+}
+```
+
+### Capture-state limits and security
+
+- **Selectors only, never task-supplied code.** `focusSelector` and `scrollToSelector` are passed as CSS selectors to the standard Playwright selector APIs, and `openDisclosures` runs a fixed `details` query written in `scripts/claude-loop/visual-review.ts`. No task field is ever evaluated as JavaScript in the preview: a task says WHICH element to open, focus or scroll to, never WHAT code runs there.
+- **Loopback-only applies to every captured URL.** With `authenticated: true`, each `captureStates[].url` carries exactly the same loopback restriction as `previewUrl`, refused both by the task schema and again at runtime before the preview child starts or any navigation happens. Anonymous (`authenticated: false`, the default) remote previews are unchanged.
+- Each captured URL is reached by a real same-origin login with fresh, disposable, preview-only credentials injected into the preview child only — no cookie fabrication — and the exact-target assertion is applied per navigated URL, so an off-origin redirect fails closed.
+
+Coverage: `tests/claude-loop/visual-capture-states.test.ts` (capture states, clips, multi-URL, filename safety, legacy compatibility) alongside the unchanged `visual-auth*.test.ts` and `visual-preview-child-env.test.ts` suites.
+
 ## Pre-publication runtime checks
 
 After dependency/security changes, run the production build and `npx tsx scripts/claude-loop/auth-runtime-smoke.ts`. The auth smoke starts the built app with disposable credentials, proves anonymous redirect, failed credentials, a real successful Credentials session, middleware-authorized navigation and session reload. Build warnings are not treated as runtime PASS by themselves.

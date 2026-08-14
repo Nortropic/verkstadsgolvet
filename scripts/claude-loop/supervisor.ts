@@ -650,7 +650,11 @@ export async function execute(repo: string, config: FactoryConfig, state: RunSta
         const outDir = path.join(state.worktree, '.claude-loop', 'evidence', state.runId, `round-${round}`);
         const capture = await captureVisualEvidence(state.task, state.worktree, outDir);
         try {
-          const promptV = `${basePrompt(state.task)}\n\nReview these screenshots and the candidate read-only. Files:\n${capture.files.join('\n')}`;
+          // Evidence legend, not a verdict: the reviewer is told how to read the filenames so a
+          // legibility/touch-target/focus judgement is made from the viewport-sized clip rather than
+          // from a heavily downscaled fullPage image. It adds no authority and no claim.
+          const evidenceLegend = 'Filenames: `<name>-<w>x<h>.png` is the fullPage shot; `<name>-<w>x<h>-clip.png` is the viewport-sized top-of-page clip (use it to judge legibility, touch targets and focus at real scale); a `<state>-` prefix marks a declared capture state (opened disclosures, parked keyboard focus, scrolled target and/or a different url).';
+          const promptV = `${basePrompt(state.task)}\n\nReview these screenshots and the candidate read-only. ${evidenceLegend}\nFiles:\n${capture.files.join('\n')}`;
           const v = await runRole({ role: 'visual-reviewer', cwd: state.worktree, prompt: promptV, model: config.models.visualReviewer });
           state.sessions.visualReviewer = v.sessionId;
           const vd = reviewDisposition(v.result, 'visual-reviewer');

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { chromium } from 'playwright';
-import { describePreviewOrigin, isLoopbackPreviewTarget, type TaskSpec } from './schemas';
+import { describePreviewOrigin, isLoopbackPreviewTarget, type TaskSpec, type VisualCaptureState } from './schemas';
 
 const LOGIN_PATH = '/login';
 const LOGIN_TIMEOUT_MS = 30_000;
@@ -125,7 +125,7 @@ function describeTarget(url: string): string {
  * loopback policy itself instead of trusting that a TaskSchema parse happened upstream. Shares the
  * single URL-policy definition with the schema barrier.
  */
-function assertLoopbackAuthTarget(target: URL): void {
+function assertLoopbackAuthTarget(target: string | URL): void {
   if (isLoopbackPreviewTarget(target)) return;
   throw new Error(
     `authenticated visual review refused: ${describePreviewOrigin(target)} is not a loopback preview origin `
@@ -219,8 +219,61 @@ async function waitFor(url: string, timeoutMs: number): Promise<void> {
   throw new Error(`preview did not become ready: ${url}`);
 }
 
+/**
+ * Minimal structural contract of the browser page used to establish a declared capture state.
+ *
+ * SELECTORS ONLY. Every page function below is a fixed literal written in this file; the task-supplied
+ * strings (`focusSelector`, `scrollToSelector`) reach the browser exclusively as CSS selector
+ * arguments of the standard Playwright selector APIs. Task data is never evaluated as JavaScript in
+ * the preview, and `openDisclosures` operates on a hardcoded `details` query — a task can say WHICH
+ * element to open, focus or scroll to, never WHAT code runs there.
+ */
+export interface CaptureStatePage {
+  $$eval(selector: string, pageFunction: (elements: HTMLDetailsElement[]) => void): Promise<void>;
+  $eval(selector: string, pageFunction: (element: Element) => void): Promise<void>;
+  focus(selector: string): Promise<void>;
+}
+
+/**
+ * Applies a declared capture state to an already-navigated page, in a fixed order:
+ * disclosures first (they change layout), then keyboard focus, then the explicit scroll target — so a
+ * declared scroll target always wins the final framing of the clipped shot, while the focus ring that
+ * `focus()` parks stays in the DOM for the reviewer to see.
+ *
+ * Every field is optional: an empty state is a plain second capture of the (possibly different) URL.
+ */
+export async function applyCaptureState(page: CaptureStatePage, state: VisualCaptureState): Promise<void> {
+  if (state.openDisclosures === true) {
+    // Fixed selector, fixed page function: this is the whole "open every disclosure" capability.
+    await page.$$eval('details', (elements) => { for (const element of elements) element.open = true; });
+  }
+  if (state.focusSelector !== undefined) {
+    // Real keyboard focus on the named element, so the screenshot carries actual :focus-visible evidence.
+    await page.focus(state.focusSelector);
+  }
+  if (state.scrollToSelector !== undefined) {
+    await page.$eval(state.scrollToSelector, (element) => { element.scrollIntoView({ block: 'center', inline: 'nearest' }); });
+  }
+}
+
+/**
+ * Every URL this capture will navigate. `previewUrl` first, then each declared capture state's URL
+ * (a state without a URL reuses `previewUrl`). Used both to plan the capture and to re-prove the
+ * loopback policy per navigated URL.
+ */
+function captureTargetUrls(visual: NonNullable<TaskSpec['visual']>): string[] {
+  return [visual.previewUrl, ...(visual.captureStates ?? []).map((state) => state.url ?? visual.previewUrl)];
+}
+
 export async function captureVisualEvidence(task: TaskSpec, cwd: string, outDir: string): Promise<{ files: string[]; stop: () => void }> {
   if (!task.visualReview || !task.visual) throw new Error('visual review requested but task.visual is missing');
+  // Runtime barrier, ahead of the preview child and every navigation: an authenticated capture is
+  // loopback-only for EVERY url it will visit, not just for previewUrl. The schema refuses such a
+  // task too; this re-proves it here because captureVisualEvidence is an exported callable boundary
+  // that mints a credential bundle a few lines below.
+  if (task.visual.authenticated === true) {
+    for (const url of captureTargetUrls(task.visual)) assertLoopbackAuthTarget(url);
+  }
   fs.mkdirSync(outDir, { recursive: true });
   // One disposable bundle per capture: every viewport page authenticates against the same preview
   // server process, and the next independent capture mints an unrelated bundle.
@@ -242,7 +295,10 @@ export async function captureVisualEvidence(task: TaskSpec, cwd: string, outDir:
     setTimeout(() => { try { process.kill(-child.pid!, 'SIGKILL'); } catch {} }, 2000).unref();
   };
   try {
-    await waitFor(task.visual.previewUrl, task.visual.readyTimeoutMs);
+    // Readiness is proven for every distinct url this capture will navigate (previewUrl first, so a
+    // legacy task waits exactly as before). A capture state may name a second loopback port, and a
+    // screenshot of a not-yet-serving preview is worthless evidence.
+    for (const url of new Set(captureTargetUrls(task.visual))) await waitFor(url, task.visual.readyTimeoutMs);
     const browser = await chromium.launch({ headless: true });
     const files: string[] = [];
     try {
@@ -255,10 +311,38 @@ export async function captureVisualEvidence(task: TaskSpec, cwd: string, outDir:
         } else {
           await page.goto(task.visual.previewUrl, { waitUntil: 'networkidle' });
         }
+        // Established evidence, unchanged filename: the whole page in one image.
         const file = path.join(outDir, `${vp.name}-${vp.width}x${vp.height}.png`);
         await page.screenshot({ path: file, fullPage: true });
-        files.push(file);
+        // Added evidence: the viewport-sized clip. A tall fullPage shot is downscaled to a few percent
+        // when a reviewer looks at it, which is why legibility, touch-target and focus claims were
+        // unjudgeable from fullPage alone. The clip is the same pixels a person would actually see.
+        const clipFile = path.join(outDir, `${vp.name}-${vp.width}x${vp.height}-clip.png`);
+        await page.screenshot({ path: clipFile, fullPage: false });
+        files.push(file, clipFile);
         await page.close();
+      }
+      // Declared capture states. Absent (the default) means this loop never runs and the evidence set
+      // is byte-for-byte the legacy set plus the clips above.
+      for (const state of task.visual.captureStates ?? []) {
+        const stateUrl = state.url ?? task.visual.previewUrl;
+        for (const vp of task.visual.viewports) {
+          const page = await browser.newPage({ viewport: { width: vp.width, height: vp.height } });
+          if (task.visual.authenticated === true) {
+            // Same helper, same policy, per navigated url: loopback barrier, real Credentials form,
+            // and the exact-target assertion against THIS state's url (an off-origin redirect fails closed).
+            await authenticatePreviewPage(page, stateUrl, previewCredentials);
+          } else {
+            await page.goto(stateUrl, { waitUntil: 'networkidle' });
+          }
+          await applyCaptureState(page, state);
+          const stateFile = path.join(outDir, `${state.name}-${vp.name}-${vp.width}x${vp.height}.png`);
+          await page.screenshot({ path: stateFile, fullPage: true });
+          const stateClipFile = path.join(outDir, `${state.name}-${vp.name}-${vp.width}x${vp.height}-clip.png`);
+          await page.screenshot({ path: stateClipFile, fullPage: false });
+          files.push(stateFile, stateClipFile);
+          await page.close();
+        }
       }
     } finally { await browser.close(); }
     return { files, stop };
