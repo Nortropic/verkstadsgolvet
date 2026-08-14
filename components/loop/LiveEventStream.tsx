@@ -96,11 +96,22 @@ export function browserPorts(): TailPorts {
       };
       source.onopen = () => handlers.onOpen();
       source.addEventListener(FRAME.event, (raw: Event) => {
+        const body = (raw as MessageEvent<string>).data;
+        let parsed: unknown;
         try {
-          handlers.onEvent(JSON.parse((raw as MessageEvent<string>).data) as unknown);
+          parsed = JSON.parse(body) as unknown;
         } catch {
-          // En oläsbar ram är inte ett event. Den tystas som rad, men får inte fälla strömmen.
+          /**
+           * EN OLÄSBAR RAM FÅR INTE FÖRSVINNA TYST. Den skickas vidare RÅ i stället för att
+           * tystas i ett tomt catch: butiken kör den genom V1:s validering, den faller som en
+           * OGILTIG RAD och räknas i panelens huvudbok ("N ogiltiga rader"). Cursorn flyttas
+           * inte av den, så nästa backfill hämtar samma seq igen — och skulle raden ligga under
+           * cursorn syns den som en lucka, som hämtas automatiskt. Ingen rad kan alltså
+           * försvinna utan att någon räknare eller markör visar det.
+           */
+          parsed = body;
         }
+        handlers.onEvent(parsed);
       });
       source.addEventListener(FRAME.notice, (raw: Event) => {
         try {

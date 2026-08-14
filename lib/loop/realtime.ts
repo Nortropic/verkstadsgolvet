@@ -94,6 +94,18 @@ export const BACKFILL_MAX_PAGES = 10;
  */
 export const POLL_FALLBACK_AFTER_ATTEMPTS = 2;
 
+/**
+ * Tak för hur många OLIKA luckor en session automatiskt försöker fylla.
+ *
+ * Planen kräver "synlig markör + AUTOMATISK BACKFILL" (REALTIME · GAP), alltså att en lucka
+ * faktiskt hämtas och inte bara målas. Taket finns för att en lucka som backenden ALDRIG kommer
+ * att fylla — en seq som helt enkelt inte finns — inte ska bli en evig hämtningsslinga. Varje
+ * lucka försöks EN gång per intervall den har; fyller hämtningen delar av den blir resten en ny
+ * lucka med ett nytt intervall och får därmed ett eget försök, vilket är exakt planens "tills
+ * backfill fyllt den" utan att bli oändligt.
+ */
+export const GAP_BACKFILL_MAX_ATTEMPTS = 50;
+
 /* ────────────────────────────────────────────────────────────────────────────
  * BACKOFF — ren funktion, slumpen injiceras
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -449,10 +461,17 @@ export type TailConnectionState = {
   cursor: number | null;
   backfilling: boolean;
   visibility: "visible" | "hidden";
+  /**
+   * Luckor som HAR hämtats och ändå står kvar (nycklar `"from-to"`). Butiken har alltså ingen
+   * rad där. Notisen slutar då lova en hämtning som redan är gjord — se tailNotices.
+   */
+  exhausted_gaps: readonly string[];
   counts: {
     stream_opens: number;
     stream_errors: number;
     backfill_pages: number;
+    /** Fönsterhämtningar som utlösts av en LUCKA, inte av cursorn. */
+    gap_backfills: number;
     polls: number;
     poll_errors: number;
   };
@@ -483,18 +502,25 @@ export type TailConnectionOptions = {
   pollIntervalMs?: number;
   hiddenPauseAfterMs?: number;
   pollFallbackAfterAttempts?: number;
+  gapBackfillMaxAttempts?: number;
 };
 
 /**
  * Anslutningsmaskinen: backfill → tail, avbrott → backoff → backfill → tail, upprepade avbrott
  * → SYNLIG poll-fallback, dold flik → paus efter 60 s → backfill vid fokus.
  *
- * TVÅ EGENSKAPER SOM ÄR HELA POÄNGEN, OCH SOM PROVET MÄTER:
- * · INGET EVENT TAPPAS. Varje ny anslutning och varje poll börjar på butikens cursor, alltså
- *   högsta seq som faktiskt setts. Ett avbrott mitt i en sekvens fylls av backfill innan tail
- *   återupptas — luckan syns dessutom i vyn tills den är fylld.
- * · INGEN DUBBLETT SLÄPPS IGENOM. Backfill och tail överlappar med flit (hellre samma event
- *   två gånger än ett tappat), och dedupen på event_id gör överlappet till noll extra rader.
+ * TRE EGENSKAPER SOM ÄR HELA POÄNGEN, OCH SOM PROVET MÄTER:
+ * · INGET EVENT TAPPAS FRAMÅT. Varje ny anslutning och varje poll börjar på butikens cursor,
+ *   alltså högsta seq som faktiskt setts. Ett avbrott mitt i en sekvens fylls av backfill innan
+ *   tail återupptas.
+ * · INGET EVENT TAPPAS BAKÅT. En LUCKA under cursorn — planens "delayed events": backenden
+ *   committar seq 12 efter att 13 lästs — hämtas AUTOMATISKT med ett eget fönster som börjar
+ *   före luckan (`after_seq = gap.from - 1`). Cursorbaserade hämtningar kan per definition
+ *   aldrig se bakåt, så utan den här vägen hade markören "lucka i strömmen … hämtar" varit ett
+ *   löfte ingen infriade (REALTIME · GAP; TEST_MATRIX E9).
+ * · INGEN DUBBLETT SLÄPPS IGENOM. Backfill, luckhämtning och tail överlappar med flit (hellre
+ *   samma event två gånger än ett tappat), och dedupen på event_id gör överlappet till noll
+ *   extra rader.
  *
  * Maskinen påstår ALDRIG realtid utan öppen ström: `live` sätts i onOpen och lämnas vid
  * första fel. Under poll-fallback står läget kvar på `polling` även medan en återanslutning
@@ -508,6 +534,7 @@ export function createTailConnection(options: TailConnectionOptions): TailConnec
   const pollIntervalMs = options.pollIntervalMs ?? POLL_INTERVAL_MS;
   const hiddenPauseAfterMs = options.hiddenPauseAfterMs ?? HIDDEN_PAUSE_AFTER_MS;
   const fallbackAfter = options.pollFallbackAfterAttempts ?? POLL_FALLBACK_AFTER_ATTEMPTS;
+  const maxGapAttempts = options.gapBackfillMaxAttempts ?? GAP_BACKFILL_MAX_ATTEMPTS;
 
   let mode: TransportMode = "idle";
   let attempt = 0;
@@ -521,9 +548,15 @@ export function createTailConnection(options: TailConnectionOptions): TailConnec
     stream_opens: 0,
     stream_errors: 0,
     backfill_pages: 0,
+    gap_backfills: 0,
     polls: 0,
     poll_errors: 0,
   };
+
+  /** Luckintervall som redan fått sitt försök, och de som överlevde försöket. */
+  const attemptedGaps = new Set<string>();
+  const exhaustedGaps = new Set<string>();
+  let gapFetchInFlight = false;
 
   let handle: StreamHandle | null = null;
   let retryTimer: number | null = null;
@@ -584,7 +617,7 @@ export function createTailConnection(options: TailConnectionOptions): TailConnec
           return false;
         }
         counts.backfill_pages += 1;
-        store.ingest(result.page.events, "backfill");
+        ingest(result.page.events, "backfill");
         emit();
         if (!result.page.may_have_more) return true;
         // Skydd mot en oändlig slinga när fönstret säger "mer finns" men cursorn inte flyttar.
@@ -594,6 +627,66 @@ export function createTailConnection(options: TailConnectionOptions): TailConnec
     } finally {
       backfilling = false;
     }
+  }
+
+  /* ── Luckor: markören ÄR ett löfte om en hämtning ──────────────────────── */
+
+  /**
+   * Varje leverans går genom den här vägen i stället för rakt på `store.ingest`, så att en
+   * upptäckt lucka alltid får sitt hämtningsförsök. Gap-detektionen ligger i V3 och gäller
+   * ENDAST den ofiltrerade butiksströmmen (B3) — en filtrerad vy har inga luckor att hämta.
+   */
+  function ingest(events: unknown, source: TailIngestSource): TailIngestOutcome {
+    const outcome = store.ingest(events, source);
+    scheduleGapFill();
+    return outcome;
+  }
+
+  function gapKey(gap: SeqGap): string {
+    return `${gap.from}-${gap.to}`;
+  }
+
+  /**
+   * Nästa lucka som inte fått sitt försök. EN i taget: en hämtning per lucka räcker, och en
+   * serie luckor ska inte bli en storm av samtidiga fönster mot läsytan.
+   */
+  function scheduleGapFill(): void {
+    if (!running || gapFetchInFlight || mode === "paused") return;
+    if (attemptedGaps.size >= maxGapAttempts) return;
+    const target = store.view().gaps.find((gap) => !attemptedGaps.has(gapKey(gap)));
+    if (target === undefined) return;
+    void fillGap(target);
+  }
+
+  /**
+   * Hämtar ETT fönster som börjar FÖRE luckan. `after_seq = gap.from - 1` betyder `seq > from-1`,
+   * alltså precis luckans första saknade rad och framåt — den enda frågan som kan se bakåt förbi
+   * cursorn. Redan kända rader kommer med på köpet och kostar ingenting: dedupen på event_id
+   * gör dem till noll extra rader.
+   *
+   * TERMINERING: nyckeln är luckans intervall. Fylls en del av luckan blir resten ett NYTT
+   * intervall som får ett eget försök (planens "tills backfill fyllt den"); fylls ingenting alls
+   * står nyckeln kvar som redan försökt och markeras som uttömd, så att markören slutar lova en
+   * hämtning som redan är gjord. Ingen slinga, ingen tyst lucka och inget påhittat event.
+   */
+  async function fillGap(gap: SeqGap): Promise<void> {
+    const key = gapKey(gap);
+    attemptedGaps.add(key);
+    gapFetchInFlight = true;
+    counts.gap_backfills += 1;
+    emit();
+    try {
+      const result = await ports.fetchWindow({ after_seq: gap.from - 1, limit: pageLimit });
+      if (!running) return;
+      if (result.ok) store.ingest(result.page.events, "backfill");
+      else lastError = result.message;
+      // Står luckan kvar efter hämtningen finns raden helt enkelt inte i butiken.
+      if (store.view().gaps.some((candidate) => gapKey(candidate) === key)) exhaustedGaps.add(key);
+      emit();
+    } finally {
+      gapFetchInFlight = false;
+    }
+    scheduleGapFill();
   }
 
   /* ── Ström ─────────────────────────────────────────────────────────────── */
@@ -625,7 +718,9 @@ export function createTailConnection(options: TailConnectionOptions): TailConnec
         },
         onEvent: (data: unknown) => {
           if (myGeneration !== generation || !running) return;
-          store.ingest([data], "stream");
+          // En tail-rad kan avslöja en LUCKA under cursorn (fördröjt event). Därför går den
+          // genom ingest(), som utlöser hämtningen — inte rakt på butiken.
+          ingest([data], "stream");
           emit();
         },
         onError: (message: string) => {
@@ -726,7 +821,7 @@ export function createTailConnection(options: TailConnectionOptions): TailConnec
       if (!running || mode !== "polling") return;
       if (result.ok) {
         counts.polls += 1;
-        store.ingest(result.page.events, "poll");
+        ingest(result.page.events, "poll");
       } else {
         counts.poll_errors += 1;
         lastError = result.message;
@@ -807,6 +902,7 @@ export function createTailConnection(options: TailConnectionOptions): TailConnec
       cursor: store.cursor(),
       backfilling,
       visibility,
+      exhausted_gaps: [...exhaustedGaps].sort(),
       counts: { ...counts },
     };
   }
@@ -882,6 +978,11 @@ export function gapLabel(gap: SeqGap): string {
  * · poll → uttrycklig markering att läget INTE är en ström.
  *
  * Ingen notis påstår att något är åtgärdat, och ingen döljer en lucka.
+ *
+ * "— HÄMTAR" ÄR ETT LÖFTE, OCH DET INFRIAS. Markören står så länge luckan har en hämtning kvar
+ * att göra (createTailConnection hämtar den automatiskt med ett fönster som börjar före luckan).
+ * Har hämtningen redan gjorts och luckan ändå står kvar byts texten ut: butiken har då ingen rad
+ * där, och att fortsätta säga "hämtar" hade varit en tom försäkran i stället för ett läge.
  */
 export function tailNotices(snapshot: TailSnapshot): TailNotice[] {
   const notices: TailNotice[] = [];
@@ -898,11 +999,16 @@ export function tailNotices(snapshot: TailSnapshot): TailNotice[] {
   }
 
   for (const gap of stream.gaps) {
+    const exhausted = connection.exhausted_gaps.includes(`${gap.from}-${gap.to}`);
     notices.push({
       id: "seq_gap",
       tone: "warning",
-      text: `Lucka i strömmen (${gapLabel(gap)}) — hämtar`,
-      detail: null,
+      text: exhausted
+        ? `Lucka i strömmen (${gapLabel(gap)}) — hämtad, men butiken har ingen rad där`
+        : `Lucka i strömmen (${gapLabel(gap)}) — hämtar`,
+      detail: exhausted
+        ? "Luckan står kvar tills kontrollplanet publicerar raderna. Ingenting fylls i här."
+        : null,
     });
   }
 
@@ -990,10 +1096,12 @@ export function idleSnapshot(): TailSnapshot {
       cursor: null,
       backfilling: false,
       visibility: "visible",
+      exhausted_gaps: [],
       counts: {
         stream_opens: 0,
         stream_errors: 0,
         backfill_pages: 0,
+        gap_backfills: 0,
         polls: 0,
         poll_errors: 0,
       },

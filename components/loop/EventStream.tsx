@@ -155,7 +155,12 @@ export default function EventStream({
           {stats.duplicates} dubbletter avvisade
         </span>
         {" · "}
-        <span data-ledger-invalid={stats.invalid}>{stats.invalid} ogiltiga rader</span>
+        <span
+          data-ledger-invalid={stats.invalid}
+          title="Rader som inte validerar mot eventkontraktet — oläsbara SSE-ramar räknas här."
+        >
+          {stats.invalid} ogiltiga rader
+        </span>
         {stats.low_water_seq !== null && (
           <>
             {" · "}

@@ -74,6 +74,7 @@ import { dedupeByEventId, projectEvents } from "../../lib/loop/events";
 import { validateEvents, type LoopEvent } from "../../lib/loop/schema";
 import { fixtureEvents, fixtureUnknownEvents } from "../../lib/loop/fixtures";
 import EventStream from "../../components/loop/EventStream";
+import { browserPorts } from "../../components/loop/LiveEventStream";
 import EventRow from "../../components/loop/EventRow";
 import StaleBanner from "../../components/loop/StaleBanner";
 
@@ -422,6 +423,155 @@ test("V9 exit 1 · backfill och tail får ÖVERLAPPA — dedupen gör överlappe
   assert.deepEqual(view.rows.map((row) => row.event.seq), [1, 2, 3, 4, 5, 6, 7]);
   assert.equal(store.stats().duplicates, 2, "överlappet räknades inte som dubbletter");
   assert.equal(store.stats().retained, 7);
+});
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * LUCKA UNDER CURSORN · MARKÖREN ÄR ETT LÖFTE SOM INFRIAS (E9)
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+test("V9-E9 · fördröjt event under cursorn hämtas AUTOMATISKT — markören är ingen tom försäkran", async () => {
+  const clock = createClock();
+  const stream = createFakeStream();
+  // Butiken har 1..11. seq 12 committas SENARE än 13 — planens "delayed events".
+  const window = createFakeWindow(range(1, 11));
+  const tail = createTailConnection({
+    ports: portsFor(stream, window, clock),
+    storeOptions: { scope: "store" },
+  });
+
+  tail.start();
+  await flush();
+  stream.open();
+  await flush();
+  assert.equal(tail.snapshot().connection.cursor, 11);
+
+  // Tail levererar 13. 12 finns nu i butiken men har aldrig passerat den här klienten.
+  window.setEvents(range(1, 13));
+  const requestsBefore = window.requests.length;
+  stream.emit(ev(13));
+  await flush();
+
+  const healed = tail.snapshot();
+  assert.deepEqual(seqsOf(healed), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13], "luckan fylldes inte");
+  assert.deepEqual(healed.stream.gaps, [], "luckan står kvar trots att raden finns i butiken");
+  assert.equal(healed.connection.counts.gap_backfills, 1, "ingen hämtning utlöstes av luckan");
+
+  // Hämtningen började FÖRE luckan — den enda fråga som kan se bakåt förbi cursorn.
+  assert.equal(window.requests.length, requestsBefore + 1);
+  assert.equal(window.requests[window.requests.length - 1], 11);
+  assert.equal(new Set(eventIdsOf(healed)).size, 13, "luckhämtningen dubblerade en rad");
+});
+
+test("V9-NEG · en hämtning som börjar på cursorn kan ALDRIG se luckan — provets data skiljer dem åt", async () => {
+  const window = createFakeWindow(range(1, 13));
+
+  // LÖGNSTUB: "vi hämtar ju hela tiden" — men varje cursorbaserad fråga börjar på 13.
+  const fromCursor = await window.port({ after_seq: 13, limit: 200 });
+  const fromCursorSeqs = fromCursor.ok
+    ? fromCursor.page.events.map((event) => (event as LoopEvent).seq)
+    : [];
+  assert.deepEqual(fromCursorSeqs, [], "cursorfrågan såg bakåt — då mäter provet ingenting");
+
+  // SANNINGEN: fönstret måste börja FÖRE luckan för att kunna leverera den.
+  const fromGap = await window.port({ after_seq: 11, limit: 200 });
+  const fromGapSeqs = fromGap.ok ? fromGap.page.events.map((event) => (event as LoopEvent).seq) : [];
+  assert.deepEqual(fromGapSeqs, [12, 13]);
+});
+
+test("V9-E9 · en lucka som backenden inte kan fylla hämtas EN gång och slutar sedan lova", async () => {
+  const clock = createClock();
+  const stream = createFakeStream();
+  // seq 12 finns aldrig — en verklig hål i butiken, inte ett fördröjt event.
+  const window = createFakeWindow([...range(1, 11), ev(13)]);
+  const tail = createTailConnection({
+    ports: portsFor(stream, window, clock),
+    storeOptions: { scope: "store" },
+  });
+
+  tail.start();
+  await flush();
+  stream.open();
+  await flush();
+
+  stream.emit(ev(13));
+  await flush();
+  const first = tail.snapshot();
+  assert.deepEqual(first.stream.gaps, [{ from: 12, to: 12, missing: 1 }]);
+  assert.equal(first.connection.counts.gap_backfills, 1);
+  assert.deepEqual(first.connection.exhausted_gaps, ["12-12"]);
+
+  // Markören slutar lova en hämtning som redan är gjord — och fyller ingenting i.
+  const notice = tailNotices(first).find((candidate) => candidate.id === "seq_gap");
+  assert.ok(notice);
+  assert.equal(notice.text, "Lucka i strömmen (seq 12) — hämtad, men butiken har ingen rad där");
+  assert.ok(renderStream(first).includes('data-notice="seq_gap"'));
+
+  // …och den försöker inte igen i all evighet: nya leveranser ger inga nya hämtningar.
+  window.setEvents([...range(1, 11), ...range(13, 15)]);
+  stream.emit(ev(14));
+  await flush();
+  stream.emit(ev(15));
+  await flush();
+  const later = tail.snapshot();
+  assert.equal(later.connection.counts.gap_backfills, 1, "samma lucka hämtades om och om igen");
+  assert.deepEqual(later.stream.gaps, [{ from: 12, to: 12, missing: 1 }], "luckan tystades");
+});
+
+test("V9-E9 · en delvis fylld lucka får ett nytt försök för resten — men slingan terminerar", async () => {
+  const clock = createClock();
+  const stream = createFakeStream();
+  const window = createFakeWindow(range(1, 11));
+  const tail = createTailConnection({
+    ports: portsFor(stream, window, clock),
+    storeOptions: { scope: "store" },
+  });
+
+  tail.start();
+  await flush();
+  stream.open();
+  await flush();
+  assert.equal(tail.snapshot().connection.cursor, 11);
+
+  // Butiken har fått 12 och 15, men aldrig 13–14. Tail levererar 15 → luckan är 12–14.
+  window.setEvents([...range(1, 11), ev(12), ev(15)]);
+  stream.emit(ev(15));
+  await flush();
+
+  // Första försöket (12–14) fyllde 12 → resten (13–14) är en NY lucka med ett eget försök.
+  const after = tail.snapshot();
+  assert.equal(after.connection.counts.gap_backfills, 2, "resten av luckan fick aldrig ett försök");
+  assert.deepEqual(seqsOf(after), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15]);
+  assert.deepEqual(after.stream.gaps, [{ from: 13, to: 14, missing: 2 }]);
+  assert.deepEqual(after.connection.exhausted_gaps, ["13-14"]);
+
+  const attempts = after.connection.counts.gap_backfills;
+  await clock.advance(POLL_INTERVAL_MS * 4);
+  assert.equal(
+    tail.snapshot().connection.counts.gap_backfills,
+    attempts,
+    "luckhämtningen blev en evig slinga",
+  );
+});
+
+test("V9-E9 · en FILTRERAD vy hämtar aldrig en 'lucka' — legitima hopp är inga luckor (B3)", async () => {
+  const clock = createClock();
+  const stream = createFakeStream();
+  const window = createFakeWindow([ev(1), ev(9)]);
+  const tail = createTailConnection({
+    ports: portsFor(stream, window, clock),
+    storeOptions: { scope: "filtered" },
+  });
+
+  tail.start();
+  await flush();
+  stream.open();
+  await flush();
+  stream.emit(ev(20));
+  await flush();
+
+  const snapshot = tail.snapshot();
+  assert.deepEqual(snapshot.stream.gaps, []);
+  assert.equal(snapshot.connection.counts.gap_backfills, 0, "en filtrerad vy jagade ett legitimt hopp");
 });
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -1087,6 +1237,122 @@ test("V9 · rader som inte validerar stoppar tailen SYNLIGT — aldrig en tight 
   assert.ok(notices[0].includes("inte validerar"));
   assert.ok(frames[frames.length - 1].includes('"reason":"transport_unavailable"'));
   assert.ok(frames[frames.length - 1].includes('"after_seq":3'), "cursorn flyttades av en ogiltig rad");
+});
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * INGEN RAD FÅR FÖRSVINNA TYST — INTE ENS EN TRASIG RAM
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/** Minsta möjliga EventSource som provet kan mata ramar i. Ingen socket, ingen DOM. */
+class FakeEventSource {
+  static instances: FakeEventSource[] = [];
+  onopen: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  closed = false;
+  private readonly listeners = new Map<string, ((event: unknown) => void)[]>();
+
+  constructor(readonly url: string) {
+    FakeEventSource.instances.push(this);
+  }
+
+  addEventListener(name: string, handler: (event: unknown) => void): void {
+    const bucket = this.listeners.get(name) ?? [];
+    bucket.push(handler);
+    this.listeners.set(name, bucket);
+  }
+
+  close(): void {
+    this.closed = true;
+  }
+
+  deliver(name: string, data: string): void {
+    for (const handler of this.listeners.get(name) ?? []) handler({ data });
+  }
+}
+
+function withFakeEventSource<T>(run: () => T): T {
+  const globals = globalThis as unknown as { EventSource?: unknown };
+  const original = globals.EventSource;
+  FakeEventSource.instances = [];
+  globals.EventSource = FakeEventSource;
+  try {
+    return run();
+  } finally {
+    if (original === undefined) delete globals.EventSource;
+    else globals.EventSource = original;
+  }
+}
+
+test("V9 · en OLÄSBAR SSE-ram räknas som ogiltig rad — den tystas aldrig i ett tomt catch", () => {
+  const received: unknown[] = [];
+  const errors: string[] = [];
+
+  const handle = withFakeEventSource(() =>
+    browserPorts().openStream({
+      after_seq: 5,
+      handlers: {
+        onOpen: () => {},
+        onEvent: (data: unknown) => received.push(data),
+        onError: (message: string) => errors.push(message),
+      },
+    }),
+  );
+
+  const socket = FakeEventSource.instances[0];
+  assert.ok(socket, "porten öppnade ingen ström");
+  assert.ok(socket.url.includes("after_seq=5"), "cursorn följde inte med anslutningen");
+
+  socket.deliver("loop.event", JSON.stringify(ev(6)));
+  socket.deliver("loop.event", "{ det här är inte JSON");
+  handle.close();
+
+  assert.equal(received.length, 2, "den oläsbara ramen försvann innan butiken ens fick se den");
+
+  // Och i butiken blir den en OGILTIG RAD som syns i panelens huvudbok — aldrig en tyst nolla.
+  const store = createTailStore();
+  store.ingest(received, "stream");
+  assert.equal(store.stats().retained, 1);
+  assert.equal(store.stats().invalid, 1, "den trasiga ramen räknades inte");
+  assert.equal(store.stats().cursor, 6, "en oläsbar ram flyttade cursorn");
+
+  const html = renderStream({
+    connection: { ...idleSnapshot().connection, mode: "live", realtime: true, cursor: 6 },
+    stream: store.view(),
+    stats: store.stats(),
+  });
+  assert.ok(html.includes('data-ledger-invalid="1"'), "huvudboken redovisar inte den trasiga ramen");
+  assert.equal(errors.length, 0, "en trasig rad fällde hela strömmen");
+});
+
+test("V9-NEG · ett tomt catch hade gjort exakt den raden osynlig — lögnstuben mäter skillnaden", () => {
+  const frames = [JSON.stringify(ev(6)), "{ det här är inte JSON"];
+
+  // LÖGNSTUB: den vanligaste genvägen — parsa, och tiga vid fel.
+  const swallowed: unknown[] = [];
+  for (const frame of frames) {
+    try {
+      swallowed.push(JSON.parse(frame) as unknown);
+    } catch {
+      // tystnad
+    }
+  }
+  const lieStore = createTailStore();
+  lieStore.ingest(swallowed, "stream");
+  assert.equal(lieStore.stats().invalid, 0, "lögnstuben rapporterade ändå — provet mäter inget");
+  assert.equal(lieStore.stats().retained, 1);
+
+  // SANNINGEN: raden går vidare rå och räknas som ogiltig.
+  const honest: unknown[] = frames.map((frame) => {
+    try {
+      return JSON.parse(frame) as unknown;
+    } catch {
+      return frame;
+    }
+  });
+  const honestStore = createTailStore();
+  honestStore.ingest(honest, "stream");
+  assert.equal(honestStore.stats().invalid, 1);
+  assert.equal(honestStore.stats().retained, 1);
 });
 
 /* ════════════════════════════════════════════════════════════════════════════
