@@ -29,26 +29,28 @@ export const ROOM_CSS = `
 .rm-head-intro { margin: 0; font-size: 12.5px; line-height: 18px; color: var(--text-secondary);
   max-width: 82ch; overflow-wrap: anywhere; }
 .rm-head-note { margin: 0; font-size: 11px; line-height: 16px; color: var(--text-muted);
-  max-width: 82ch; overflow-wrap: anywhere; }
-.rm-confirm { display: flex; flex-wrap: wrap; gap: 6px var(--gap-lg); align-items: flex-start; }
-.rm-confirm-item { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  max-width: 96ch; overflow-wrap: anywhere; }
 
-/* ── Uppmärksamhet ────────────────────────────────────────────────────────── */
-.rm-attention { display: flex; flex-direction: column; gap: 7px; background: var(--bg-surface-0);
-  box-shadow: var(--hairline); border-radius: var(--radius-card); padding: 12px 14px; }
+/* ── Uppmärksamhet ────────────────────────────────────────────────────────────
+   RADER, INTE KORT. Posterna pekar ut något som redan står i kolumnerna; blir de kort med egen
+   rubrik och eget stycke trycker de ned rummets arbetsytor under vikningen — och en operatör som
+   inte ser sitt arbete letar i stället för att arbeta. Varje post ryms därför på en rad: märke,
+   uppgifts-id, klartext. Ingen information är borta, den är bara inte längre ett eget kort. */
+.rm-attention { display: flex; flex-direction: column; gap: 6px; background: var(--bg-surface-0);
+  box-shadow: var(--hairline); border-radius: var(--radius-card); padding: 10px 12px; }
 .rm-attention-heading { margin: 0; font-family: var(--font-mono); font-size: 10.5px;
   letter-spacing: 1.3px; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; }
 .rm-attention-list { list-style: none; margin: 0; padding: 0; display: flex;
-  flex-direction: column; gap: 7px; }
-.rm-attention-item { display: flex; flex-direction: column; gap: 4px; background: var(--bg-surface-1);
-  box-shadow: var(--hairline); border-radius: var(--radius-control); padding: 9px 11px; min-width: 0; }
+  flex-direction: column; gap: 5px; }
+.rm-attention-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 10px;
+  background: var(--bg-surface-1); box-shadow: var(--hairline);
+  border-radius: var(--radius-control); padding: 5px 9px; min-width: 0; }
 .rm-attention-item.mk-tone-warning { background: var(--tint-warning-bg);
   box-shadow: inset 0 0 0 1px var(--tint-warning-border); }
 .rm-attention-item.mk-tone-danger { background: var(--tint-danger-bg);
   box-shadow: inset 0 0 0 1px var(--tint-danger-border); }
-.rm-attention-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .rm-attention-text { font-size: 12px; line-height: 17px; color: var(--text-secondary);
-  max-width: 82ch; overflow-wrap: anywhere; }
+  min-width: 0; overflow-wrap: anywhere; }
 .rm-attention-ids { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
   overflow-wrap: anywhere; }
 
@@ -76,6 +78,9 @@ export const ROOM_CSS = `
 .rm-lane > .mk-col { order: 0; }
 .rm-step { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1.4px;
   text-transform: uppercase; color: var(--text-muted); }
+/* Ordningstalet gäller bara där banorna FAKTISKT står i den ordningen — se RoomStep.tsx.
+   Regeln som döljer det under 960 px står i media-blocket längst ned. */
+.rm-step-n { color: var(--text-disabled); }
 /* Mitten är rummets blick: samma tokens, men lyft ur sidan så att den läses först. */
 .rm-lane-focus .mk-col { box-shadow: inset 0 0 0 1px var(--border-strong),
   0 10px 26px -12px rgba(0, 0, 0, 0.7); padding: var(--pad-card) 20px; }
@@ -83,10 +88,12 @@ export const ROOM_CSS = `
 /* Sidorna är stödytor och ska INTE väga lika tungt som mitten. */
 .rm-lane-in .mk-col, .rm-lane-out .mk-col { background: var(--bg-surface-0); }
 /* Backlog-kolumnens egen CTA pekar på SAMMA inlämningsyta som kompositören ovanför. Den tas
-   inte bort (den är kolumnens etablerade ingång och provad som sådan) men den ska läsas som en
-   genväg, inte som rummets primära handling — annars konkurrerar två knappar om samma roll. */
+   inte bort (den är kolumnens etablerade ingång och provad som sådan i H3-grinden) men den får
+   inte se ut som en andra knapp för samma sak: EN knappform i banan, och den tillhör rummets
+   primära handling. Här blir länken därför ren text — samma mål, samma räckvidd, ingen yta. */
 .rm-lane-in .mk-col [data-intake-cta="true"] { align-self: flex-start; font-size: 11.5px;
-  padding: 5px 9px; color: var(--text-secondary); background: var(--bg-surface-1); }
+  padding: 0; background: none; box-shadow: none; color: var(--accent-text);
+  text-decoration: underline; text-underline-offset: 2px; border-radius: var(--radius-chip); }
 .rm-lane-in .mk-col [data-intake-cta="true"]:hover { color: var(--text-primary); }
 .rm-lane-in .mk-col [data-intake-cta="true"]:focus-visible { box-shadow: var(--focus-ring); }
 
@@ -109,8 +116,12 @@ export const ROOM_CSS = `
 .rm-identity { display: flex; flex-direction: column; gap: 9px; background: var(--bg-surface-0);
   box-shadow: var(--hairline); border-radius: var(--radius-card); padding: 12px 14px; min-width: 0; }
 .rm-identity-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
-.rm-identity-title { margin: 0; font-family: var(--font-mono); font-size: 10.5px;
-  letter-spacing: 1.3px; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; }
+/* RUMMETS h2-NIVÅ, SYNLIG SOM NIVÅ.
+   Identitetsremsan och tidslinjen är sektioner på samma nivå som kompositören (h2). Bar de
+   samma 10.5px mono-versaler som h3-rubrikerna under sig gick nivån bara att läsa i DOM:en —
+   ett sett gränssnitt måste visa sin egen hierarki. Samma form som .rm-composer-title. */
+.rm-identity-title, .rm-timeline-title { margin: 0; font-size: var(--fs-body);
+  line-height: var(--lh-body); font-weight: 600; color: var(--text-primary); letter-spacing: 0.2px; }
 .rm-identity-caption { font-size: 11px; color: var(--text-muted); }
 .rm-identity-grid { display: grid; gap: 8px 14px; grid-template-columns: minmax(0, 1fr); }
 .rm-identity-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -169,7 +180,11 @@ export const ROOM_CSS = `
 }
 @media (max-width: 959px) {
   .rm-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  /* Arbetet först på smala vyer — samma disciplin som Maskinens mk-col-current haft sedan V2. */
   .rm-lane-focus { grid-column: 1 / -1; order: -1; }
+  /* …och då tystnar ordningstalet: layouten visar inte längre 1, 2, 3, så etiketten får inte
+     påstå det. Namnet står kvar, för det är sant i varje vy. */
+  .rm-step-n { display: none; }
 }
 @media (max-width: 719px) {
   .rm-stage { grid-template-columns: minmax(0, 1fr); }

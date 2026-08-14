@@ -8,12 +8,20 @@
  * med den ihåliga punkten för "okänt". Huvudet MONTERAR därför raden i stället för att rita en
  * andra uppsättning av samma sanning: två ägare av ett värde glider isär, och den som gissar
  * hinner alltid bli den som ljuger. Huvudet lägger bara till det raden inte har — ÅLDERN på
- * controllerns bekräftelse — och märker den som ren visning.
+ * controllerns bekräftelse — och gör det som en BILDTEXT till raden, inte som ett eget fält med
+ * egen rubrik. En egen rubrik hade läst som en tredje redovisning av samma bekräftelse.
+ *
+ * VARFÖR HUVUDET ÄR KORT
+ * ----------------------
+ * Höjden här är höjd som trycker ned rummets arbetsytor. Varje rad måste därför förtjäna sin
+ * plats: ingressen är en rad, åldern är en bildtext, uppmärksamhetsposterna är rader och inte
+ * kort, och notisen om transportläget står VID strömmen i stället för här. Ingen ärlighetstext
+ * är borttagen — de har flyttat dit de hör hemma eller kortats till samma påstående.
  *
  * BINDANDE REGLER
  * ---------------
  * · Ingen egen anslutning: ONE_TAIL_CONNECTION_PER_FACTORY_ROOM. Transportläget ägs av
- *   strömpanelen längst ned; huvudet hänvisar till det och gissar aldrig.
+ *   strömpanelen; huvudet gissar aldrig.
  * · Ingen liveness-signal finns i den här skivan. Åldern är en tidsstämpels ålder, inte ett
  *   påstående om aktivitet — och ingenting i huvudet rör sig.
  * · "ÄGARÅTGÄRD KRÄVS" renderas inte: kontraktet har inget fält som säger att ägarens behörighet
@@ -21,22 +29,21 @@
  */
 import * as React from "react";
 import RunStatusBar from "../RunStatusBar";
-import RoomField from "./RoomField";
 import { toneClass } from "../ui";
+import { MISSING } from "@/lib/loop/labels";
 import type { LoopSnapshot } from "@/lib/loop/schema";
 import {
   ATTENTION_EMPTY_TEXT,
   ATTENTION_HEADING,
   OWNER_AUTHORITY_NOTE,
   OWNER_AUTHORITY_SOURCE,
-  TRANSPORT_NOTICE_OWNER,
   deriveAttention,
 } from "@/lib/loop/room/attention";
 import {
+  AGE_CAPTION_LEAD,
   AGE_NOTE,
   ROOM_INTRO,
   ROOM_TITLE,
-  ROOM_TRANSPORT_NOTE,
   mainConfirmation,
 } from "@/lib/loop/room/header";
 
@@ -51,6 +58,7 @@ export default function FactoryRoomHeader({ snapshot, fixture, now }: FactoryRoo
   const clock = now ?? new Date();
   const confirmation = mainConfirmation(snapshot, clock);
   const attention = deriveAttention(snapshot);
+  const ageMissing = confirmation.age_text === null;
 
   return (
     <header className="rm-head" data-factory-room-header="true">
@@ -60,17 +68,21 @@ export default function FactoryRoomHeader({ snapshot, fixture, now }: FactoryRoo
       {/* Maskinens egen statusrad — samma värden, samma märkning, en enda ägare. */}
       <RunStatusBar snapshot={snapshot} fixture={fixture} />
 
-      <div className="rm-confirm" data-main-confirmation="true">
-        <RoomField
-          className="rm-confirm-item"
-          fieldId="main_confirmed_age"
-          label="main bekräftad · ålder (visning)"
-          value={confirmation.age_text}
+      {/*
+        Bildtext till raden ovan, inte ett eget fält: statusraden äger sha och tidsstämpel, och
+        åldern är det enda den inte redan visar. Tidsstämpeln bärs i `title` så att den går att
+        läsa av utan att skrivas ut en andra gång.
+      */}
+      <p className="rm-head-note" data-main-confirmation="true" data-age-is-liveness="false">
+        {AGE_CAPTION_LEAD}{" "}
+        <span
+          className={ageMissing ? "mk-missing" : undefined}
+          data-missing={ageMissing ? "true" : "false"}
           title={confirmation.confirmed_ts ?? undefined}
-        />
-      </div>
-      <p className="rm-head-note" data-age-is-liveness="false">
-        {AGE_NOTE}
+        >
+          {confirmation.age_text ?? MISSING}
+        </span>{" "}
+        · {AGE_NOTE}.
       </p>
 
       <section
@@ -94,15 +106,13 @@ export default function FactoryRoomHeader({ snapshot, fixture, now }: FactoryRoo
                 data-attention-item={item.id}
                 data-tone={item.tone}
               >
-                <div className="rm-attention-head">
-                  <span className={`mk-badge ${toneClass(item.tone)}`} data-attention-state={item.id}>
-                    {item.label} · {item.id}
-                  </span>
-                  <span className="rm-attention-ids" data-attention-task-ids={item.task_ids.join(" ")}>
-                    {item.task_ids.join(" · ")}
-                  </span>
-                </div>
-                <p className="rm-attention-text">{item.detail}</p>
+                <span className={`mk-badge ${toneClass(item.tone)}`} data-attention-state={item.id}>
+                  {item.label} · {item.id}
+                </span>
+                <span className="rm-attention-ids" data-attention-task-ids={item.task_ids.join(" ")}>
+                  {item.task_ids.join(" · ")}
+                </span>
+                <span className="rm-attention-text">{item.detail}</span>
               </li>
             ))}
           </ul>
@@ -110,9 +120,6 @@ export default function FactoryRoomHeader({ snapshot, fixture, now }: FactoryRoo
 
         <p className="rm-head-note" data-owner-authority-note="true">
           {OWNER_AUTHORITY_NOTE}
-        </p>
-        <p className="rm-head-note" data-room-transport-state="unknown">
-          {ROOM_TRANSPORT_NOTE} {TRANSPORT_NOTICE_OWNER}
         </p>
       </section>
     </header>

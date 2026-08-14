@@ -32,12 +32,11 @@ export const ATTENTION_EMPTY_TEXT =
  */
 export const OWNER_AUTHORITY_SOURCE = "NONE" as const;
 export const OWNER_AUTHORITY_NOTE =
-  "Kontraktet bär inget fält som säger att ägarens behörighet krävs. Rummet härleder därför " +
-  "aldrig ett sådant krav — saknad uppgift visas som saknad, inte som ett antagande.";
+  "Ingen ägaråtgärd kan visas: kontraktet har inget fält som säger att ägarens behörighet krävs.";
 
-/** Transportlägets ägare, utskrivet så att läsaren vet var det faktiska läget står. */
+/** Transportlägets ägare, utskrivet VID strömmen så att läsaren vet var det faktiska läget står. */
 export const TRANSPORT_NOTICE_OWNER =
-  "Anslutningens läge (öppen ström, återanslutning eller poll) står i strömpanelen längst ned.";
+  "Anslutningens läge — öppen ström, återanslutning eller poll — står i panelen nedan.";
 
 /**
  * De tillstånd som drar uppmärksamhet till sig, i TASK_LIFECYCLE:s EGEN ordning. Ordningen
@@ -49,12 +48,8 @@ export const ATTENTION_STATES: readonly TaskLifecycle[] = TASK_LIFECYCLE.filter(
 
 /** Klartext per tillstånd. NEEDS_SPEC beskrivs som arbete, STOPPED som stopp — aldrig tvärtom. */
 const ATTENTION_DETAIL: Readonly<Record<"NEEDS_SPEC" | "STOPPED", string>> = Object.freeze({
-  NEEDS_SPEC:
-    "Källan räckte inte till en verifierbar uppgift. Ingen builder startades — nästa steg är " +
-    "att komplettera källan.",
-  STOPPED:
-    "Arbetet är stoppat i controllerns snapshot. Ett stopp är aldrig ett klart arbete och " +
-    "flyttas aldrig av rummet.",
+  NEEDS_SPEC: "Källan räckte inte till en verifierbar uppgift. Nästa steg är att komplettera den.",
+  STOPPED: "Stoppat i controllerns snapshot. Ett stopp är aldrig ett klart arbete.",
 });
 
 export type AttentionItem = {

@@ -17,9 +17,12 @@
  */
 import * as React from "react";
 import CurrentTaskPanel from "../CurrentTaskPanel";
+import RoomStep from "./RoomStep";
 import type { TaskView } from "@/lib/loop/schema";
 
-export const FOCUS_STEP = "2 · arbetet";
+/** Namnet gäller i ALLA vyer. Ordningstalet döljs där layouten inte längre visar den ordningen. */
+export const FOCUS_STEP = "arbetet";
+export const FOCUS_STEP_ORDINAL = "2";
 
 export const FOCUS_NOTE =
   "Allt i mitten kommer ur controllerns publicerade snapshot. Eventströmmen längst ned kan visa " +
@@ -28,7 +31,7 @@ export const FOCUS_NOTE =
 export default function TaskFocusRail({ task }: { task: TaskView | null }) {
   return (
     <div className="rm-lane rm-lane-focus" data-task-focus-rail="true">
-      <span className="rm-step">{FOCUS_STEP}</span>
+      <RoomStep ordinal={FOCUS_STEP_ORDINAL} name={FOCUS_STEP} />
       <CurrentTaskPanel task={task} />
       <p className="rm-head-note">{FOCUS_NOTE}</p>
     </div>

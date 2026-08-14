@@ -111,8 +111,11 @@ export default function RoomTimeline({ fixture }: { fixture: boolean }) {
 
   return (
     <section className="rm-timeline" data-room-timeline="true" aria-label={TIMELINE_HEADING}>
-      {/* h2: rummets ytor ligger på samma nivå. Segmenten under är h3. */}
-      <h2 className="rm-attention-heading">{TIMELINE_HEADING}</h2>
+      {/*
+        h2: rummets ytor ligger på samma nivå, och nivån ska SYNAS. Egen klass i stället för
+        h3-rubrikernas mono-versaler, annars går sektionen inte att skilja från segmenten under.
+      */}
+      <h2 className="rm-timeline-title">{TIMELINE_HEADING}</h2>
       <p className="rm-timeline-note">{TIMELINE_NO_GLOBAL_ORDER_NOTE}</p>
 
       {segments.length === 0 ? (

@@ -38,11 +38,14 @@ import LiveEventStream from "./LiveEventStream";
 import FactoryRoomHeader from "./room/FactoryRoomHeader";
 import IdentityStrip from "./room/IdentityStrip";
 import OutputTray from "./room/OutputTray";
+import RoomStep from "./room/RoomStep";
 import RoomTimeline from "./room/RoomTimeline";
 import TaskFocusRail from "./room/TaskFocusRail";
 import WorkComposer from "./room/WorkComposer";
 import { ROOM_CSS } from "./room/ui";
 import { LOOP_CSS } from "./ui";
+import { TRANSPORT_NOTICE_OWNER } from "@/lib/loop/room/attention";
+import { ROOM_TRANSPORT_NOTE } from "@/lib/loop/room/header";
 
 export default function MaskinShell({
   snapshot,
@@ -80,7 +83,7 @@ export default function MaskinShell({
 
           <div className="rm-stage" data-room-stage="true">
             <div className="rm-lane rm-lane-in" data-room-lane="in">
-              <span className="rm-step">1 · in</span>
+              <RoomStep ordinal="1" name="in" />
               <WorkComposer />
               <BacklogColumn tasks={snapshot.backlog} />
             </div>
@@ -127,6 +130,14 @@ export default function MaskinShell({
               källorna blandas aldrig.
             </p>
           )}
+          {/*
+            Notisen om transportläget står HÄR, vid anslutningen den handlar om — inte i rummets
+            huvud. Där kostade den bara höjd ovanför arbetsytorna, och en läsare som undrar över
+            anslutningen tittar på strömpanelen, inte på sidhuvudet.
+          */}
+          <p className="rm-head-note" data-room-transport-state="unknown">
+            {ROOM_TRANSPORT_NOTE} {TRANSPORT_NOTICE_OWNER}
+          </p>
           <LiveEventStream watermark={snapshot.seq_watermark} />
         </>
       )}

@@ -36,12 +36,17 @@ export default function WorkComposer() {
     <section className="rm-composer" data-work-composer="true" aria-label={COMPOSER_TITLE}>
       {/* h2: samma nivå som kolumnernas rubriker — rummets ytor är syskon, inte nästlade. */}
       <h2 className="rm-composer-title">{COMPOSER_TITLE}</h2>
-      <p className="rm-composer-text">{COMPOSER_WHAT}</p>
 
+      {/*
+        HANDLINGEN FÖRST. Rummets primära ingång ska nås utan att först läsa två stycken; texten
+        under är ramen kring handlingen, inte ett villkor för den. Ingen av raderna är borta —
+        de har bytt plats med knappen.
+      */}
       <Link className="rm-cta" href="/loop/mata" data-room-composer-cta="true">
         Öppna inlämningen
       </Link>
 
+      <p className="rm-composer-text">{COMPOSER_WHAT}</p>
       <p className="rm-composer-text" data-composer-mode="fixture">
         {COMPOSER_MODE_NOTE}
       </p>

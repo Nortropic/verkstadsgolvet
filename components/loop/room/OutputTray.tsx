@@ -18,9 +18,12 @@
  */
 import * as React from "react";
 import CompletedColumn from "../CompletedColumn";
+import RoomStep from "./RoomStep";
 import type { TaskView } from "@/lib/loop/schema";
 
-export const TRAY_STEP = "3 · ut";
+/** Namnet gäller i ALLA vyer. Ordningstalet döljs där layouten inte längre visar den ordningen. */
+export const TRAY_STEP = "ut";
+export const TRAY_STEP_ORDINAL = "3";
 
 export const TRAY_NOTE =
   "Klart betyder att controllern skrivit DONE i sin snapshot. Ett stoppat arbete står kvar som " +
@@ -29,7 +32,7 @@ export const TRAY_NOTE =
 export default function OutputTray({ tasks }: { tasks: readonly TaskView[] }) {
   return (
     <div className="rm-lane rm-lane-out" data-output-tray="true">
-      <span className="rm-step">{TRAY_STEP}</span>
+      <RoomStep ordinal={TRAY_STEP_ORDINAL} name={TRAY_STEP} />
       <CompletedColumn tasks={tasks} />
       <p className="rm-head-note">{TRAY_NOTE}</p>
     </div>

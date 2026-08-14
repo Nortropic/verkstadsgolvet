@@ -33,21 +33,27 @@ export const ROOM_FACTS = {
 
 export const ROOM_TITLE = "Fabriksrummet";
 
-/** Rummets ingress. Kort, och den påstår ingenting som ytorna nedanför inte bär. */
+/** Rummets ingress. En rad: axeln till vänster, ägarskapet till höger om tankstrecket. */
 export const ROOM_INTRO =
-  "Ett rum, en riktning: mata in till vänster, arbetet i mitten, resultatet till höger. " +
-  "Allt som står här kommer ur controllerns publicerade snapshot — rummet äger ingen sanning.";
+  "In till vänster, arbetet i mitten, ut till höger — allt ur controllerns publicerade snapshot.";
 
-/** Hänvisningen till den som FAKTISKT äger transportläget. Rummet upprepar det aldrig. */
+/**
+ * Hänvisningen till den som FAKTISKT äger transportläget. Den renderas VID STRÖMMEN, inte i
+ * huvudet: en notis om en anslutning hör hemma bredvid anslutningen, och i huvudet kostade den
+ * bara höjd ovanför de ytor operatören kom hit för att se.
+ */
 export const ROOM_TRANSPORT_NOTE =
-  "Rummet öppnar ingen egen anslutning och känner därför inget transportläge. Strömpanelen " +
-  "längst ned bär sitt eget läge — det står där, inte här.";
+  "Rummet öppnar ingen egen anslutning. Strömpanelen bär sitt eget transportläge — det står där.";
 
-/** Åldern är en visning av en tidsstämpel, aldrig ett påstående om aktivitet. */
+/**
+ * Åldern är en visning av en tidsstämpel, aldrig ett påstående om aktivitet.
+ *
+ * Texten är kort med avsikt: den står som BILDTEXT till statusradens egen bekräftelse, inte som
+ * ett eget stycke. Statusraden äger fortfarande sha och tidsstämpel — åldern är det enda nya.
+ */
 export const AGE_IS_LIVENESS_SIGNAL = false;
-export const AGE_NOTE =
-  "Åldern räknas ur controllerns egen tidsstämpel och är ren visning — den är ingen " +
-  "liveness-signal och säger inget om att något rör sig just nu.";
+export const AGE_NOTE = "ren visning, ingen liveness-signal";
+export const AGE_CAPTION_LEAD = "Controllerns bekräftelse ovan:";
 
 const MS_MINUTE = 60_000;
 const MS_HOUR = 3_600_000;

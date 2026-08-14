@@ -605,14 +605,23 @@ test("ROOM-LAYOUT: banornas ordning är DOM-ordning — etikett, yta, notis, i a
     assert.ok(index >= 0, `hittade inte «${needle}» i rummets markup`);
     return index;
   };
-  assert.ok(at("1 · in") < at('data-work-composer="true"'), "ingången saknar sin stegetikett");
+  assert.ok(
+    at('data-room-step="in"') < at('data-work-composer="true"'),
+    "ingången saknar sin stegetikett",
+  );
   assert.ok(
     at('data-work-composer="true"') < at('data-column="backlog"'),
     "kompositören ligger inte före kön — rummets primära handling hamnade under listan",
   );
-  assert.ok(at(FOCUS_STEP) < at('data-column="current"'), "aktuell uppgift ligger före sin etikett");
+  assert.ok(
+    at(`data-room-step="${FOCUS_STEP}"`) < at('data-column="current"'),
+    "aktuell uppgift ligger före sin etikett",
+  );
   assert.ok(at('data-column="current"') < at(FOCUS_NOTE), "fokusnotisen ligger före sin yta");
-  assert.ok(at(TRAY_STEP) < at('data-column="completed"'), "utmatningen ligger före sin etikett");
+  assert.ok(
+    at(`data-room-step="${TRAY_STEP}"`) < at('data-column="completed"'),
+    "utmatningen ligger före sin etikett",
+  );
   assert.ok(at('data-column="completed"') < at(TRAY_NOTE), "utmatningsnotisen ligger före sin yta");
 
   // Och banorna kommer i berättelsens ordning: in → arbete → ut.
@@ -645,6 +654,26 @@ test("ROOM-LAYOUT: banornas ordning är DOM-ordning — etikett, yta, notis, i a
       opened,
       closed,
       `${column}-kolumnen är inte ett direkt barn till .${lane} — barnkombinatorn träffar inte`,
+    );
+  }
+
+  /*
+    ORDNINGSTALET ÄR ETT PÅSTÅENDE OM LAYOUTEN. Under 960 px lägger sig arbetet först, och då
+    får etiketten inte påstå 1, 2, 3. Talet bärs därför i ett eget element som döljs i exakt
+    det media-blocket — och det är `aria-hidden`, för DOM-ordningen bär redan sekvensen för
+    den som lyssnar i stället för att titta.
+  */
+  assert.ok(markup.includes('class="rm-step-n" aria-hidden="true"'), "ordningstalet är inte urskilt");
+  const narrow = ROOM_CSS.slice(ROOM_CSS.indexOf("@media (max-width: 959px)"));
+  assert.match(
+    narrow.slice(0, narrow.indexOf("}\n}") + 3),
+    /\.rm-step-n\s*\{[^}]*display:\s*none/,
+    "ordningstalet står kvar när banorna byter ordning under 960 px",
+  );
+  for (const ordinal of ["1", "2", "3"]) {
+    assert.ok(
+      markup.includes(`>${ordinal} ·`),
+      `ordningstalet ${ordinal} renderas inte i sitt eget element`,
     );
   }
 });
@@ -712,12 +741,73 @@ test("ROOM-HUVUD: controllerns bekräftade main och dess ålder visas — ålder
   assert.equal(mainConfirmation(null, now).age_text, null);
 
   const html = renderRoom(snapshot);
+  const markup = withoutStyles(html);
   // Statusraden äger fortfarande liveness-märket, och det är OKÄNT utan signal.
   assert.ok(html.includes('data-liveness="unknown"'));
-  assert.ok(!/AUTONOM/.test(withoutStyles(html)), "rummet påstod AUTONOM utan liveness-signal");
+  assert.ok(!/AUTONOM/.test(markup), "rummet påstod AUTONOM utan liveness-signal");
   assert.ok(html.includes('data-age-is-liveness="false"'), "åldern märks inte som ren visning");
   assert.ok(html.includes("FIXTUR"), "fixturmärkningen syns inte på rumsnivå");
   assert.ok(html.includes('data-room-transport-state="unknown"'), "rummet gissade ett transportläge");
+
+  /*
+    ÅLDERN ÄR EN BILDTEXT, INTE EN TREDJE REDOVISNING. Statusraden äger sha och tidsstämpel;
+    bildtexten lägger bara till åldern. Tidsstämpeln får därför inte skrivas ut en gång till i
+    bildtextens SYNLIGA text — den bärs i `title`, där den går att läsa av utan att upprepas.
+  */
+  const caption = markup.match(/<p[^>]*data-main-confirmation="true"[\s\S]*?<\/p>/)?.[0];
+  assert.ok(caption, "bildtexten om controllerns bekräftelse renderas inte");
+  const captionText = caption.replace(/<[^>]+>/g, "");
+  const ts = snapshot.current_main.confirmed_ts;
+  assert.ok(ts !== null, "fixturen saknar bekräftelsestämpel — provet mäter fel sak");
+  assert.ok(
+    !captionText.includes(ts),
+    "bildtexten skriver ut tidsstämpeln igen — statusraden är dess enda ägare",
+  );
+  assert.ok(caption.includes(`title="${ts}"`), "tidsstämpeln går inte att läsa av i bildtexten");
+  assert.ok(
+    !markup.includes('data-room-field="main_confirmed_age"'),
+    "åldern renderas fortfarande som ett eget fält med egen rubrik",
+  );
+
+  /*
+    Notisen om transportläget står VID strömmen: efter gränsstycket, före panelen. I huvudet
+    kostade den bara höjd ovanför de ytor operatören kom hit för att se.
+  */
+  const positions = {
+    header: markup.indexOf('data-factory-room-header="true"'),
+    boundary: markup.indexOf('data-stream-source-boundary="true"'),
+    transport: markup.indexOf('data-room-transport-state="unknown"'),
+    stream: markup.indexOf('data-event-stream="true"'),
+  };
+  assert.ok(positions.transport > positions.boundary, "transportnotisen ligger kvar ovanför rummet");
+  assert.ok(positions.transport < positions.stream, "transportnotisen hamnade efter panelen");
+  assert.ok(positions.header < positions.boundary);
+});
+
+test("ROOM-A11Y: rubriknivåerna syns — h2 lånar aldrig h3-rubrikernas form", () => {
+  const markup = withoutStyles(renderRoom(snapshotOrThrow()));
+
+  // Rummets sektioner är h2 och bär rummets h2-form …
+  for (const heading of ["rm-composer-title", "rm-identity-title", "rm-timeline-title"]) {
+    assert.match(markup, new RegExp(`<h2 class="${heading}"`), `${heading} är inte en h2`);
+  }
+  // … och nivån under är h3 med mono-versalformen.
+  assert.match(markup, /<h3 class="rm-attention-heading"/);
+  assert.match(markup, /<h3 class="rm-segment-title"/);
+  assert.ok(!/<h2 class="rm-attention-heading"/.test(markup), "en h2 lånar h3-formen");
+  assert.ok(!/<h2 class="rm-segment-title"/.test(markup), "en h2 lånar segmentrubrikens form");
+
+  // Och formerna är FAKTISKT olika i stilarket — inte bara olika klassnamn.
+  const ruleFor = (selector: string) => {
+    const start = ROOM_CSS.indexOf(selector);
+    assert.ok(start >= 0, `stilarket saknar regel för ${selector}`);
+    return ROOM_CSS.slice(start, ROOM_CSS.indexOf("}", start));
+  };
+  assert.ok(
+    !/text-transform:\s*uppercase/.test(ruleFor(".rm-identity-title, .rm-timeline-title")),
+    "h2-formen är fortfarande mono-versaler — nivåerna går inte att skilja åt",
+  );
+  assert.match(ruleFor(".rm-attention-heading"), /text-transform:\s*uppercase/);
 });
 
 /* ────────────────────────────────────────────────────────────────────────────
