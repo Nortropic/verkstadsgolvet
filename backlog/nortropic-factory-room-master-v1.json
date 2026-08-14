@@ -59,9 +59,14 @@
       "visualReview": false,
       "empiricalReview": "The three artifacts exist at the published merge commit, cross-reference each other by path, the backlog parses under node, and an independent reviewer confirms that no adopted requirement was dropped, weakened or silently reclassified.",
       "remotePrerequisites": [],
-      "status": "IN_PROGRESS",
-      "evidence": [],
-      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "status": "PROVEN",
+      "evidence": [
+        "run: master-00_roadmap_freeze-20260814115054",
+        "gates passed with 0 failures across rounds 0-1: node -e JSON.parse(backlog/nortropic-factory-room-master-v1.json); npx tsc --noEmit; npm run claude:test",
+        "independent reviewer: clean at round 1 (note-severity advisories only, no blocking finding)",
+        "published artifacts measured with git diff --name-only 4e5e796506599f36d124248652014061f7d3985d 31f20835d7cb6d143609b8174dc04e1ae321b0d6 = exactly docs/nortropic-factory-room-master-roadmap-v1.md, docs/nortropic-factory-room-handoff-v1.md, backlog/nortropic-factory-room-master-v1.json (no product code touched)"
+      ],
+      "published": { "baseSha": "4e5e796506599f36d124248652014061f7d3985d", "candidateSha": "fc76bf5043834c8b39c0830405d91ca19a4a59b1", "mergeSha": "31f20835d7cb6d143609b8174dc04e1ae321b0d6", "pr": "https://github.com/Nortropic/verkstadsgolvet/pull/23" },
       "blocker": null
     },
     {
@@ -95,9 +100,16 @@
       "visualReview": true,
       "empiricalReview": "Visual review of actual screenshots at desktop, tablet and mobile must prove a room and not a dashboard matrix: one narrative axis, WorkComposer as primary input, the current task as visual focus, the event log secondary, no duplicate status, fixture and live visibly distinct, visible keyboard focus and no page-level horizontal scroll.",
       "remotePrerequisites": [],
-      "status": "NOT_STARTED",
-      "evidence": [],
-      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "status": "PROVEN",
+      "evidence": [
+        "run: room-01_factory_room_shell-20260814122919",
+        "gates passed with 0 failures across rounds 0-7: npx tsc --noEmit; npm run build; npm run loop:test; npm run claude:test",
+        "independent reviewer: clean at round 7 (advisories only, no blocking finding)",
+        "visual reviewer: READY at round 7 (advisories only); screenshots desktop-1440x1000.png, tablet-900x1000.png, mobile-390x844.png under .claude-loop/evidence/room-01_factory_room_shell-20260814122919/round-7/ in the run worktree",
+        "changed files = 15, measured with git diff --name-only 31f20835d7cb6d143609b8174dc04e1ae321b0d6 4701f1c0a46f25e114637efa556fe80411de412e: components/loop/room/** 9 files, lib/loop/room/** 4 files, components/loop/MaskinShell.tsx, tests/loop/room-shell.test.ts; app/(app)/loop/page.tsx untouched",
+        "fixture-backed presentation slice only: no backend authority, state store, event contract, API route or credential was added"
+      ],
+      "published": { "baseSha": "31f20835d7cb6d143609b8174dc04e1ae321b0d6", "candidateSha": "7eda019bc4a9581eed993404c4a36dae8e8974bf", "mergeSha": "4701f1c0a46f25e114637efa556fe80411de412e", "pr": "https://github.com/Nortropic/verkstadsgolvet/pull/24" },
       "blocker": null
     },
     {

@@ -7,19 +7,22 @@ memory is never continuation authority.
 
 ```text
 MASTER_ROADMAP_PATH   = docs/nortropic-factory-room-master-roadmap-v1.md
-MASTER_ROADMAP_COMMIT = SET_AT_PUBLICATION — the merge commit of this slice
-                        (unknowable before merge; the first STATUS task after publication replaces
-                        this line with the real SHA)
+MASTER_ROADMAP_COMMIT = 31f20835d7cb6d143609b8174dc04e1ae321b0d6
+                        (merge commit of PR #23, the MASTER-00 roadmap freeze; the requirements
+                        portion of the roadmap is frozen at this commit and may only be changed by a
+                        separate explicit roadmap-authority task)
 MASTER_BACKLOG_PATH   = backlog/nortropic-factory-room-master-v1.json
 ```
 
 ## CURRENT_AUTHORITATIVE_MAIN
 
-Measured 2026-08-14.
+Measured 2026-08-14, after the MASTER-00 and ROOM-01 publications.
 
 ```text
-Nortropic/verkstadsgolvet  origin/main = 4e5e796506599f36d124248652014061f7d3985d
-    measurement: git rev-parse origin/main (in the run worktree, 2026-08-14)
+Nortropic/verkstadsgolvet  origin/main = 4701f1c0a46f25e114637efa556fe80411de412e
+    measurement: git rev-parse origin/main (in the STATUS-01 run worktree, 2026-08-14); the value
+    matches the ROOM-01 merge commit, so origin/main has not moved beyond ROOM-01 at measurement
+    time. Previous recorded value was 4e5e796506599f36d124248652014061f7d3985d (pre-MASTER-00).
 Nortropic/nortropic-system origin/main = 32b6e076f96d095d32bb7bf9e6c2519632af80a1
     measurement: git rev-parse origin/main, run by the supervising session outside this worktree,
     2026-08-14. This repository cannot and does not measure that repository.
@@ -52,8 +55,38 @@ Factory infrastructure (supervisor, claims, publication v2, autonomy policy, bac
                        ad218ec6ed3038de65ca3902d11bf3936929a203 (PR #8)
 ```
 
-Factory Room programme slices completed: NONE.
-`MASTER-00` is `IN_FLIGHT` at authoring time; its merge SHA becomes `MASTER_ROADMAP_COMMIT`.
+Factory Room programme slices published and `PROVEN` (measured 2026-08-14 in the STATUS-01 run
+worktree with `git rev-parse` and `git diff --name-only`):
+
+```text
+MASTER-00  master roadmap freeze (docs + backlog artifacts only)
+    base      4e5e796506599f36d124248652014061f7d3985d
+    candidate fc76bf5043834c8b39c0830405d91ca19a4a59b1
+    merge     31f20835d7cb6d143609b8174dc04e1ae321b0d6
+    PR        https://github.com/Nortropic/verkstadsgolvet/pull/23
+    run       master-00_roadmap_freeze-20260814115054
+    gates     backlog JSON parse, npx tsc --noEmit, npm run claude:test — 0 failures, rounds 0-1
+    review    reviewer clean at round 1 (note-severity advisories only)
+
+ROOM-01    Factory Room shell (presentation only, fixture-backed)
+    base      31f20835d7cb6d143609b8174dc04e1ae321b0d6
+    candidate 7eda019bc4a9581eed993404c4a36dae8e8974bf
+    merge     4701f1c0a46f25e114637efa556fe80411de412e
+    PR        https://github.com/Nortropic/verkstadsgolvet/pull/24
+    run       room-01_factory_room_shell-20260814122919
+    gates     npx tsc --noEmit, npm run build, npm run loop:test, npm run claude:test — 0 failures,
+              rounds 0-7
+    review    reviewer clean at round 7 (advisories only); visual reviewer READY at round 7
+              (advisories only)
+    visual    desktop-1440x1000.png, tablet-900x1000.png, mobile-390x844.png under
+              .claude-loop/evidence/room-01_factory_room_shell-20260814122919/round-7/
+              in the run worktree
+    scope     15 changed files: components/loop/room/** (9), lib/loop/room/** (4),
+              components/loop/MaskinShell.tsx, tests/loop/room-shell.test.ts;
+              app/(app)/loop/page.tsx untouched
+```
+
+`ROOM-01` is fixture-backed presentation. It is not a live integration claim.
 
 ## CURRENT_BLOCKERS
 
@@ -82,19 +115,32 @@ ROUTINES_PREVIEW_ENTITLEMENT
   evidence: Claude Code Routines is a research preview, account-owned scheduled cloud runs,
             beta header anthropic-beta: experimental-cc-routine-2026-04-01 (same evidence file)
   blocks:   REMOTE-03 empirical proof
+
+SWEEP_DELTA_RELAND (operational, not a backend dependency)
+  evidence: run ux-advisory-sweep-v1-20260814064509 was BLOCKED on external base drift — the owner
+            merged PR #21 during that run's publication, so its base was no longer current
+  state:    its candidate d20238bc… is preserved; nothing from it is lost
+  action:   the remainder re-lands as a delta task, authored only after re-measuring the sweep's
+            remaining diff against current origin/main (4701f1c0a46f25e114637efa556fe80411de412e);
+            it is not re-run against the stale base
 ```
 
 No blocker above is permission to drop a deliverable. Fixture-backed and design halves continue.
 
 ## CURRENT_NEXT_ELIGIBLE_SLICES
 
+Dependencies met and no unmet authority prerequisite, measured against the published ledger:
+
 ```text
-1. ROOM-01  Factory Room shell — presentation only, fixture-backed, no backend prerequisite.
-2. SUPERVISOR-01  measured-gap closure in scripts/claude-loop/** (inventory first).
-3. ROOM-03  causal timeline and evidence projection (fixture-backed half).
-4. ROOM-08  responsive and mobile Factory Room (after ROOM-01).
+1. ROOM-03  causal timeline and evidence projection (fixture-backed half; depends on ROOM-01 ✓).
+2. ROOM-08  responsive and mobile Factory Room (depends on ROOM-01 ✓).
+3. SUPERVISOR-01  measured-gap closure in scripts/claude-loop/** (inventory first;
+                  depends on MASTER-00 ✓).
+plus  the operational sweep-delta re-land from CURRENT_BLOCKERS, once re-measured against
+      current origin/main.
 ```
 
+`ROOM-01` is no longer eligible: it is published and `PROVEN`.
 Nothing downstream of the backend chain is eligible for a LIVE claim.
 
 ## LOCKED_INVARIANTS
@@ -135,12 +181,18 @@ REMOTE-04  remote notifications and mobile     NOT_STARTED
 
 ## EXACT_NEXT_ACTION
 
-Author and run `ROOM-01` (Factory Room shell) through the Claude Factory: write the task file, run
-it with `npm run claude:run`, take it through builder, independent reviewer and visual reviewer, and
-publish under guard. `ROOM-01` is presentation-only and has no backend prerequisite; it must not
-introduce a backend authority, state store, event contract, API route, credential or natural-language
-command executor, and must not describe fixture data as live.
+Author and run `ROOM-03` (causal timeline and evidence projection, fixture-side half) through the
+Claude Factory: write the task file, run it with `npm run claude:run`, take it through builder,
+independent reviewer and visual reviewer, and publish under guard. Only the fixture-backed half is
+in scope; the live event half stays blocked on the backend chain (S5, S13) and must not be described
+as live-complete. Every hop of the chain must be carried by an actual identifier, no relationship may
+be inferred without one, and no client-side fold may become authority.
 
-Read `docs/nortropic-factory-room-master-roadmap-v1.md` section 5 (ROOM-01) for the frozen exit
-criteria, negative controls and visual-review requirements, and
+The sweep-delta re-land is authored alongside it, but publication-race discipline applies: exactly
+one publication in flight at a time, and the sweep delta is measured against current origin/main
+before it is run — the ux-advisory-sweep-v1-20260814064509 block was caused precisely by base drift
+during publication.
+
+Read `docs/nortropic-factory-room-master-roadmap-v1.md` (ROOM-03) for the frozen exit criteria,
+negative controls and visual-review requirements, and
 `backlog/nortropic-factory-room-master-v1.json` for the machine-readable slice record.
