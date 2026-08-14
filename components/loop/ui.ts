@@ -16,6 +16,7 @@
  *   läser koden med kommentarerna bortskalade och den renderade markupen i sin helhet.
  * · Saknat värde renderas via MISSING/orMissing ur lib/loop/labels.ts — aldrig 0, aldrig tomt.
  */
+import { COMMAND_QUEUE_BLOCKED_ON, commandChannelEnabled } from "@/lib/loop/commands";
 import { MISSING, type Tone } from "@/lib/loop/labels";
 
 /** Färgroll → namnrymdad klass. Rollen ägs av V1:s labels.ts, inte av den här filen. */
@@ -43,6 +44,149 @@ export function shortSha(value: string | null | undefined, length = 7): string {
 export function countLabel(n: number): string {
   return n === 1 ? "1 uppgift" : `${n} uppgifter`;
 }
+
+/* ── Sidhuvudets sanning (/loop) ──────────────────────────────────────────────
+ *
+ * Sidhuvudet påstod tidigare att /loop varken hade transport, kommandon eller eventström.
+ * Det är inte sant om den sida som FAKTISKT monteras: MaskinShell renderar V7:s kommandoyta
+ * och V9:s live-strömpanel. En osann etikett är värre än ingen etikett — därför beskrivs de
+ * tre källorna var för sig, med det läge var och en verkligen har:
+ *
+ *   LIVE          — strömpanelen talar med kontrollplanets läsyta på riktigt. Att den ofta är
+ *                   tom är ett ÄRLIGT tomläge, inte ett fel och inte heller "nästan live".
+ *   KONTRAKTSLÄGE — kommandoytan är byggd men kanalen är stängd (503) tills backendens skiva
+ *                   finns. Ytan får aldrig beskrivas som en fungerande väg.
+ *   FIXTUR        — statusraden, kolumnerna och korten kommer ur den GENERERADE fixturen.
+ *
+ * Texten HÄRLEDS ur samma värden som ytorna själva läser (`commandChannelEnabled`,
+ * FIXTURE_MODE via `fixture`-flaggan) i stället för att skrivas som en fri mening. Byts ett
+ * läge byts etiketten med det — en sanning som måste redigeras för hand blir osann.
+ *
+ * VAD "LIVE" BETYDER HÄR — OCH VAD DET INTE BETYDER
+ * -------------------------------------------------
+ * `mode: "live"` för strömsegmentet betecknar KÄLLAN: vilket plan panelen läser. Det är
+ * INGET påstående om att transporten är uppe, ansluten eller konfigurerad just nu.
+ *
+ * Därför är strömsegmentets läge medvetet konstant medan `commands` och `snapshot` härleds:
+ *   · KÄLLAN är strukturell. Panelen läser kontrollplanets läsyta i varje läge — även när
+ *     transporten inte är konfigurerad och den återansluter eller pollar. Byts källan byts
+ *     koden, inte en flagga.
+ *   · TRANSPORTLÄGET är däremot rörligt, och det ÄGS AV PANELEN: V9 renderar det som märke
+ *     (`data-transport-mode`) med en orsaksrad under sig. Sidhuvudet har ingen egen
+ *     liveness-signal och skulle bara kunna gissa. Två ägare av samma sanning glider isär —
+ *     och den som gissar hinner alltid bli den som ljuger.
+ *
+ * Sidhuvudet duplicerar därför INTE panelens läge; det PEKAR på det
+ * (MASKIN_HEADER_TRANSPORT_NOTE), så att en läsare som ser "LIVE" i huvudet och "transporten
+ * är inte konfigurerad" i panelen vet vilken av raderna som bär det rörliga läget.
+ *
+ * FORM: en kort ingress plus korta, avgränsade segment — aldrig en lång oavgränsad
+ * caption-paragraf. Radlängden begränsas dessutom av `max-width` i MASKIN_HEADER_CSS.
+ */
+
+/** Vilket läge ett segment beskriver. Bärs i markupen så att provet kan mäta distinktionen. */
+export type HeaderSourceMode = "live" | "contract" | "fixture";
+
+export type HeaderTruthSegment = {
+  /** Vilken yta segmentet gäller. Stabil nyckel — etiketten får byta läge, inte identitet. */
+  id: "stream" | "commands" | "snapshot";
+  mode: HeaderSourceMode;
+  label: string;
+  text: string;
+};
+
+/** Ingressen. Kort med avsikt: detaljerna bärs av segmenten, inte av en löpande mening. */
+export const MASKIN_HEADER_SUB =
+  "Kontrollrummets läsvy — ingen authority. Tre källor med olika läge:";
+
+/**
+ * Hänvisningen till den som FAKTISKT äger transportläget. Sidhuvudet säger vilken källa
+ * panelen läser; om anslutningen är öppen, återansluter, pollar eller inte ens är konfigurerad
+ * står i panelen — och bara där.
+ */
+export const MASKIN_HEADER_TRANSPORT_NOTE =
+  "Strömpanelen nedan bär sitt eget transportläge — det står där, inte här.";
+
+/**
+ * Segmenten. `channelEnabled` och `fixture` kommer ur de FAKTISKA lägena, aldrig ur en
+ * handskriven bedömning: står kanalen öppen påstår texten inte 503, och är snapshoten inte
+ * längre en fixtur påstås ingen fixtur.
+ */
+export function maskinHeaderTruth({
+  fixture,
+  channelEnabled = commandChannelEnabled(),
+}: {
+  fixture: boolean;
+  channelEnabled?: boolean;
+}): HeaderTruthSegment[] {
+  return [
+    {
+      /*
+        KÄLLA, inte transportstatus: se blocket ovan. Texten påstår därför bara vad panelen
+        LÄSER och skriver ut det ärliga tomläget — aldrig att anslutningen är uppe.
+      */
+      id: "stream",
+      mode: "live",
+      label: "Live",
+      text: "Eventströmmen läser kontrollplanet — tom tills backendens lucka publicerar.",
+    },
+    channelEnabled
+      ? {
+          id: "commands",
+          mode: "live",
+          label: "Live",
+          text: "Kommandoytan lämnar typade intentioner till controllerns kö.",
+        }
+      : {
+          id: "commands",
+          mode: "contract",
+          label: "Kontraktsläge",
+          text: `Kommandokanalen svarar 503 tills ${COMMAND_QUEUE_BLOCKED_ON} finns.`,
+        },
+    fixture
+      ? {
+          id: "snapshot",
+          mode: "fixture",
+          label: "Fixtur",
+          text: "Statusrad, kolumner och kort kommer ur en genererad fixtur.",
+        }
+      : {
+          id: "snapshot",
+          mode: "live",
+          label: "Live",
+          text: "Statusrad, kolumner och kort kommer ur controllerns snapshot.",
+        },
+  ];
+}
+
+/**
+ * Sidhuvudets egna regler. Egen liten stil i stället för en ändring i app/globals.css: `.ph-sub`
+ * delas av hela appen, och den här skivan får bara begränsa radlängden PÅ /loop.
+ *
+ * `max-width` i `ch` binder taket till textens egen storlek — måttet är radlängd, inte pixlar,
+ * och kräver ingen ny brytpunkt för att vara läsbart i 1440 / 900 / 390.
+ */
+export const MASKIN_HEADER_CSS = `
+.mk-header { display: flex; flex-direction: column; min-width: 0; margin-bottom: 22px; }
+/* Appens egen luft under sidhuvudet (22px) flyttas till HELA blocket. Annars hade segmenten
+   hamnat 22px under sin egen ingress och tätt mot skalet — läget de beskriver hade sett ut att
+   höra till panelen nedanför i stället för till huvudet. */
+.mk-header .page-header { margin-bottom: 0; }
+.mk-header .ph-sub { max-width: 64ch; }
+.mk-header-truth { list-style: none; margin: 7px 0 0; padding: 0; display: flex;
+  flex-direction: column; gap: 5px; max-width: 64ch; }
+.mk-header-truth-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; }
+.mk-header-truth-label { display: inline-flex; align-items: center; height: 17px; padding: 0 7px;
+  border-radius: var(--radius-chip); font-family: var(--font-mono); font-size: 9.5px;
+  letter-spacing: 1.3px; text-transform: uppercase; color: var(--text-muted);
+  background: var(--bg-surface-1); box-shadow: var(--hairline); flex: none; }
+.mk-header-truth-text { font-size: 12px; line-height: 17px; color: var(--text-secondary);
+  min-width: 0; overflow-wrap: anywhere; }
+/* Hänvisningen är en fotnot till segmenten, inte ett fjärde läge: nedtonad, utan etikettchip,
+   och med samma radlängdstak som resten av huvudet. */
+.mk-header-truth-note { margin: 6px 0 0; max-width: 64ch; font-size: 11px; line-height: 16px;
+  color: var(--text-muted); overflow-wrap: anywhere; }
+`;
 
 /**
  * Maskinens stilark. Injiceras en gång av MaskinShell och gäller bara `mk-`-klasserna.
