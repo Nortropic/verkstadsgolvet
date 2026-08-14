@@ -68,6 +68,7 @@ import {
   PROMOTION_WITHOUT_SHA_NOTE,
   REVIEW_ABSENT_NOTE,
   REVIEW_IDENTITY_IN_CONTRACT,
+  TASK_ABSENT_NOTE,
   buildCausalChain,
   commandIntentHasIdentity,
   validateCausalChain,
@@ -205,6 +206,26 @@ function allFixtureTasks(): TaskView[] {
   ];
 }
 
+/**
+ * Uppgifts-id som BARA finns i strömmen — snapshoten har aldrig publicerat dem.
+ *
+ * Det är den form live-kedjan får vid S5 + S13: eventbutiken nämner en uppgift innan (eller utan
+ * att) controllern publicerat den. Kedjan måste klara den utan att påstå en bindning mot en post
+ * som inte finns, så varje mätare nedan körs på DEM också, inte bara på snapshotens uppgifter.
+ */
+function streamOnlyTaskIds(): string[] {
+  const known = new Set(allFixtureTasks().map((task) => task.task_id));
+  const fromStream = (RAW_FIXTURES.events as unknown as { task_id: string | null }[])
+    .map((event) => event.task_id)
+    .filter((taskId): taskId is string => taskId !== null);
+  return [...new Set(fromStream)].filter((taskId) => !known.has(taskId));
+}
+
+/** Varje uppgifts-id kedjan över huvud taget kan byggas för ur fixturen. */
+function allChainTaskIds(): string[] {
+  return [...allFixtureTasks().map((task) => task.task_id), ...streamOnlyTaskIds()];
+}
+
 /** En snapshot där aktuell uppgift bytts ut — VALIDERAD, så formen är kontraktets egen. */
 function snapshotWithCurrentTask(task: unknown): LoopSnapshot {
   const parsedTask = TaskViewSchema.safeParse(task);
@@ -223,10 +244,15 @@ test("ROOM-03-ID: varje utskriven länk bärs av ett verkligt id som finns i BÅ
   const snapshot = snapshotOrThrow();
   assert.ok(snapshot.current_task, "fixturen har ingen aktuell uppgift");
 
-  /* Kedjan mäts på rummets aktuella uppgift OCH på varje annan uppgift fixturen bär. */
+  /*
+    Kedjan mäts på rummets aktuella uppgift, på varje annan uppgift fixturen bär OCH på de
+    uppgifts-id som bara finns i strömmen — den sista gruppen är den form live-kedjan får när
+    eventbutiken nämner en uppgift snapshoten inte publicerat.
+  */
+  assert.ok(streamOnlyTaskIds().length > 0, "fixturen har inga ström-endast-uppgifter att mäta på");
   const chains = [
     chainFor(snapshot.current_task.task_id),
-    ...allFixtureTasks().map((task) => chainFor(task.task_id)),
+    ...allChainTaskIds().map((taskId) => chainFor(taskId)),
   ];
 
   for (const chain of chains) {
@@ -282,6 +308,97 @@ test("ROOM-03-ID: varje utskriven länk bärs av ett verkligt id som finns i BÅ
       }
     }
   }
+});
+
+test("ROOM-03-ID: en uppgift som BARA finns i strömmen ger en hel kedja utan föräldralös bindning", () => {
+  /*
+    LIVE-FORMEN, MÄTT I DAG. Vid S5 + S13 kommer eventbutiken att nämna uppgifter som controllern
+    ännu inte publicerat i sin snapshot. Då finns ingen uppgiftspost att binda till — och en
+    bindning mot ett frånvarande hopp hade varit ett påstående om en post som inte finns. Kedjan
+    ska i stället ha KÖRNINGEN som rot och binda försöket till den via ett run_id som står
+    ordagrant i båda postmängderna.
+  */
+  const streamOnly = streamOnlyTaskIds();
+  assert.ok(streamOnly.length > 0, "fixturens ström nämner ingen okänd uppgift — provet mäter inget");
+
+  const rawEvents = RAW_FIXTURES.events as unknown as {
+    task_id: string | null;
+    run_id: string;
+    attempt_id: string | null;
+  }[];
+
+  for (const taskId of streamOnly) {
+    const chain = chainFor(taskId);
+    assert.deepEqual(chain.violations, [], `kedjan för ström-uppgiften ${taskId} självrapporterar fel`);
+
+    // Uppgiftsposten saknas ärligt — den hämtas aldrig ur strömmen.
+    const task = hop(chain, "task");
+    assert.equal(task.present, false, `${taskId}: en uppgiftspost uppfanns ur strömmen`);
+    assert.equal(task.absent_reason, TASK_ABSENT_NOTE);
+
+    // Körningen är kedjans ROT och pekar inte på något frånvarande hopp.
+    const run = hop(chain, "run");
+    assert.equal(run.present, true, `${taskId}: körningen tappades bort`);
+    assert.equal(run.bound_to, null, `${taskId}: körningen binds till ett hopp som inte finns`);
+    assert.equal(run.binding, "root");
+    assert.deepEqual(run.bound_by, []);
+
+    // Försöket binds till körningen via ett run_id som FAKTISKT står i båda postmängderna.
+    const attempt = hop(chain, "attempt");
+    const expectedRunIds = [
+      ...new Set(
+        rawEvents
+          .filter((event) => event.task_id === taskId && event.attempt_id !== null)
+          .map((event) => event.run_id),
+      ),
+    ];
+    assert.equal(attempt.present, true, `${taskId}: försöket tappades bort`);
+    assert.equal(attempt.bound_to, "run");
+    assert.deepEqual(
+      attempt.bound_by.map((id) => [id.key, id.value]),
+      expectedRunIds.map((runId) => ["run_id", runId]),
+    );
+    for (const bond of attempt.bound_by) {
+      assert.ok(run.ids.some((id) => id.value === bond.value), "run_id saknas i körningens id");
+      assert.ok((attempt.raw ?? "").includes(bond.value), "run_id står inte i försökets råa poster");
+    }
+
+    // Exakt EN rot i hela kedjan, och inget hopp pekar på ett frånvarande hopp.
+    const present = chain.hops.filter((one) => one.present);
+    assert.equal(present.filter((one) => one.bound_to === null).length, 1, "kedjan har inte en rot");
+    for (const one of present) {
+      if (one.bound_to === null) continue;
+      assert.equal(hop(chain, one.bound_to).present, true, `${one.kind} binds till ett tomt hopp`);
+    }
+  }
+
+  /*
+    LÖGNSTUBBE: den gamla formen — ett närvarande hopp bundet till ett FRÅNVARANDE uppgiftshopp —
+    måste fällas av samma validering. Utan den här stubben mätte provet ovan ingenting.
+  */
+  const orphan = validateCausalChain({
+    hops: [
+      stubHop({ kind: "task", present: false, binding: "none", absent_reason: "…", raw: null }),
+      stubHop({
+        kind: "run",
+        ids: [
+          { key: "run_id", value: "run-x", mono: true, origin: "record" },
+          { key: "task_id", value: "p-x", mono: true, origin: "record" },
+        ],
+        bound_to: "task",
+        bound_by: [{ key: "task_id", value: "p-x", mono: true, origin: "record" }],
+        binding: "shared_identifier",
+      }),
+    ],
+  });
+  assert.ok(
+    orphan.some((violation) => violation.code === "bound_to_absent_hop"),
+    "en bindning mot ett frånvarande uppgiftshopp gick igenom valideringen",
+  );
+
+  // …och den formen når aldrig ytan: markupen för en ström-uppgift bär noll överträdelser.
+  const html = renderChain(null);
+  assert.ok(!html.includes('data-chain-violations="true"'), "en tom vy ritade en överträdelselista");
 });
 
 test("ROOM-03-ID: inlämning → kommando → uppgift binds via command_id och controllerns task_id", () => {
@@ -697,7 +814,15 @@ test("ROOM-03-RÅ: rå EVENT-inspektion finns kvar där kedjan bygger på ström
   // Försökshoppet bär attempt_id ur strömmen — aldrig snapshotens ordningstal attempt.n.
   const attempt = hop(chain, "attempt");
   assert.equal(attempt.present, true);
-  assert.ok(attempt.ids.every((id) => id.key === "attempt_id" || id.key === "task_id"));
+  /*
+    Försöket bär bara identiteter som STÅR i eventkuverten: attempt_id, kuvertets run_id (det som
+    binder försöket till körningen när uppgiftsposten saknas) och task_id. Snapshotens attempt.n
+    är ett ordningstal och får aldrig smyga in som en identitet.
+  */
+  assert.ok(
+    attempt.ids.every((id) => ["attempt_id", "run_id", "task_id"].includes(id.key)),
+    `försöket bär en identifierare som inte står i kuvertet: ${attempt.ids.map((id) => id.key).join("/")}`,
+  );
   assert.ok(!attempt.ids.some((id) => id.key === "n" || id.key === "attempt_n"));
 });
 
@@ -902,12 +1027,18 @@ test("ROOM-03-BEVIS: varje bevisreferens kommer ordagrant ur en validerad post",
   assert.ok(known.size > 0, "fixturen bär inga bevisreferenser — mätaren mäter ingenting");
 
   let rendered = 0;
-  for (const task of allFixtureTasks()) {
-    for (const one of chainFor(task.task_id).hops) {
+  for (const taskId of allChainTaskIds()) {
+    for (const one of chainFor(taskId).hops) {
       for (const ref of one.evidence_refs) {
         assert.ok(known.has(ref), `bevisreferensen ${ref} finns inte i någon validerad post`);
         rendered += 1;
       }
+      // Listan är en MÄNGD av referenser — samma referens skrivs aldrig ut två gånger.
+      assert.equal(
+        new Set(one.evidence_refs).size,
+        one.evidence_refs.length,
+        `${taskId}/${one.kind}: bevisreferenserna innehåller dubbletter`,
+      );
     }
   }
   assert.ok(rendered > 0, "ingen bevisreferens nådde kedjan");
@@ -921,6 +1052,59 @@ test("ROOM-03-BEVIS: varje bevisreferens kommer ordagrant ur en validerad post",
       assert.ok(!pattern.test(code), `${path}: hämtar eller läser något (${pattern})`);
     }
   }
+});
+
+test("ROOM-03-BEVIS: samma referens i två poster skrivs ut EN gång — och finns kvar rått i båda", () => {
+  /*
+    Fixturen råkar i dag ha unika bevisreferenser. Mätaren får inte vila på den turen: här
+    konstrueras en leverans där TVÅ event för samma uppgift bär SAMMA referens. Listan ska då
+    innehålla referensen en gång (den är en mängd av referenser, inte en räkning), medan
+    multipliciteten finns kvar där den betyder något — i den råa posten, ordagrant.
+  */
+  const rawEvents = structuredClone(RAW_FIXTURES.events) as unknown as {
+    task_id: string | null;
+    evidence_refs: string[];
+    attempt_id: string | null;
+  }[];
+  const taskId = rawEvents.find((event) => event.task_id !== null)?.task_id;
+  assert.ok(taskId);
+
+  const shared = "evidence-ref-delad";
+  const touched = rawEvents.filter((event) => event.task_id === taskId).slice(0, 2);
+  assert.equal(touched.length, 2, "fixturen har inte två event för samma uppgift");
+  for (const event of touched) {
+    event.evidence_refs = [...event.evidence_refs, shared];
+    event.attempt_id = event.attempt_id ?? "a-delad";
+  }
+
+  const chain = chainFor(taskId, { events: validEvents(rawEvents) });
+  assert.deepEqual(chain.violations, []);
+  for (const kind of ["run", "attempt"] as const) {
+    const one = hop(chain, kind);
+    assert.equal(one.present, true, `${kind} byggdes inte`);
+    assert.equal(
+      one.evidence_refs.filter((ref) => ref === shared).length,
+      1,
+      `${kind}: den delade referensen skrevs ut mer än en gång`,
+    );
+    assert.equal(new Set(one.evidence_refs).size, one.evidence_refs.length);
+    // Rådatan är oförkortad: BÅDA posterna bär fortfarande sin egen referens.
+    assert.equal(
+      (one.raw ?? "").split(shared).length - 1,
+      2,
+      `${kind}: rådatan tappade en av posternas bevisreferens`,
+    );
+  }
+
+  // LÖGNSTUBBE: mätaren måste kunna fälla en lista som FAKTISKT bär dubbletter.
+  const duplicated = [shared, shared];
+  assert.notEqual(new Set(duplicated).size, duplicated.length, "dubblettmätaren mäter ingenting");
+
+  // Och renderingen ger varje bevisrad en egen nyckel även om listan skulle bära dubbletter.
+  const markup = renderToStaticMarkup(
+    createElement(CausalChain, { task: snapshotOrThrow().current_task, fixture: true }),
+  );
+  assert.ok(!markup.includes("undefined"), "en bevisrad renderades utan värde");
 });
 
 /* ────────────────────────────────────────────────────────────────────────────

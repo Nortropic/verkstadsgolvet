@@ -147,8 +147,13 @@ function Hop({ hop }: { hop: ChainHop }) {
 
           {hop.evidence_refs.length > 0 && (
             <ul className="rm-ids" data-chain-evidence="true">
-              {hop.evidence_refs.map((ref) => (
-                <li className="rm-id" data-chain-evidence-ref={ref} key={ref}>
+              {/*
+                Nyckeln bär positionen OCH referensen. Projektionen lämnar unika referenser, men
+                ytan är en publik komponent: en lista som råkar innehålla samma referens två gånger
+                ska renderas, inte kollidera med sig själv.
+              */}
+              {hop.evidence_refs.map((ref, index) => (
+                <li className="rm-id" data-chain-evidence-ref={ref} key={`${index}-${ref}`}>
                   <span className="rm-id-key">evidence_ref</span>
                   <span className="rm-id-value mk-mono">{ref}</span>
                 </li>

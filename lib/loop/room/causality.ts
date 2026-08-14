@@ -255,6 +255,11 @@ export type ChainHop = {
   absent_reason: string | null;
   /** Ärlig upplysning om ett hopp som finns men saknar egen identitet. */
   note: string | null;
+  /**
+   * Bevisreferenser ur hoppets poster, UNIKA och i första förekomstens ordning. De är referenser,
+   * inte innehåll: ingen nyttolast hämtas. Multipliciteten (samma ref i två poster) finns kvar i
+   * `raw`, som visas ordagrant.
+   */
   evidence_refs: string[];
   /** Posten ORDAGRANT. Rå inspektion göms aldrig. null endast för frånvarande hopp. */
   raw: string | null;
@@ -405,6 +410,23 @@ function presentHop(input: {
 
 function verbatim(value: unknown): string {
   return JSON.stringify(value, null, 2);
+}
+
+/**
+ * Unika värden i FÖRSTA förekomstens ordning.
+ *
+ * Samma identifierare eller bevisreferens kan stå i flera poster — två event i samma körning bär
+ * samma `run_id`, och två rader kan peka på samma bevis. Listan är en MÄNGD av referenser, inte en
+ * räkning: att skriva ut samma värde två gånger tillför ingen upplysning och hade dessutom gett två
+ * identiska nycklar i renderingen. Multipliciteten finns kvar där den betyder något — i hoppets råa
+ * poster, som visas ordagrant och aldrig kortas ned.
+ */
+function distinct(values: readonly string[]): string[] {
+  const unique: string[] = [];
+  for (const value of values) {
+    if (!unique.includes(value)) unique.push(value);
+  }
+  return unique;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -688,10 +710,7 @@ export function buildCausalChain(input: CausalInput): CausalChain {
           });
 
   /* ── körning ─────────────────────────────────────────────────────────────── */
-  const runIdsFromEvents: string[] = [];
-  for (const event of events) {
-    if (!runIdsFromEvents.includes(event.run_id)) runIdsFromEvents.push(event.run_id);
-  }
+  const runIdsFromEvents = distinct(events.map((event) => event.run_id));
   /* Snapshotens run_id gäller bara när snapshoten FAKTISKT bär uppgiften. */
   const snapshotRunId = snapshotTask === null || input.snapshot === null ? null : input.snapshot.run_id;
   const run: ChainHop =
@@ -703,11 +722,19 @@ export function buildCausalChain(input: CausalInput): CausalChain {
             ...runIdsFromEvents.flatMap((runId) => identifier("run_id", runId)),
             ...taskIdentifier,
           ],
-          bound_to: "task",
+          /*
+            STRÖMMEN FÅR NÄMNA EN UPPGIFT SOM SNAPSHOTEN INTE PUBLICERAT.
+
+            Då finns ingen uppgiftspost att binda till, och en bindning mot ett frånvarande hopp
+            hade varit ett påstående om en post som inte finns. Körningen blir i stället kedjans
+            ROT: dess run_id och task_id står ordagrant i eventkuverten, så identiteten är verklig
+            även när uppgiftsposten saknas. Det här är exakt formen live-kedjan får vid S5 + S13.
+          */
+          bound_to: taskHop.present ? "task" : null,
           /* Raderna bär BÅDE run_id och task_id: bindningen är ett delat, utskrivet värde. */
-          bound_by: taskIdentifier,
-          binding: "shared_identifier",
-          evidence_refs: events.flatMap((event) => event.evidence_refs),
+          bound_by: taskHop.present ? taskIdentifier : [],
+          binding: taskHop.present ? "shared_identifier" : "root",
+          evidence_refs: distinct(events.flatMap((event) => event.evidence_refs)),
           raw: verbatim(events),
         })
       : snapshotRunId === null
@@ -737,11 +764,12 @@ export function buildCausalChain(input: CausalInput): CausalChain {
 
   /* ── försök ──────────────────────────────────────────────────────────────── */
   const attemptEvents = events.filter((event) => event.attempt_id !== null);
-  const attemptIds: string[] = [];
-  for (const event of attemptEvents) {
-    const attemptId = event.attempt_id;
-    if (attemptId !== null && !attemptIds.includes(attemptId)) attemptIds.push(attemptId);
-  }
+  const attemptIds = distinct(
+    attemptEvents.flatMap((event) => (event.attempt_id === null ? [] : [event.attempt_id])),
+  );
+  /* Försökets egna rader bär run_id ordagrant — det är bindningen när uppgiftsposten saknas. */
+  const attemptRunIds = distinct(attemptEvents.map((event) => event.run_id));
+  const attemptRunIdentifiers = attemptRunIds.flatMap((runId) => identifier("run_id", runId));
   const attempt: ChainHop =
     attemptIds.length === 0
       ? absentHop("attempt", ATTEMPT_ABSENT_NOTE)
@@ -750,12 +778,19 @@ export function buildCausalChain(input: CausalInput): CausalChain {
           record_source: "event_stream",
           ids: [
             ...attemptIds.flatMap((attemptId) => identifier("attempt_id", attemptId)),
+            ...attemptRunIdentifiers,
             ...taskIdentifier,
           ],
-          bound_to: "task",
-          bound_by: taskIdentifier,
+          /*
+            Uppgiftsposten först, körningen som andrahand. Saknas uppgiftsposten (strömmen nämner
+            en uppgift snapshoten inte publicerat) binds försöket till KÖRNINGEN via run_id — ett
+            värde som står ordagrant i båda postmängderna. Ingen bindning pekar mot ett hopp som
+            inte finns, och ingen bindning gissas fram ur ordningen mellan raderna.
+          */
+          bound_to: taskHop.present ? "task" : "run",
+          bound_by: taskHop.present ? taskIdentifier : attemptRunIdentifiers,
           binding: "shared_identifier",
-          evidence_refs: attemptEvents.flatMap((event) => event.evidence_refs),
+          evidence_refs: distinct(attemptEvents.flatMap((event) => event.evidence_refs)),
           raw: verbatim(attemptEvents),
         });
 
