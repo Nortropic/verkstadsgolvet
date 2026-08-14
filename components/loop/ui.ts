@@ -179,6 +179,14 @@ export const LOOP_CSS = `
 .mk-button { height: 30px; padding: 0 14px; border: 0; border-radius: var(--radius-control);
   font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.6px; background: var(--bg-surface-1);
   color: var(--text-disabled); box-shadow: inset 0 0 0 1px var(--border-strong); cursor: not-allowed; }
+/* V7 · en knapp = en typad intention. Grundformen ovan är AVSTÄNGD (kommandokanalen är stängd
+   tills nortropic-system S13 finns); en klickbar knapp måste därför skilja sig synligt från en
+   avstängd, annars ser en stängd kanal ut som en öppen. */
+.mk-button:not(:disabled) { color: var(--text-primary); background: var(--bg-surface-2);
+  box-shadow: inset 0 0 0 1px var(--border-strong); cursor: pointer; }
+.mk-button:not(:disabled):hover { background: var(--bg-surface-3); }
+.mk-button:focus-visible { box-shadow: var(--focus-ring); }
+.mk-command { display: flex; flex-direction: column; gap: 6px; }
 .mk-link { font-size: 12px; color: var(--accent-text); text-decoration: none; box-shadow: var(--hairline);
   border-radius: var(--radius-control); padding: 7px 11px; background: var(--bg-surface-1); display: inline-block; }
 .mk-raw { font-family: var(--font-mono); font-size: 11.5px; line-height: 17px; color: var(--text-secondary);

@@ -22,6 +22,7 @@ import * as React from "react";
 import Graceful from "@/components/Graceful";
 import type { LoopSnapshot } from "@/lib/loop/schema";
 import BacklogColumn from "./BacklogColumn";
+import CommandDeck from "./CommandDeck";
 import CompletedColumn from "./CompletedColumn";
 import CurrentTaskPanel from "./CurrentTaskPanel";
 import RunStatusBar from "./RunStatusBar";
@@ -49,6 +50,16 @@ export default function MaskinShell({
       ) : (
         <>
           <RunStatusBar snapshot={snapshot} fixture={fixture} />
+          {/*
+            V7 · kommandoytan. Den läser BARA snapshotens egna värden (run_id, aktuell uppgift
+            och det vattenmärke vyn såg) och ändrar aldrig något i vyerna nedan: task state
+            kommer ur controllerns snapshot, aldrig ur ett klick.
+          */}
+          <CommandDeck
+            runId={snapshot.run_id}
+            watermark={snapshot.seq_watermark}
+            currentTaskId={snapshot.current_task?.task_id ?? null}
+          />
           <div className="mk-cols">
             <BacklogColumn tasks={snapshot.backlog} />
             <CurrentTaskPanel task={snapshot.current_task} />
