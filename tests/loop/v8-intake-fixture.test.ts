@@ -646,7 +646,56 @@ test("V8*-SYNLIG-NEG: panelen är märkt som fixtur och kan aldrig läsas som et
   assert.ok(html.includes("inget urval, ingen inlämning"));
   // Dropzonens EGNA rapport är fortfarande tom — panelen har inte förvandlats till ett urval.
   assert.ok(html.includes('data-selection="empty"'), "dropzonens tomma läge försvann");
-  assert.ok(!/har valts|dina filer|vald fil/i.test(html), "panelen påstod att filer valts");
+  /*
+    Statusraden delas med dropzonen, och dess operatörsröst ("13 valda: …", "21 filer valda.")
+    läser som ett gjort urval i EXAKT den panel som säger "Det är ingen fil du valt". Mönstret
+    täcker därför också den formen — inte bara "vald fil"/"har valts"/"dina filer".
+  */
+  assert.ok(
+    !/har valts|dina filer|vald fil|filer valda|valda:/i.test(html),
+    "panelen påstod att filer valts",
+  );
+
+  // Panelens rader talar om KANDIDATER; dropzonens om valda filer. Samma komponent, två röster.
+  const fixtureVoice = renderToStaticMarkup(
+    createElement(SelectionReport, { selection: validateIntakeSelection(fixtureIntakeCandidates()) }),
+  );
+  const operatorVoice = renderToStaticMarkup(
+    createElement(SelectionReport, {
+      selection: validateIntakeSelection(fixtureIntakeCandidates()),
+      live: true,
+    }),
+  );
+  assert.ok(fixtureVoice.includes('data-selection-voice="fixture"'), "fixturrösten är inte utmärkt");
+  assert.ok(operatorVoice.includes('data-selection-voice="operator"'), "operatörsrösten är inte utmärkt");
+  const fixtureStatus = fixtureVoice.match(/data-selection-status="true"[^>]*>([^<]+)</);
+  const operatorStatus = operatorVoice.match(/data-selection-status="true"[^>]*>([^<]+)</);
+  assert.ok(fixtureStatus && operatorStatus, "statusraden saknas i något av sammanhangen");
+  assert.ok(fixtureStatus[1].includes("kandidater"), "fixturpanelen kallar inte raderna kandidater");
+  assert.ok(!/valda/i.test(fixtureStatus[1]), `fixturpanelen påstår ett val: "${fixtureStatus[1]}"`);
+  assert.ok(operatorStatus[1].includes("valda"), "dropzonen slutade tala om operatörens val");
+
+  // Och detsamma gäller det fällda urvalet, där raden är som mest kategorisk.
+  const fellFixture = renderToStaticMarkup(
+    createElement(SelectionReport, {
+      selection: validateIntakeSelection(fixtureIntakeOverCountSelection()),
+    }),
+  ).match(/data-selection-status="true"[^>]*>([^<]+)</);
+  assert.ok(fellFixture, "det fällda urvalets statusrad saknas");
+  assert.ok(!/valda/i.test(fellFixture[1]), `fixturpanelen påstår ett val: "${fellFixture[1]}"`);
+  assert.ok(fellFixture[1].includes("kandidater"), "det fällda fixturutfallet nämner inte kandidater");
+
+  // Rösten byter ENDAST substantiv: domarna, antalen och orsakerna är oförändrade.
+  assert.equal(
+    (fixtureVoice.match(/data-rejection-code="/g) ?? []).length,
+    (operatorVoice.match(/data-rejection-code="/g) ?? []).length,
+    "rösterna ger olika många avslag",
+  );
+  assert.equal(
+    attr(fixtureVoice, "data-accepted-count"),
+    attr(operatorVoice, "data-accepted-count"),
+    "rösterna ger olika många godkända",
+  );
 
   // Panelen får inte bära en egen kopia av reglerna: enda vägen till en dom är lib/loop/intake.ts.
   const source = sourceOf("components/loop/IntakeValidationShowcase.tsx");

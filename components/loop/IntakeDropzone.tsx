@@ -157,21 +157,40 @@ export function pasteVerdictText(verdict: IntakeVerdict | null): string {
   return verdict.accepted ? INTAKE_PASTE_ACCEPTED_TEXT : intakeRejectionMessage(verdict.code);
 }
 
+/**
+ * VEMS filer raden talar om.
+ *
+ * `operator` — filerna som operatören själv släppte eller valde. Då är "valda" sant och rätt.
+ * `fixture`  — panelens GENERERADE kandidatfiler. Där är "13 valda" fel tonvikt i samma vy som
+ *              säger "Det är ingen fil du valt": raden läser som ett gjort urval trots att inget
+ *              val skett. Ordet byts mot "kandidater", som är exakt vad raderna är.
+ *
+ * Ingen av rösterna ändrar en enda dom — bara substantivet. Domarna, orsakerna och antalen är
+ * samma funktion och samma komponent i båda sammanhangen.
+ */
+export type SelectionVoice = "operator" | "fixture";
+
 /** En kompakt mening om urvalet — det som ska HÖRAS när valet ändras, inte tjugoen rader. */
 function selectionStatusText(
   selection: IntakeSelection | null,
   emptyEvent: IntakeEmptyEvent | null,
+  voice: SelectionVoice,
 ): string {
   if (selection === null) return emptyEventText(emptyEvent);
-  const chosen = selection.verdicts.length;
+  const chosen = groupDigits(selection.verdicts.length);
   const rejected = selection.verdicts.filter((verdict) => !verdict.accepted).length;
+  const outcome =
+    `${groupDigits(selection.accepted.length)} formellt godkända, ` +
+    `${groupDigits(rejected)} avvisade.`;
+
   if (selection.selection_rejection !== null) {
-    return `${groupDigits(chosen)} filer valda. Antalsgränsen fällde hela urvalet — ingen fil lämnas in.`;
+    return voice === "operator"
+      ? `${chosen} filer valda. Antalsgränsen fällde hela urvalet — ingen fil lämnas in.`
+      : `${chosen} kandidater. Antalsgränsen fäller hela urvalet — ingen fil lämnas in.`;
   }
-  return (
-    `${groupDigits(chosen)} valda: ${groupDigits(selection.accepted.length)} formellt godkända, ` +
-    `${groupDigits(rejected)} avvisade.`
-  );
+  return voice === "operator"
+    ? `${chosen} valda: ${outcome}`
+    : `${chosen} kandidater: ${outcome}`;
 }
 
 /**
@@ -182,6 +201,11 @@ function selectionStatusText(
  * faktiskt ändras: en statisk kopia i fixturpanelen ska inte annonsera något. Behållaren
  * renderas alltid — även utan urval — så att live-området finns i DOM:en INNAN det uppdateras;
  * ett område som skapas samtidigt som sitt innehåll annonseras inte pålitligt.
+ *
+ * Samma flagga avgör RÖSTEN, och det är ingen slump: den enda yta som annonserar är också den
+ * enda yta där operatören faktiskt valt något. Att härleda rösten ur `live` i stället för att
+ * kräva en andra prop gör det omöjligt för en framtida anropare att sätta den ena men glömma
+ * den andra — och därmed låta fixturpanelen påstå att någon valt dess filer.
  */
 export function SelectionReport({
   selection,
@@ -199,12 +223,15 @@ export function SelectionReport({
 }) {
   /** Hela urvalet fällt (antalsgränsen) — då lämnas ingen fil in, hur ren den än är. */
   const selectionFell = selection !== null && selection.selection_rejection !== null;
+  /** Den som annonserar är den som valt: en och samma yta, alltså en och samma flagga. */
+  const voice: SelectionVoice = live ? "operator" : "fixture";
 
   return (
     <div
       className="mk-group"
       data-selection={selection === null ? "empty" : "report"}
       data-selection-fell={selectionFell ? "true" : "false"}
+      data-selection-voice={voice}
       data-selection-empty-event={selection === null && emptyEvent !== null ? emptyEvent : undefined}
     >
       <p
@@ -213,7 +240,7 @@ export function SelectionReport({
         role={live ? "status" : undefined}
         aria-live={live ? "polite" : undefined}
       >
-        {selectionStatusText(selection, emptyEvent)}
+        {selectionStatusText(selection, emptyEvent, voice)}
       </p>
 
       {/*
