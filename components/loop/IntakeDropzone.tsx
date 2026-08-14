@@ -35,6 +35,7 @@ import {
   INTAKE_PASTE_ACCEPTED_TEXT,
   classifyIntakeCandidate,
   groupDigits,
+  intakeRejectionMessage,
   intakeSubmissionEnabled,
   pasteSourceName,
   sourceStats,
@@ -42,6 +43,7 @@ import {
   validateIntakeSelection,
   type IntakeCandidate,
   type IntakeSelection,
+  type IntakeVerdict,
 } from "@/lib/loop/intake";
 
 /**
@@ -135,6 +137,24 @@ export function emptyEventText(event: IntakeEmptyEvent | null): string {
   if (event === "drop") return INTAKE_EMPTY_DROP_TEXT;
   if (event === "pick") return INTAKE_EMPTY_PICK_TEXT;
   return INTAKE_NO_SELECTION_TEXT;
+}
+
+/**
+ * Den ANNONSERADE domen över inklistrad text — beroende av utfallets KOD, aldrig av storleken.
+ *
+ * Orsakstexten kan bära kandidatens exakta bytetal ("… (filen är 1 048 601 byte)"). I ett
+ * live-område är den formen ett löpande mått förklätt till dom: varje tangenttryck i en text
+ * som redan passerat gränsen ändrar siffran, och ett artigt live-område köar då en uppläsning
+ * per tecken — precis den defekt måttraden gjordes icke-live för att slippa. Kandidaten utelämnas
+ * därför här (argumentet är valfritt i `intakeRejectionMessage`), så texten är IDENTISK för alla
+ * storlekar över gränsen och området tiger tills utfallet faktiskt vänder.
+ *
+ * Det exakta bytetalet försvinner inte: det står kvar i den icke-live måttraden
+ * (`intake-inklistrad-matt`), där det kan läsas utan att annonseras.
+ */
+export function pasteVerdictText(verdict: IntakeVerdict | null): string {
+  if (verdict === null) return "";
+  return verdict.accepted ? INTAKE_PASTE_ACCEPTED_TEXT : intakeRejectionMessage(verdict.code);
 }
 
 /** En kompakt mening om urvalet — det som ska HÖRAS när valet ändras, inte tjugoen rader. */
@@ -461,10 +481,14 @@ export default function IntakeDropzone() {
             : `${pasteSourceName(1)} · ${sourceStatsText(stats)}`}
         </p>
         {/*
-          DOMEN är det som annonseras — och bara när den ÄNDRAS. Texten är oförändrad medan en
-          godkänd text växer, så området är tyst under skrivandet och hörs i den stund utfallet
-          faktiskt vänder (godkänd → för stor). Behållaren renderas alltid, även tom: ett
-          live-område som skapas samtidigt som sitt innehåll annonseras inte pålitligt.
+          DOMEN är det som annonseras — och den beror BARA på utfallets kod (se
+          `pasteVerdictText`). Texten är därför oförändrad medan texten växer, oavsett om den
+          ligger under eller redan över gränsen: området tiger under skrivandet och hörs i den
+          stund utfallet faktiskt vänder. Ett bytetal i den annonserade texten hade gjort raden
+          till löpande statistik igen, en uppläsning per tangenttryck.
+
+          Behållaren renderas alltid, även tom: ett live-område som skapas samtidigt som sitt
+          innehåll annonseras inte pålitligt.
         */}
         <p
           className={
@@ -479,11 +503,7 @@ export default function IntakeDropzone() {
           role="status"
           aria-live="polite"
         >
-          {pasteVerdict === null
-            ? ""
-            : pasteVerdict.accepted
-              ? INTAKE_PASTE_ACCEPTED_TEXT
-              : pasteVerdict.message}
+          {pasteVerdictText(pasteVerdict)}
         </p>
         <p className="mk-hint" id={IDS.pasteRule}>
           Verkstadsgolvet räknar tecken och rader — inget annat. Rubriker läses inte, källan delas

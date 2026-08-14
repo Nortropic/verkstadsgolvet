@@ -173,10 +173,12 @@ export const LOOP_CSS = `
   border: 0; border-radius: var(--radius-control); padding: 10px 11px; resize: vertical; min-height: 120px; }
 .mk-list { display: flex; flex-direction: column; gap: 6px; }
 /* Ett fällt urval listar fortfarande VARJE fil — ingen faller bort tyst — men raderna bär då
-   ingen egen orsak och kan därför stå i flera spalter så snart bredden räcker. Brytpunkten
-   ligger under surfplattans 900px: vid 960px stackades tjugoen orsakslösa kort till en enda
-   spalt på just den vy de var tänkta att komprimera. */
-@media (min-width: 880px) {
+   ingen egen orsak och kan därför stå i flera spalter så snart bredden räcker. Regeln sitter på
+   den BEFINTLIGA 720-pinnen (ingen ny brytpunkt införs): vid 960px stackades tjugoen orsakslösa
+   kort till en enda spalt på surfplattans 900px — exakt den vy de var tänkta att komprimera.
+   Radernas namn bryts vid behov (overflow-wrap i .mk-file-name), så en smalare spalt kapar
+   ingenting. */
+@media (min-width: 720px) {
   .mk-list-dense { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 .mk-file { display: flex; flex-direction: column; gap: 3px; background: var(--bg-surface-1);

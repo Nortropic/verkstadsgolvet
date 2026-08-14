@@ -41,6 +41,7 @@ import IntakeDropzone, {
   dragDepthAfter,
   emptyEventText,
   isDragActive,
+  pasteVerdictText,
   toCandidate,
 } from "../../components/loop/IntakeDropzone";
 import IntakeResult from "../../components/loop/IntakeResult";
@@ -806,6 +807,56 @@ test("V8*-A11Y: urvalets utfall annonseras — och bara de ytor vars UTFALL fakt
   );
 
   /*
+    A1 · DEN ANNONSERADE TEXTEN ÄR STORLEKSOBEROENDE.
+
+    Orsakstexten KAN bära kandidatens exakta bytetal. I ett live-område är den formen ett löpande
+    mått förklätt till dom: varje tangenttryck i en text som redan passerat gränsen ändrar
+    siffran, och ett artigt live-område köar en uppläsning per tecken — samma defekt som
+    måttraden gjordes icke-live för att slippa, bara flyttad. Invarianten mäts därför, den
+    beskrivs inte i prosa: två OLIKA storlekar över gränsen måste ge EXAKT samma annonserade text.
+  */
+  const paste = (byteSize: number) =>
+    classifyIntakeCandidate({
+      file_name: pasteSourceName(1),
+      byte_size: byteSize,
+      mime_type: "text/markdown",
+    });
+  const justOver = pasteVerdictText(paste(INTAKE_MAX_FILE_BYTES + 1));
+  const farOver = pasteVerdictText(paste(INTAKE_MAX_FILE_BYTES + 5_000));
+  assert.equal(justOver, farOver, "den annonserade domen ändras med storleken — ett löpande mått");
+  assert.ok(justOver.length > 0, "ett fällt utfall annonserar ingenting alls");
+  for (const size of [INTAKE_MAX_FILE_BYTES + 1, INTAKE_MAX_FILE_BYTES + 5_000]) {
+    assert.ok(
+      !justOver.includes(groupDigits(size)),
+      `den annonserade domen bär kandidatens bytetal (${groupDigits(size)})`,
+    );
+  }
+  // Samma sak på den gröna sidan: en godkänd text som växer annonserar inte om sig själv.
+  assert.equal(pasteVerdictText(paste(10)), pasteVerdictText(paste(999)));
+  // Och tomt är ingen dom alls.
+  assert.equal(pasteVerdictText(null), "");
+
+  /*
+    Det exakta bytetalet ska inte försvinna — det flyttas till den ICKE-live måttraden, där det
+    kan läsas utan att annonseras.
+  */
+  const dropzoneSource = sourceOf("components/loop/IntakeDropzone.tsx");
+  assert.match(
+    dropzoneSource,
+    /id=\{IDS\.pasteStats\}[\s\S]*?sourceStatsText\(stats\)/,
+    "måttraden bär inte längre det exakta bytetalet",
+  );
+  assert.match(
+    dropzoneSource,
+    /id=\{IDS\.pasteVerdict\}[\s\S]*?\{pasteVerdictText\(pasteVerdict\)\}/,
+    "live-området renderar inte den storleksoberoende domen",
+  );
+  assert.ok(
+    !/pasteVerdict\.message/.test(dropzoneSource),
+    "live-området renderar orsakstexten med kandidatens storlek inbakad",
+  );
+
+  /*
     E2 · Räkningen och meddelandet mäter samma sak: exakt LIVE_REGIONS ytor annonserar, och
     fixturpanelens statiska kopia av samma rapport är inte en av dem.
   */
@@ -1518,6 +1569,24 @@ test("V8*-D2: den täta listan står i tre spalter redan vid surfplattans bredd"
     `tregriden börjar först vid ${breakpoint}px och gäller därför inte vid 900px`,
   );
   assert.match(media[2], /grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+
+  /*
+    E1 · Och stilarkets EGEN invariant står kvar sann: "Brytpunkterna är planens (1280 / 960 /
+    720) och app/globals.css egna — inga nya." En rättning som smyger in en fjärde pinne gör
+    filens första kommentar osann för varje senare läsare, vilket är exakt den defektklass E1
+    handlar om. Stegen mäts därför mot stegen — inte mot en läsares minne.
+  */
+  const LADDER = new Set([600, 719, 720, 959, 960, 1279, 1280]);
+  const breakpoints = [...LOOP_CSS.matchAll(/@media \((?:min|max)-width: (\d+)px\)/g)].map(
+    (match) => Number(match[1]),
+  );
+  assert.ok(breakpoints.length > 0, "inga brytpunkter hittades — provet mäter ingenting");
+  for (const value of breakpoints) {
+    assert.ok(
+      LADDER.has(value),
+      `${value}px är en NY brytpunkt — stilarkets invariant säger "inga nya"`,
+    );
+  }
 });
 
 test("V8*-E1: kommentaren om live-områden stämmer med hur många som faktiskt finns", () => {
