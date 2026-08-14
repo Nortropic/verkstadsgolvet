@@ -49,6 +49,16 @@ function Sample({
   );
 }
 
+/**
+ * Panelens namn — EN sträng, använd både som synlig rubrik och som `aria-label`.
+ *
+ * Två formuleringar av samma rubrik ("Formell validering av fixturens kandidatfiler" mot
+ * "Formell validering · fixturkandidater") ger seende och lyssnande läsare olika landmärken:
+ * den som hör "kandidatfiler" hittar aldrig rubriken någon annan läser upp för dem. Namnet
+ * bärs därför på ETT ställe.
+ */
+export const VALIDATION_SHOWCASE_TITLE = "Formell validering · fixturkandidater";
+
 export default function IntakeValidationShowcase({
   candidates,
   overCount,
@@ -61,10 +71,10 @@ export default function IntakeValidationShowcase({
       className="mk-panel"
       data-validation-showcase="true"
       data-fixture-driven="true"
-      aria-label="Formell validering av fixturens kandidatfiler"
+      aria-label={VALIDATION_SHOWCASE_TITLE}
     >
       <h2 className="mk-panel-title">
-        <span>Formell validering · fixturkandidater</span>
+        <span>{VALIDATION_SHOWCASE_TITLE}</span>
         <span className="mk-col-count">inget urval, ingen inlämning</span>
       </h2>
 

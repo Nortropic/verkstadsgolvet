@@ -283,6 +283,46 @@ export function sourceStats(text: string): SourceStats {
   };
 }
 
+/**
+ * Måttraden i klartext — EN formatering delad av intakens alla statusrader.
+ *
+ * Tecken, rader och byte grupperas med SAMMA regel (`groupDigits`). Att gruppera bara bytetalet
+ * hade fått tre tal på samma rad att se ut som tre olika sorters mått, och en läsare hade fått
+ * lägga energi på att avgöra om skillnaden betydde något. Funktionen bärs här, i lib, så att
+ * dropzonens rad och utfallets rad inte kan glida isär.
+ */
+export function sourceStatsText(stats: SourceStats): string {
+  return (
+    `${groupDigits(stats.characters)} tecken · ${groupDigits(stats.lines)} rader · ` +
+    `${groupDigits(stats.bytes)} byte`
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * TOMLÄGEN — en händelse UTAN filer är inget urval, och får aldrig se ut som ett
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** Inget har hänt ännu. Grundläget innan någon dragit, valt eller klistrat in. */
+export const INTAKE_NO_SELECTION_TEXT = "Ingen fil är vald ännu.";
+
+/**
+ * Ett släpp som inte bar en enda fil (markerad text, en länk, en mapp i vissa webbläsare).
+ * Ytan säger vad som INTE hände i stället för att rita ett rapportskal i positiv ton över noll
+ * filer — ett tomt skal hade läst som "urvalet gick igenom".
+ */
+export const INTAKE_EMPTY_DROP_TEXT =
+  "Inget släpptes som fil. Markerad text, länkar och mappar tas inte emot — ingen fil är vald.";
+
+/**
+ * En `change`-händelse med NOLL filer. Webbläsare skickar den när dialogen avbryts, och ett
+ * avbrutet val är inte ett urval: samma ärliga tomläge som ett släpp utan filer.
+ */
+export const INTAKE_EMPTY_PICK_TEXT = "Filvalet avbröts. Ingen fil är vald.";
+
+/** Den inklistrade källans dom när den är formellt felfri. Ingen inlämning påstås. */
+export const INTAKE_PASTE_ACCEPTED_TEXT =
+  "Formellt godkänd som källa. Inget skickas i fixturläge.";
+
 /** Inklistrad text sparas som en källa med GENERERAT filnamn (planens tredje inmatningssätt). */
 export const PASTE_SOURCE_NAME_PREFIX = "inklistrad-kalla";
 
@@ -339,8 +379,14 @@ export function submissionPresentationCoverage(): boolean {
  * som bara skickar samma sak en gång till, och aldrig en röd feldialog.
  */
 export const NEEDS_SPEC_ACTION_LABEL = "Komplettera källan";
+/**
+ * RIKTNINGEN ÄR ETT PÅSTÅENDE OM RENDERINGSORDNINGEN. IntakeResult ritar originalkällan
+ * (`SourcePanel`) FÖRE tolkningsgruppen där den här hinten står — källan finns alltså OVANFÖR
+ * texten, aldrig nedanför. En riktningsangivelse som pekar åt fel håll skickar läsaren till
+ * slutet av panelen efter något som stod högst upp.
+ */
 export const NEEDS_SPEC_ACTION_HINT =
-  "Originalkällan visas oförändrad nedan. Komplettera den och lämna in den som en ny källa " +
+  "Originalkällan visas oförändrad ovanför. Komplettera den och lämna in den som en ny källa " +
   "när intake-transporten finns — samma sak skickas aldrig igen oförändrad.";
 
 /* ────────────────────────────────────────────────────────────────────────────

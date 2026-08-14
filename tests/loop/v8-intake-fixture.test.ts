@@ -33,12 +33,20 @@ import { renderToStaticMarkup } from "react-dom/server";
 (globalThis as unknown as { React: typeof React }).React = React;
 
 import IntakeDropzone, {
+  INTAKE_DESCRIBED_BY,
   INTAKE_DOM_IDS,
+  INTAKE_MAX_DESCRIBED_BY_NODES,
+  INTAKE_PANEL_TITLE,
   SelectionReport,
+  dragDepthAfter,
+  emptyEventText,
+  isDragActive,
   toCandidate,
 } from "../../components/loop/IntakeDropzone";
 import IntakeResult from "../../components/loop/IntakeResult";
 import IntakeShell from "../../components/loop/IntakeShell";
+import { VALIDATION_SHOWCASE_TITLE } from "../../components/loop/IntakeValidationShowcase";
+import BacklogColumn from "../../components/loop/BacklogColumn";
 import MataMaskinenPage from "../../app/(app)/loop/mata/page";
 import {
   FIXTURE_MODE,
@@ -55,19 +63,25 @@ import {
   INTAKE_BLOCKED_ON,
   INTAKE_CLIENT_COMPUTES_SHA256,
   INTAKE_DISABLED_REASON,
+  INTAKE_EMPTY_DROP_TEXT,
+  INTAKE_EMPTY_PICK_TEXT,
   INTAKE_MAX_FILES,
   INTAKE_MAX_FILE_BYTES,
   INTAKE_MODE,
+  INTAKE_NO_SELECTION_TEXT,
   INTAKE_SERVER_ROUTE,
   INTAKE_TRANSPORT,
+  NEEDS_SPEC_ACTION_HINT,
   NEEDS_SPEC_ACTION_LABEL,
   SUBMISSION_PRESENTATION,
   SUBMISSION_WAITING_TEXT,
   classifyIntakeCandidate,
   controllerTaskCount,
+  groupDigits,
   intakeSubmissionEnabled,
   pasteSourceName,
   sourceStats,
+  sourceStatsText,
   submissionPresentationCoverage,
   uiGeneratedTaskCount,
   validateIntakeOutcome,
@@ -101,6 +115,15 @@ function stripComments(source: string): string {
 
 function sourceOf(relative: string): string {
   return stripComments(readFileSync(path.join(REPO_ROOT, relative), "utf8"));
+}
+
+/**
+ * Filen MED sina kommentarer. En påstådd riktning ("nedan") eller ett påstått antal
+ * ("enda live-området") lever ofta i en kommentar, och en kommentar som blivit osann vilseleder
+ * nästa läsare precis lika mycket som en osann etikett i UI:t.
+ */
+function rawSourceOf(relative: string): string {
+  return readFileSync(path.join(REPO_ROOT, relative), "utf8");
 }
 
 /** React escapar &, <, >, " och '. Ordagrannhetsprov mäts på den avkodade texten. */
@@ -143,6 +166,18 @@ function renderShell(): string {
       fixture: FIXTURE_MODE,
     }),
   );
+}
+
+/** Hela routen, som den faktiskt renderas: sidhuvudets h1 OCH skalets paneler i ett svep. */
+function renderPage(): string {
+  const before = process.env.LOOP_ENABLED;
+  try {
+    process.env.LOOP_ENABLED = "true";
+    return renderToStaticMarkup(MataMaskinenPage() as ReactElement);
+  } finally {
+    if (before === undefined) delete process.env.LOOP_ENABLED;
+    else process.env.LOOP_ENABLED = before;
+  }
 }
 
 function cards(html: string): string[] {
@@ -532,8 +567,22 @@ test("V8*-I2: antalsgränsen fälls FAIL-CLOSED — ingen fil accepteras tyst ur
   assert.ok(html.includes("mk-list-dense"), "de orsakslösa raderna står inte tätare");
   assert.match(
     LOOP_CSS,
-    /@media \(min-width: 960px\) \{\s*\.mk-list-dense \{[^}]*grid-template-columns/,
+    /@media \(min-width: \d+px\) \{\s*\.mk-list-dense \{[^}]*grid-template-columns/,
     "tätare listan saknar sin flerspaltsregel",
+  );
+
+  /*
+    C1 · Ingen rad i succéton. Filerna är formellt felfria, men urvalet är fällt — raden ritas
+    nedtonad (blockerad) i stället för grön, så att HELA utfallet läses blockerat.
+  */
+  assert.equal(
+    (html.match(/mk-file-blocked/g) ?? []).length,
+    many.length,
+    "raderna i ett fällt urval ritas inte som blockerade",
+  );
+  assert.ok(
+    LOOP_CSS.includes(".mk-file.mk-file-blocked"),
+    "den blockerade raden saknar regel i stilarket",
   );
 
   // Exakt vid gränsen går allt igenom — gränsen är inte "en till för säkerhets skull".
@@ -545,9 +594,15 @@ test("V8*-I2: antalsgränsen fälls FAIL-CLOSED — ingen fil accepteras tyst ur
 test("V8*-I2: inlämningsknappen är avstängd med ORDAGRANN orsak — ingen fejkad inlämning", () => {
   const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
   assert.ok(html.includes('data-submit-disabled="true"'), "knappen är inte avstängd");
-  assert.ok(/<button[^>]*disabled/.test(html), "knappen saknar disabled-attribut");
+  assert.ok(/<button[^>]*aria-disabled="true"/.test(html), "knappen är inte märkt blockerad");
   assert.ok(decodeEntities(html).includes(INTAKE_DISABLED_REASON), "orsaken visas inte ordagrant");
   assert.ok(html.includes(INTAKE_BLOCKED_ON));
+  // En blockerad knapp får inte SE öppen ut: den avstängda formen målas nu av aria-tillståndet.
+  assert.match(
+    LOOP_CSS,
+    /\.mk-button\[aria-disabled="true"\][^{]*\{[^}]*cursor:\s*not-allowed/,
+    "den aria-blockerade knappen saknar avstängt utseende",
+  );
 });
 
 /* ── 4a · Avslagen syns UTAN interaktion — annars kan de aldrig granskas ──── */
@@ -699,7 +754,13 @@ test("V8*-I7: inklistrad text döms av SAMMA funktion som en fil — storleksgr�
   assert.ok(!html.includes('data-paste-accepted'), "tom textarea fick en dom");
 });
 
-test("V8*-A11Y: urvalets utfall annonseras — och bara den yta som faktiskt ändras annonserar", () => {
+/**
+ * De EXAKT två ytor som får annonsera i intaken. Listan är provets facit och komponentens
+ * kommentar refererar samma antal — glider de isär faller provet, inte läsaren.
+ */
+const LIVE_REGIONS = ["data-selection-status", "data-paste-verdict"] as const;
+
+test("V8*-A11Y: urvalets utfall annonseras — och bara de ytor vars UTFALL faktiskt ändras", () => {
   const dropzone = renderToStaticMarkup(createElement(IntakeDropzone, {}));
 
   // Live-området finns INNAN det uppdateras — ett område som skapas samtidigt som sitt
@@ -710,23 +771,117 @@ test("V8*-A11Y: urvalets utfall annonseras — och bara den yta som faktiskt än
     ),
     "urvalets status är inget artigt live-område",
   );
-  assert.ok(dropzone.includes("Ingen fil är vald ännu."), "live-området saknar sitt tomma läge");
+  assert.ok(dropzone.includes(INTAKE_NO_SELECTION_TEXT), "live-området saknar sitt tomma läge");
 
   // Statusen är KOMPAKT: den ska höras, inte läsas upp som tjugoen rader.
   const selection = validateIntakeSelection(fixtureIntakeCandidates());
   const report = renderToStaticMarkup(createElement(SelectionReport, { selection, live: true }));
   const status = report.match(/data-selection-status="true"[^>]*>([^<]+)</);
   assert.ok(status, "statusraden saknas när ett urval finns");
-  assert.ok(status[1].includes(String(selection.accepted.length)), "antalet godkända annonseras inte");
+  assert.ok(
+    status[1].includes(groupDigits(selection.accepted.length)),
+    "antalet godkända annonseras inte",
+  );
   assert.ok(status[1].includes("avvisade"), "antalet avvisade annonseras inte");
 
-  // Den statiska fixturpanelen får INTE annonsera: den ändras aldrig.
+  /*
+    A1 · MÅTTRADEN FÅR INTE ANNONSERA.
+
+    Tecken, rader och byte ändras vid varje tangenttryck. Som live-område hade raden köat en
+    uppläsning per tecken och dränkt både det användaren skriver och den dom som faktiskt
+    betyder något. Måttet står synligt kvar — men utan role/aria-live.
+  */
+  const statsRow = dropzone.match(/<p[^>]*data-paste-stats="true"[^>]*>/);
+  assert.ok(statsRow, "måttraden för inklistrad text saknas");
+  assert.ok(!/aria-live/.test(statsRow[0]), "måttraden annonserar löpande statistik");
+  assert.ok(!/role="status"/.test(statsRow[0]), "måttraden är ett statusområde");
+  assert.ok(statsRow[0].includes('data-paste-live="false"'), "måttraden är inte märkt icke-live");
+
+  // Det som annonseras på inklistringsvägen är DOMEN — den ändras bara när utfallet vänder.
+  assert.ok(
+    /<p[^>]*data-paste-verdict="true"[^>]*aria-live="polite"|<p[^>]*aria-live="polite"[^>]*data-paste-verdict="true"/.test(
+      dropzone,
+    ),
+    "domen över inklistrad text är inget artigt live-område",
+  );
+
+  /*
+    E2 · Räkningen och meddelandet mäter samma sak: exakt LIVE_REGIONS ytor annonserar, och
+    fixturpanelens statiska kopia av samma rapport är inte en av dem.
+  */
   const shell = renderShell();
   assert.equal(
     (shell.match(/aria-live="polite"/g) ?? []).length,
-    2,
-    "fel antal live-områden: bara dropzonens urval och dess inklistringsmått ska annonsera",
+    LIVE_REGIONS.length,
+    `fel antal live-områden: exakt ${LIVE_REGIONS.length} ska annonsera (${LIVE_REGIONS.join(", ")})`,
   );
+  for (const region of LIVE_REGIONS) {
+    assert.ok(
+      new RegExp(`<p[^>]*${region}="true"[^>]*aria-live|<p[^>]*aria-live[^>]*${region}="true"`).test(
+        shell,
+      ),
+      `${region} annonserar inte`,
+    );
+  }
+  // Fixturpanelen renderar SAMMA komponent utan live — annars hade en statisk kopia talat.
+  assert.ok(
+    shell.includes('data-validation-showcase="true"'),
+    "fixturpanelen saknas — räkningen ovan mäter då inte att den tiger",
+  );
+});
+
+test("V8*-A11Y: beskrivningskedjorna är korta och sammanhängande — högst två noder per kontroll", () => {
+  const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+
+  /*
+    A2 · Fem separata beskrivningsnoder läses upp som ett enda andlöst stycke varje gång
+    kontrollen får fokus, och det som gällde just då drunknar. Kedjan hålls därför vid högst två
+    noder — mätt på den FAKTISKA markupen, inte bara på konstanten.
+  */
+  const chains = [...(html.match(/aria-describedby="([^"]+)"/g) ?? [])].map((match) =>
+    match.replace(/^aria-describedby="/, "").replace(/"$/, "").split(/\s+/),
+  );
+  assert.ok(chains.length >= 3, "för få beskrivningskedjor hittades — provet mäter ingenting");
+  for (const chain of chains) {
+    assert.ok(
+      chain.length <= INTAKE_MAX_DESCRIBED_BY_NODES,
+      `en beskrivningskedja har ${chain.length} noder: ${chain.join(" ")}`,
+    );
+  }
+
+  // Kedjorna i markupen är exakt de deklarerade — ingen tredje sanning i JSX:en.
+  const textarea = html.match(/<textarea[^>]*>/);
+  assert.ok(textarea, "textarean saknas");
+  assert.equal(attr(textarea[0], "aria-describedby"), INTAKE_DESCRIBED_BY.pasteArea.join(" "));
+  const picker = html.match(/<input[^>]*type="file"[^>]*>/);
+  assert.ok(picker, "filkontrollen saknas");
+  assert.equal(attr(picker[0], "aria-describedby"), INTAKE_DESCRIBED_BY.filePicker.join(" "));
+
+  /*
+    Domen är INTE en beskrivningsnod: den annonserar sig själv som live-område, och en text som
+    både beskriver och annonserar hörs dubbelt.
+  */
+  for (const chain of chains) {
+    assert.ok(
+      !chain.includes(INTAKE_DOM_IDS.pasteVerdict),
+      "domen är både live-område och beskrivning — den hörs då två gånger",
+    );
+  }
+
+  /*
+    ETT mönster för blockeringen: `aria-disabled` + `aria-describedby`, aldrig nativt `disabled`
+    tillsammans med en beskrivning (flera skärmläsarpar hoppar över eller tömmer den).
+  */
+  const button = html.match(/<button[^>]*>/);
+  assert.ok(button, "knappen saknas");
+  assert.equal(attr(button[0], "aria-disabled"), "true");
+  assert.ok(
+    !/<button[^>]*\sdisabled(?:=|[\s>])/.test(html),
+    "knappen kombinerar nativt disabled med aria-describedby",
+  );
+  assert.deepEqual(attr(button[0], "aria-describedby")?.split(/\s+/), [
+    ...INTAKE_DESCRIBED_BY.submit,
+  ]);
 });
 
 /* ── 5 · I3 · originalkällan bevaras byte-identisk och kan visas ──────────── */
@@ -756,8 +911,35 @@ test("V8*-I3: källans mått är tecken och rader — inget annat räknas fram u
 
   const html = renderResult(outcome);
   assert.ok(html.includes('data-source-stats="true"'));
-  assert.ok(html.includes(`${stats.characters} tecken`));
-  assert.ok(html.includes(`${stats.lines} rader`));
+  assert.ok(decodeEntities(html).includes(sourceStatsText(stats)), "måttraden saknas i utfallet");
+  assert.ok(html.includes(`${groupDigits(stats.characters)} tecken`));
+  assert.ok(html.includes(`${groupDigits(stats.lines)} rader`));
+});
+
+test("V8*-C5: tecken, rader OCH byte grupperas med SAMMA regel — en formatering, två ytor", () => {
+  /*
+    Tre tal på samma rad där bara ett är grupperat läser som tre olika sorters mått, och läsaren
+    får lägga energi på att avgöra om skillnaden betyder något. Formateringen bärs därför på ETT
+    ställe (lib/loop/intake.ts) och delas av utfallets rad och dropzonens rad.
+  */
+  const stats = { characters: 12_345, lines: 6_789, bytes: 1_234_567 };
+  assert.equal(
+    sourceStatsText(stats),
+    `${groupDigits(12_345)} tecken · ${groupDigits(6_789)} rader · ${groupDigits(1_234_567)} byte`,
+  );
+  // Grupperingen är hårda mellanslag — aldrig toLocaleString, som beror på värdens ICU-data.
+  assert.ok(sourceStatsText(stats).includes(" "), "stora tal grupperas inte");
+  assert.equal(sourceStatsText({ characters: 7, lines: 1, bytes: 7 }), "7 tecken · 1 rader · 7 byte");
+
+  // Båda ytorna använder den delade formateringen — ingen egen sammansättning kvar.
+  for (const file of ["components/loop/IntakeResult.tsx", "components/loop/IntakeDropzone.tsx"]) {
+    const source = sourceOf(file);
+    assert.ok(source.includes("sourceStatsText"), `${file} formaterar måttraden på egen hand`);
+    assert.ok(
+      !/stats\.characters\}? tecken/.test(source),
+      `${file} skriver ut ett ogrupperat teckenantal`,
+    );
+  }
 });
 
 /* ── 6 · I6 · frontenden kompilerar ALDRIG tasks ──────────────────────────── */
@@ -1068,4 +1250,312 @@ test("V8*-NEG: intakeytan bär ingen procentsats, ingen stapel och ingen fejkad 
       `framstegssemantik i ${file}`,
     );
   }
+});
+
+/* ── 13 · Interaktionen, tomlägena och de synliga påståendena ─────────────── */
+
+test("V8*-B2/B3: en händelse med NOLL filer ger ett ÄRLIGT tomläge — aldrig ett rapportskal", () => {
+  /*
+    Två vanliga händelser bär noll filer: ett släpp som var markerad text, en länk eller en mapp,
+    och en `change` från en avbruten fildialog. Ingen av dem är ett urval, och ingen av dem får
+    rita rapportens skal: ett tomt skal i positiv ton läser som "urvalet gick igenom".
+  */
+  for (const [event, text] of [
+    ["drop", INTAKE_EMPTY_DROP_TEXT],
+    ["pick", INTAKE_EMPTY_PICK_TEXT],
+  ] as const) {
+    const html = decodeEntities(
+      renderToStaticMarkup(
+        createElement(SelectionReport, { selection: null, live: true, emptyEvent: event }),
+      ),
+    );
+    assert.ok(html.includes('data-selection="empty"'), `${event} renderade ett urval`);
+    assert.ok(html.includes(`data-selection-empty-event="${event}"`), `${event} är inte utmärkt`);
+    assert.ok(html.includes(text), `${event} saknar sin ärliga förklaring`);
+
+    // Inget skal: inga rader, ingen banner, ingen sammanfattning, ingen positiv ton.
+    assert.ok(!html.includes("data-selection-rows"), `${event} renderade radlistan`);
+    assert.ok(!html.includes("data-accepted-count"), `${event} renderade en sammanfattning`);
+    assert.ok(!html.includes("data-file-name"), `${event} renderade en filrad`);
+    assert.ok(!/mk-tone-success|Formellt godkänd/.test(html), `${event} fick en positiv ton`);
+  }
+
+  // Grundläget (inget har hänt ännu) skiljs från de två händelserna.
+  assert.equal(emptyEventText(null), INTAKE_NO_SELECTION_TEXT);
+  assert.equal(emptyEventText("drop"), INTAKE_EMPTY_DROP_TEXT);
+  assert.equal(emptyEventText("pick"), INTAKE_EMPTY_PICK_TEXT);
+  assert.ok(
+    !/lyckades|klart|mottagen|inlämnad/i.test(INTAKE_EMPTY_DROP_TEXT + INTAKE_EMPTY_PICK_TEXT),
+    "tomläget antydde att något togs emot",
+  );
+
+  /*
+    Och vägen dit går genom EN spärr: klassificeraren släpper aldrig igenom en tom lista till
+    validateIntakeSelection, oavsett om den kom från ett släpp eller från filkontrollen.
+  */
+  const source = sourceOf("components/loop/IntakeDropzone.tsx");
+  assert.match(
+    source,
+    /if \(files\.length === 0\) \{\s*setSelection\(null\);/,
+    "en händelse med noll filer går rakt in i valideringen",
+  );
+  assert.match(source, /classify\(Array\.from\(event\.dataTransfer\.files\), "drop"\)/);
+  assert.match(source, /classify\(Array\.from\(event\.target\.files \?\? \[\]\), "pick"\)/);
+});
+
+test("V8*-B1: filkontrollens värde nollställs efter varje val — samma fil kan väljas igen", () => {
+  /*
+    Utan nollställning skickar webbläsaren INGEN `change` när samma fil väljs en andra gång:
+    värdet är oförändrat. Ytan hade då stått kvar med gammal dom trots att operatören precis
+    gjorde ett val — det mest förvirrande av alla utfall, eftersom ingenting alls händer.
+  */
+  const source = sourceOf("components/loop/IntakeDropzone.tsx");
+  assert.match(
+    source,
+    /if \(filePicker\.current !== null\) filePicker\.current\.value = "";/,
+    "filkontrollens värde nollställs inte efter ett val",
+  );
+  // Nollställningen sker EFTER att domen tagits — annars hade urvalet försvunnit med värdet.
+  const classifyAt = source.indexOf('classify(Array.from(event.target.files ?? []), "pick")');
+  const resetAt = source.indexOf('filePicker.current.value = ""');
+  assert.ok(classifyAt > 0 && resetAt > classifyAt, "värdet nollställs innan domen tagits");
+
+  const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+  assert.ok(/<input[^>]*type="file"/.test(html), "filkontrollen saknas");
+});
+
+test("V8*-B4: dragmarkeringen flimrar inte över inre element — räknaren är symmetrisk", () => {
+  /*
+    `dragleave` utlöses ÄVEN när pekaren går in i ett BARN i zonen (titeln, hinten, etiketten).
+    Räknaren gör lämnandet symmetriskt, och förloppet kan därför BEVISAS i stället för att provas
+    för hand: in i zonen → in i ett barn → ut ur barnet ska INTE släcka markeringen.
+  */
+  let depth = 0;
+  depth = dragDepthAfter(depth, "enter"); // in över zonen
+  assert.equal(isDragActive(depth), true, "markeringen tändes inte");
+  depth = dragDepthAfter(depth, "enter"); // barnets dragenter
+  depth = dragDepthAfter(depth, "leave"); // zonens dragleave för samma rörelse
+  assert.equal(isDragActive(depth), true, "markeringen slocknade mitt inne i zonen (flimmer)");
+  depth = dragDepthAfter(depth, "leave"); // ut ur zonen på riktigt
+  assert.equal(isDragActive(depth), false, "markeringen släcktes inte när zonen lämnades");
+
+  // Ett släpp nollställer alltid: inget dragleave följer på ett drop.
+  assert.equal(dragDepthAfter(3, "drop"), 0);
+  assert.equal(isDragActive(dragDepthAfter(3, "drop")), false);
+  // Räknaren går aldrig under noll — ett oparat dragleave får inte skulda kommande dragenter.
+  assert.equal(dragDepthAfter(0, "leave"), 0);
+  assert.equal(isDragActive(0), false);
+
+  /*
+    `dragover` upprepas några gånger per sekund så länge pekaren rör sig över zonen. Den måste
+    avbrytas för att ett släpp ska vara möjligt, men får inte skriva markeringens tillstånd —
+    då hade räknaren varit meningslös.
+  */
+  const source = sourceOf("components/loop/IntakeDropzone.tsx");
+  const dragOverHandler = source.match(/onDragOver=\{\(event\) => \{[\s\S]*?\}\}/);
+  assert.ok(dragOverHandler, "onDragOver saknas");
+  assert.ok(
+    !/setDragDepth|setSelection/.test(dragOverHandler[0]),
+    "onDragOver skriver tillstånd och gör räknaren meningslös",
+  );
+  assert.match(dragOverHandler[0], /event\.preventDefault\(\)/, "släpp är inte tillåtet i zonen");
+
+  const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+  assert.ok(html.includes('data-drag-over="false"'), "vilan är inte markerad som fri från drag");
+  assert.ok(html.includes('data-drag-depth="0"'), "räknaren syns inte maskinläsbart");
+});
+
+test("V8*-B5: den inklistrade källan får en FORMELL dom — tom, godkänd och över gränsen", () => {
+  /*
+    Samma funktion som filvägen (bevisat i I7-provet ovan) — här mäts att domen också NÅR ytan:
+    ett eget område, med maskinläsbar utfallsmarkering, som annonserar när utfallet vänder.
+  */
+  const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+  const verdict = html.match(/<p[^>]*data-paste-verdict="true"[^>]*>([\s\S]*?)<\/p>/);
+  assert.ok(verdict, "domen över inklistrad text saknar område");
+  assert.equal(verdict[1], "", "tom inmatning fick en dom — den finns bara inte ännu");
+  assert.ok(!/data-paste-accepted/.test(verdict[0]), "tom inmatning märktes som dömd");
+
+  // Gränsvärdena själva: tomt är ingen dom, exakt gränsen går igenom, ett byte över fälls.
+  const paste = (byteSize: number) =>
+    classifyIntakeCandidate({
+      file_name: pasteSourceName(1),
+      byte_size: byteSize,
+      mime_type: "text/markdown",
+    });
+  const empty = paste(0);
+  assert.equal(empty.accepted, false, "en tom källa är inte formellt godkänd");
+  if (!empty.accepted) assert.equal(empty.code, "empty");
+  assert.equal(paste(INTAKE_MAX_FILE_BYTES).accepted, true);
+  assert.equal(paste(INTAKE_MAX_FILE_BYTES + 1).accepted, false);
+
+  // Domen hämtas ur den delade klassificeraren — ingen egen storleksregel i komponenten.
+  const source = sourceOf("components/loop/IntakeDropzone.tsx");
+  assert.ok(!/1048576|1_048_576/.test(source), "komponenten bär en egen kopia av storleksgränsen");
+});
+
+test("V8*-A3: fixturpanelens programmatiska namn är SAMMA text som dess synliga rubrik", () => {
+  /*
+    Två formuleringar av samma rubrik ger seende och lyssnande läsare olika landmärken: den som
+    hör "kandidatfiler" hittar aldrig den rubrik någon annan läser upp för dem.
+  */
+  const html = renderShell();
+  const section = html.match(/<section[^>]*data-validation-showcase="true"[^>]*>/);
+  assert.ok(section, "valideringspanelen saknas");
+  assert.equal(decodeEntities(attr(section[0], "aria-label") ?? ""), VALIDATION_SHOWCASE_TITLE);
+  assert.ok(
+    decodeEntities(html).includes(`<span>${VALIDATION_SHOWCASE_TITLE}</span>`),
+    "den synliga rubriken bär inte samma text som sektionens namn",
+  );
+
+  // Samma regel för dropzonens panel: namnet och rubriken kommer ur EN konstant.
+  const dropzone = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+  const panel = dropzone.match(/<section[^>]*data-intake-dropzone="true"[^>]*>/);
+  assert.ok(panel, "dropzonens panel saknas");
+  assert.equal(decodeEntities(attr(panel[0], "aria-label") ?? ""), INTAKE_PANEL_TITLE);
+  assert.ok(decodeEntities(dropzone).includes(`<span>${INTAKE_PANEL_TITLE}</span>`));
+});
+
+test("V8*-C4: sidans rubrik står EN gång — hierarkin h1 → h2 behålls, dubbletten är borta", () => {
+  const html = decodeEntities(renderPage());
+
+  // Sidans egen titel finns kvar som h1 — det är sidans namn.
+  assert.ok(/<h1[^>]*>Mata maskinen<\/h1>/.test(html), "sidans h1 saknas");
+  // Och den upprepas inte som en andra rubrik med identisk text.
+  assert.equal(
+    (html.match(/>Mata maskinen</g) ?? []).length,
+    1,
+    "rubriken 'Mata maskinen' står mer än en gång",
+  );
+
+  // Panelen har fortfarande en h2 — nivån under sidans rubrik, med ett eget namn.
+  assert.ok(html.includes(`<span>${INTAKE_PANEL_TITLE}</span>`), "panelens egen rubrik saknas");
+  assert.notEqual(INTAKE_PANEL_TITLE, "Mata maskinen");
+  assert.ok(/<h2[^>]*class="mk-panel-title"/.test(html), "panelrubriken är inte längre en h2");
+  // Sidan har exakt en toppnivårubrik.
+  assert.equal((html.match(/<h1/g) ?? []).length, 1, "sidan har fler än en h1");
+});
+
+test("V8*-C2: riktningstexterna pekar åt det håll innehållet FAKTISKT står", () => {
+  /*
+    "Nedan" är ett påstående om renderingsordningen. IntakeResult ritar originalkällan FÖRE
+    tolkningsgruppen, så NEEDS_SPEC-arbetsläget måste peka uppåt — annars skickas läsaren till
+    slutet av panelen efter något som stod högst upp.
+  */
+  const html = renderResult(outcomeById(NEEDS_SPEC));
+  const sourceAt = html.indexOf('data-source-raw="true"');
+  const actionAt = html.indexOf('data-needs-spec-action="true"');
+  assert.ok(sourceAt > 0 && actionAt > 0, "källan eller arbetsläget saknas");
+  assert.ok(sourceAt < actionAt, "källan renderas inte före arbetsläget — riktningen kan inte prövas");
+  assert.ok(NEEDS_SPEC_ACTION_HINT.includes("ovanför"), "hinten pekar inte uppåt mot källan");
+  assert.ok(!/nedan/.test(NEEDS_SPEC_ACTION_HINT), "hinten pekar fortfarande nedåt");
+
+  // Och "uppgifterna nedan" är sant: korten renderas EFTER sin mening.
+  const answered = renderResult(outcomeById(ANSWERED));
+  assert.ok(
+    answered.indexOf("Uppgifterna nedan") < answered.indexOf("<article"),
+    "texten lovar uppgifter nedanför men korten står ovanför",
+  );
+
+  /*
+    SVEPET: ingen mening i intakens filer får peka NEDÅT mot källan — varken i UI-text eller i en
+    kommentar. Rond 3:s fynd satt just i ett filhuvud, långt från den text som redan rättats.
+  */
+  for (const file of INTAKE_FILES) {
+    for (const sentence of rawSourceOf(file).split(/[.\n]/)) {
+      if (!/källa/i.test(sentence)) continue;
+      assert.ok(
+        !/\bnedan(för)?\b/i.test(sentence),
+        `${file} påstår att källan står nedanför: "${sentence.trim()}"`,
+      );
+    }
+  }
+});
+
+test("V8*-A4: den visuellt dolda filkontrollen har en POSITIONERAD förälder", () => {
+  /*
+    .mk-sr-only positioneras absolut. Utan en positionerad förälder räknas positionen mot
+    VIEWPORTEN — kontrollen hamnar då i sidans hörn i stället för i sin egen zon. Osynligt, men
+    fel plats för fokus och för varje senare regel som utgår från att kontrollen ligger i zonen.
+  */
+  assert.match(LOOP_CSS, /\.mk-sr-only\s*\{[^}]*position:\s*absolute/);
+  const drop = LOOP_CSS.match(/\.mk-drop \{[^}]*\}/);
+  assert.ok(drop, ".mk-drop saknar regel");
+  assert.match(drop[0], /position:\s*relative/, "dropzonen är inte en positionerad förälder");
+
+  // Och kontrollen ligger faktiskt INUTI den zonen i markupen.
+  const html = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+  const zone = html.match(/<div[^>]*data-drop-target="true"[^>]*>[\s\S]*?<\/div>/);
+  assert.ok(zone, "dropzonen saknas");
+  assert.ok(zone[0].includes('class="mk-sr-only"'), "den dolda kontrollen ligger utanför zonen");
+});
+
+test("V8*-D1: dropzonen ser droppbar ut i VILA — och aktivläget är fortfarande skilt från den", () => {
+  const drop = LOOP_CSS.match(/\.mk-drop \{[^}]*\}/);
+  assert.ok(drop, ".mk-drop saknar regel");
+  assert.match(drop[0], /border:\s*1px dashed/, "zonen saknar droppbar affordans i vila");
+
+  const over = LOOP_CSS.match(/\.mk-drop-over \{[^}]*\}/);
+  assert.ok(over, ".mk-drop-over saknar regel");
+  assert.match(over[0], /background:\s*var\(--tint-accent-bg\)/, "aktivläget tappade sin tint");
+  assert.match(over[0], /border-style:\s*solid/, "aktivläget skiljer sig inte från vilan i kanten");
+  assert.match(over[0], /var\(--tint-accent-border\)/, "aktivläget tappade sin accentkant");
+
+  // Ingen ny färg införs: affordansen använder husets befintliga token.
+  assert.match(drop[0], /var\(--border-strong\)/, "zonen införde en färg utanför tokensystemet");
+});
+
+test("V8*-D2: den täta listan står i tre spalter redan vid surfplattans bredd", () => {
+  /*
+    Rond 8: brytpunkten låg på 960px medan granskningens surfplatteläge är 900px — exakt den vy
+    där tjugoen orsakslösa kort skulle komprimeras stackades de i EN spalt.
+  */
+  const media = LOOP_CSS.match(/@media \(min-width: (\d+)px\) \{\s*\.mk-list-dense \{([^}]*)\}/);
+  assert.ok(media, "den täta listan saknar sin flerspaltsregel");
+  const breakpoint = Number(media[1]);
+  assert.ok(
+    breakpoint <= 900,
+    `tregriden börjar först vid ${breakpoint}px och gäller därför inte vid 900px`,
+  );
+  assert.match(media[2], /grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+});
+
+test("V8*-E1: kommentaren om live-områden stämmer med hur många som faktiskt finns", () => {
+  /*
+    Rond 5: en kommentar som säger "enda live-området" när det finns två är lika vilseledande som
+    en osann etikett i UI:t — nästa läsare tror att ingen annan yta annonserar.
+  */
+  const raw = rawSourceOf("components/loop/IntakeDropzone.tsx");
+  const dropzone = renderToStaticMarkup(createElement(IntakeDropzone, {}));
+  const actual = (dropzone.match(/aria-live="polite"/g) ?? []).length;
+  assert.equal(actual, LIVE_REGIONS.length, "antalet live-områden ändrades utan att facit gjorde det");
+  assert.ok(
+    !/[Ee]nda live-området/.test(raw),
+    `kommentaren påstår ETT live-område medan komponenten har ${actual}`,
+  );
+  assert.ok(
+    raw.includes("TVÅ live-områden"),
+    "kommentaren namnger inte det faktiska antalet live-områden",
+  );
+});
+
+test("V8*-F1: CTA:n till /loop/mata navigerar med next/link — ingen full omladdning", () => {
+  /*
+    En rå <a> river hela kontrollrummet och kostar operatören en kall start för att öppna en
+    INTERN route. next/link gör samma navigering på appens villkor och renderar fortfarande ett
+    vanligt <a href> — samma URL, samma beteende för mitten-klick och för skärmläsare.
+
+    NOT: komponentens RENDERING hör hemma på /loop, som är systertaskets fotoyta. Här prövas den
+    mekaniskt — den här skivan gör inget visuellt påstående om /loop.
+  */
+  const source = sourceOf("components/loop/BacklogColumn.tsx");
+  assert.match(source, /import Link from "next\/link"/, "CTA:n importerar inte next/link");
+  assert.match(source, /<Link className="mk-link" href="\/loop\/mata"/, "CTA:n använder inte Link");
+  assert.ok(!/<a\s[^>]*href="\/loop\/mata"/.test(source), "en rå <a> till intake-routen finns kvar");
+
+  // Och den renderade markupen är fortfarande en riktig länk med rätt mål.
+  const html = renderToStaticMarkup(createElement(BacklogColumn, { tasks: [] }));
+  assert.match(html, /<a[^>]*href="\/loop\/mata"[^>]*>/, "CTA:n renderar ingen länk");
+  assert.ok(html.includes('data-intake-cta="true"'), "CTA:ns märkning försvann");
+  assert.ok(html.includes("Mata maskinen"), "CTA:ns text försvann");
 });
