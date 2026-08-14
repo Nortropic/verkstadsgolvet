@@ -35,6 +35,8 @@ import MaskinShell from "../../components/loop/MaskinShell";
 import IdentityStrip from "../../components/loop/room/IdentityStrip";
 import RoomTimeline from "../../components/loop/room/RoomTimeline";
 import WorkComposer from "../../components/loop/room/WorkComposer";
+import { FOCUS_NOTE, FOCUS_STEP } from "../../components/loop/room/TaskFocusRail";
+import { TRAY_NOTE, TRAY_STEP } from "../../components/loop/room/OutputTray";
 import { ROOM_CSS, ROOM_CSS_PREFIX } from "../../components/loop/room/ui";
 import { LOOP_CSS } from "../../components/loop/ui";
 import { FIXTURE_MODE, fixtureCommands, fixtureIntakeOutcomes, fixtureSnapshot } from "../../lib/loop/fixtures";
@@ -539,6 +541,111 @@ test("ROOM-LIFECYCLE: rummet renderar exakt de elva kanoniska tillstånden", () 
   for (const marker of ["data-room-stage", "data-work-composer", "data-task-focus-rail",
     "data-output-tray", "data-identity-strip", "data-room-timeline", "data-factory-room-header"]) {
     assert.ok(html.includes(`${marker}="`), `rummets yta ${marker} monterades inte`);
+  }
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * BANORNAS ORDNING — LOOP_CSS:s rutnätsordning läcker inte in i rummets flexbanor
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+test("ROOM-LAYOUT: banornas ordning är DOM-ordning — etikett, yta, notis, i alla vyer", () => {
+  /*
+    Kolumnerna låg tidigare i .mk-cols (grid) och LOOP_CSS ordnar dem där för smala vyer. I
+    rummet är samma kolumner flexbarn i en bana, och `order` gäller flexbarn precis lika mycket.
+    Utan en nollställning hoppar aktuell uppgift ovanför sin egen etikett vid 900 px, och
+    utmatningens notis ovanför sin kolumn vid 390 px. Provet mäter både REGELN och DOM-ordningen.
+  */
+  const orderedColumns = [
+    ...LOOP_CSS.matchAll(/\.(mk-col-[a-z]+)\s*\{[^}]*order:\s*(-?\d+)/g),
+  ].map((match) => match[1]);
+  assert.ok(
+    orderedColumns.length > 0,
+    "LOOP_CSS ordnar inga kolumner längre — mätaren mäter ingenting och måste skrivas om",
+  );
+
+  // Rummet nollställer den ärvda ordningen för sina egna banbarn …
+  assert.match(
+    ROOM_CSS,
+    /\.rm-lane\s*>\s*\.mk-col\s*\{[^}]*order:\s*0/,
+    "rummet nollställer inte den ärvda kolumnordningen i sina banor",
+  );
+
+  // LÖGNSTUB: tas regeln bort ska samma uppslag INTE hitta den — annars mäter provet ingenting.
+  assert.ok(
+    !/\.rm-lane\s*>\s*\.mk-col\s*\{[^}]*order:\s*0/.test(
+      ROOM_CSS.replace(/\.rm-lane\s*>\s*\.mk-col\s*\{[^}]*\}/, ""),
+    ),
+    "uppslaget hittar nollställningen även när den tagits bort — mätaren är trasig",
+  );
+
+  // … med HÖGRE specificitet än regeln den ska vinna över (två klasser mot en).
+  const classCount = (selector: string) => (selector.match(/\.[a-z][\w-]*/g) ?? []).length;
+  for (const column of new Set(orderedColumns)) {
+    assert.ok(
+      classCount(".rm-lane > .mk-col") > classCount(`.${column}`),
+      `nollställningen är inte mer specifik än .${column}`,
+    );
+  }
+
+  const html = renderRoom(snapshotOrThrow());
+
+  // Rummets stilark ligger EFTER Maskinens — lika specifika regler avgörs då till rummets fördel.
+  assert.ok(
+    html.indexOf(LOOP_CSS) < html.indexOf(ROOM_CSS),
+    "rummets stilark injiceras före Maskinens — kaskadens ordning är omvänd",
+  );
+
+  /*
+    DOM-ordningen ÄR berättelsen: etikett → yta → notis, bana för bana. Mätt på MARKUPEN utan
+    stilarket — annars hittar uppslaget klassnamnen i CSS-texten i stället för i elementen.
+  */
+  const markup = withoutStyles(html);
+  const at = (needle: string) => {
+    const index = markup.indexOf(needle);
+    assert.ok(index >= 0, `hittade inte «${needle}» i rummets markup`);
+    return index;
+  };
+  assert.ok(at("1 · in") < at('data-work-composer="true"'), "ingången saknar sin stegetikett");
+  assert.ok(
+    at('data-work-composer="true"') < at('data-column="backlog"'),
+    "kompositören ligger inte före kön — rummets primära handling hamnade under listan",
+  );
+  assert.ok(at(FOCUS_STEP) < at('data-column="current"'), "aktuell uppgift ligger före sin etikett");
+  assert.ok(at('data-column="current"') < at(FOCUS_NOTE), "fokusnotisen ligger före sin yta");
+  assert.ok(at(TRAY_STEP) < at('data-column="completed"'), "utmatningen ligger före sin etikett");
+  assert.ok(at('data-column="completed"') < at(TRAY_NOTE), "utmatningsnotisen ligger före sin yta");
+
+  // Och banorna kommer i berättelsens ordning: in → arbete → ut.
+  assert.ok(at('data-column="backlog"') < at('data-column="current"'));
+  assert.ok(at('data-column="current"') < at('data-column="completed"'));
+
+  /*
+    Nollställningen använder barnkombinatorn (.rm-lane > .mk-col), så den gäller bara om
+    kolumnen FAKTISKT är ett direkt barn till banan. Det mäts här i stället för att antas:
+    mellan banans öppningstagg och kolumnen får det inte ligga någon öppnad behållare.
+  */
+  for (const [lane, column] of [
+    ["rm-lane-in", "backlog"],
+    ["rm-lane-focus", "current"],
+    ["rm-lane-out", "completed"],
+  ] as const) {
+    const from = at(lane);
+    // Fram till kolumnens EGEN öppningstagg — inte in i den, annars räknas den som obalans.
+    const to = markup.lastIndexOf("<", at(`data-column="${column}"`));
+    const between = markup.slice(from, to);
+    /*
+      Syskon som öppnats OCH stängts före kolumnen (t.ex. kompositören i ingångsbanan) bryter
+      ingen barnrelation. Det som skulle bryta den är en behållare som fortfarande är ÖPPEN när
+      kolumnen börjar — alltså en obalans mellan öppnade och stängda taggar i mellanrummet.
+    */
+    const containers = "div|section|ul|ol|li|p|form|header|article|details|nav";
+    const opened = (between.match(new RegExp(`<(${containers})\\b`, "g")) ?? []).length;
+    const closed = (between.match(new RegExp(`</(${containers})>`, "g")) ?? []).length;
+    assert.equal(
+      opened,
+      closed,
+      `${column}-kolumnen är inte ett direkt barn till .${lane} — barnkombinatorn träffar inte`,
+    );
   }
 });
 

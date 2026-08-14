@@ -56,6 +56,24 @@ export const ROOM_CSS = `
 .rm-stage { display: grid; gap: var(--gap-md); align-items: start;
   grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.7fr) minmax(0, 0.85fr); }
 .rm-lane { display: flex; flex-direction: column; gap: var(--gap-sm); min-width: 0; }
+/*
+  BANANS EGEN ORDNING ÄR DOM-ORDNINGEN: stegetikett → ytan → notis.
+
+  Kolumnerna låg tidigare som GRID-barn i .mk-cols, och LOOP_CSS ordnar dem där för de smala
+  vyerna (.mk-col-current får order -1 vid 959 px, .mk-col-backlog och .mk-col-completed får
+  order 1 respektive 2 vid 719 px). I rummet är samma kolumner i stället FLEX-barn i en bana —
+  och order gäller flexbarn precis som gridbarn. Utan den här regeln hoppar aktuell uppgift ovanför sin egen
+  etikett "2 · arbetet" vid surfplattans bredd, och notisen under utmatningen hamnar ovanför
+  kolumnen vid 390 px: berättelsen tappar sin ordning exakt i de vyer som granskas.
+
+  Ordningen nollställs därför HÄR, i rummets eget stilark, med en mer specifik väljare
+  (0,2,0 mot LOOP_CSS 0,1,0). components/loop/ui.ts rörs inte: den regeln är riktig för det
+  rutnät den skrevs för, och en skiva som skriver om en annan skivas provade stilark hade
+  flyttat problemet i stället för att lösa det. Regeln står utanför media-blocken med flit —
+  media-frågor höjer inte specificitet, så en enda regel täcker båda brytpunkterna och även
+  en framtida brytpunkt som ännu inte finns.
+*/
+.rm-lane > .mk-col { order: 0; }
 .rm-step { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1.4px;
   text-transform: uppercase; color: var(--text-muted); }
 /* Mitten är rummets blick: samma tokens, men lyft ur sidan så att den läses först. */
