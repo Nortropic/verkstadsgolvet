@@ -200,6 +200,33 @@ export const LOOP_CSS = `
 .mk-raw[data-rejection-verbatim="true"] { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mk-intake-results { display: flex; flex-direction: column; gap: var(--gap-md); }
 
+/* V9 · Eventströmmen. Samma tokens, samma namnrymd, ingen ny färg — och ingen rörelse:
+   panelen får aldrig se levande ut utan ett faktiskt event bakom sig. */
+.mk-stream { gap: var(--gap-sm); }
+.mk-banners { display: flex; flex-direction: column; gap: 6px; }
+.mk-toggle { height: 26px; padding: 0 10px; border: 0; border-radius: var(--radius-control);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.6px; background: var(--bg-surface-1);
+  color: var(--text-secondary); box-shadow: inset 0 0 0 1px var(--border-strong); cursor: pointer; }
+.mk-toggle:hover { background: var(--bg-surface-2); color: var(--text-primary); }
+.mk-toggle:focus-visible { box-shadow: var(--focus-ring); }
+.mk-toggle[aria-pressed="true"] { background: var(--tint-accent-bg); color: var(--accent-text);
+  box-shadow: inset 0 0 0 1px var(--tint-accent-border); }
+/* Strömmen scrollar i EGEN behållare — aldrig sidled-scroll på hela sidan. */
+.mk-stream-rows { max-height: 420px; overflow-y: auto; overflow-x: hidden;
+  border-radius: var(--radius-control); background: var(--bg-surface-0);
+  box-shadow: inset 0 0 0 1px var(--border-strong); padding: 8px; }
+.mk-events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.mk-event { background: var(--bg-surface-1); box-shadow: var(--hairline); border-radius: var(--radius-control);
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mk-event[data-unknown-type="true"] { background: var(--tint-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--tint-warning-border); }
+.mk-event[data-relation="stale"] { background: var(--bg-surface-0); }
+.mk-event-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mk-event-seq { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); flex: none; }
+.mk-event-type { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-primary);
+  overflow-wrap: anywhere; }
+.mk-event-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--text-muted); }
+
 @media (max-width: 1279px) { .mk-cols { gap: var(--gap-sm); } }
 @media (max-width: 959px) {
   .mk-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
