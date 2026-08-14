@@ -44,7 +44,6 @@ import TaskFocusRail from "./room/TaskFocusRail";
 import WorkComposer from "./room/WorkComposer";
 import { ROOM_CSS } from "./room/ui";
 import { LOOP_CSS } from "./ui";
-import { TRANSPORT_NOTICE_OWNER } from "@/lib/loop/room/attention";
 import { ROOM_TRANSPORT_NOTE } from "@/lib/loop/room/header";
 
 export default function MaskinShell({
@@ -88,7 +87,7 @@ export default function MaskinShell({
               <BacklogColumn tasks={snapshot.backlog} />
             </div>
 
-            <TaskFocusRail task={snapshot.current_task} />
+            <TaskFocusRail task={snapshot.current_task} fixture={fixture} />
 
             <OutputTray tasks={snapshot.completed} />
           </div>
@@ -131,12 +130,13 @@ export default function MaskinShell({
             </p>
           )}
           {/*
-            Notisen om transportläget står HÄR, vid anslutningen den handlar om — inte i rummets
-            huvud. Där kostade den bara höjd ovanför arbetsytorna, och en läsare som undrar över
-            anslutningen tittar på strömpanelen, inte på sidhuvudet.
+            EN mening, vid anslutningen den handlar om. Den säger bara det som är rummets eget
+            att säga — att rummet inte öppnar någon andra anslutning. Vem som äger transportläget
+            står redan i sidhuvudet och i panelen själv; en tredje formulering hade varit
+            dubblerad statusinformation.
           */}
           <p className="rm-head-note" data-room-transport-state="unknown">
-            {ROOM_TRANSPORT_NOTE} {TRANSPORT_NOTICE_OWNER}
+            {ROOM_TRANSPORT_NOTE}
           </p>
           <LiveEventStream watermark={snapshot.seq_watermark} />
         </>

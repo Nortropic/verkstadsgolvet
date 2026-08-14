@@ -33,17 +33,33 @@ export const ROOM_FACTS = {
 
 export const ROOM_TITLE = "Fabriksrummet";
 
-/** Rummets ingress. En rad: axeln till vänster, ägarskapet till höger om tankstrecket. */
-export const ROOM_INTRO =
-  "In till vänster, arbetet i mitten, ut till höger — allt ur controllerns publicerade snapshot.";
+/**
+ * Rummets ingress: axeln till vänster om tankstrecket, KÄLLAN till höger.
+ *
+ * KÄLLAN HÄRLEDS, DEN SKRIVS INTE FÖR HAND. Samma disciplin som `maskinHeaderTruth()` i
+ * components/loop/ui.ts: är vyn matad med den genererade fixturen SÄGER ingressen fixtur, annars
+ * säger den controllerns snapshot. En mening som påstår controllerpublicerad härkomst medan
+ * statusraden två rader ned bär märket "FIXTUR · INTE LIVEDATA" är två motstridiga påståenden om
+ * samma data — och det är precis det en fixturbaserad skiva aldrig får göra.
+ */
+const ROOM_AXIS = "In till vänster, arbetet i mitten, ut till höger";
+
+export function roomIntro(fixture: boolean): string {
+  return fixture
+    ? `${ROOM_AXIS} — allt ur den genererade fixturen, aldrig livedata.`
+    : `${ROOM_AXIS} — allt ur controllerns publicerade snapshot.`;
+}
 
 /**
- * Hänvisningen till den som FAKTISKT äger transportläget. Den renderas VID STRÖMMEN, inte i
- * huvudet: en notis om en anslutning hör hemma bredvid anslutningen, och i huvudet kostade den
- * bara höjd ovanför de ytor operatören kom hit för att se.
+ * Rummets ENDA mening om anslutningen, renderad VID STRÖMMEN.
+ *
+ * Den säger bara det som är rummets eget att säga: rummet öppnar ingen egen anslutning
+ * (ONE_TAIL_CONNECTION_PER_FACTORY_ROOM). VEM som äger transportläget står redan i sidhuvudet
+ * och i panelen själv — att upprepa det en tredje gång är dubblerad statusinformation, inte
+ * extra tydlighet.
  */
 export const ROOM_TRANSPORT_NOTE =
-  "Rummet öppnar ingen egen anslutning. Strömpanelen bär sitt eget transportläge — det står där.";
+  "Rummet öppnar ingen egen anslutning — panelen nedan är rummets enda.";
 
 /**
  * Åldern är en visning av en tidsstämpel, aldrig ett påstående om aktivitet.
@@ -53,7 +69,11 @@ export const ROOM_TRANSPORT_NOTE =
  */
 export const AGE_IS_LIVENESS_SIGNAL = false;
 export const AGE_NOTE = "ren visning, ingen liveness-signal";
-export const AGE_CAPTION_LEAD = "Controllerns bekräftelse ovan:";
+/**
+ * Bildtexten PEKAR på statusradens rad, den påstår ingen härkomst: raden ovan bär redan sin egen
+ * etikett och rummet vet i det här läget att värdet kommer ur en fixtur.
+ */
+export const AGE_CAPTION_LEAD = "Bekräftelsen ovan:";
 
 const MS_MINUTE = 60_000;
 const MS_HOUR = 3_600_000;

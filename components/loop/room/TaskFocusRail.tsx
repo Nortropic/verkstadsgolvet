@@ -24,16 +24,36 @@ import type { TaskView } from "@/lib/loop/schema";
 export const FOCUS_STEP = "arbetet";
 export const FOCUS_STEP_ORDINAL = "2";
 
-export const FOCUS_NOTE =
-  "Allt i mitten kommer ur controllerns publicerade snapshot. Eventströmmen längst ned kan visa " +
-  "att något är på gång, men den flyttar aldrig ett tillstånd här.";
+/**
+ * KÄLLAN HÄRLEDS UR LÄGET, REGELN GÖR DET INTE.
+ *
+ * Vilken KÄLLA mitten läser är olika i fixturläge och live — och en mening som påstår
+ * controllerpublicerad härkomst för fixturdata motsäger både statusradens FIXTUR-märke och
+ * sidhuvudets egen sanningsrad. REGELN är däremot densamma i båda lägena: tillståndet kommer ur
+ * den snapshot vyn fått, aldrig ur strömmen. Därför byter första meningen med läget, medan andra
+ * meningen står fast.
+ */
+export function focusNote(fixture: boolean): string {
+  const source = fixture
+    ? "Mitten kommer ur den genererade fixturen — inte ur controllern."
+    : "Mitten kommer ur controllerns publicerade snapshot.";
+  return `${source} Regeln är densamma i båda lägena: tillståndet kommer ur snapshoten, aldrig ur strömmen nedan.`;
+}
 
-export default function TaskFocusRail({ task }: { task: TaskView | null }) {
+export default function TaskFocusRail({
+  task,
+  fixture,
+}: {
+  task: TaskView | null;
+  fixture: boolean;
+}) {
   return (
     <div className="rm-lane rm-lane-focus" data-task-focus-rail="true">
       <RoomStep ordinal={FOCUS_STEP_ORDINAL} name={FOCUS_STEP} />
       <CurrentTaskPanel task={task} />
-      <p className="rm-head-note">{FOCUS_NOTE}</p>
+      <p className="rm-head-note" data-focus-source={fixture ? "fixture" : "snapshot"}>
+        {focusNote(fixture)}
+      </p>
     </div>
   );
 }

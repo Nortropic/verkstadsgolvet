@@ -35,7 +35,7 @@ import MaskinShell from "../../components/loop/MaskinShell";
 import IdentityStrip from "../../components/loop/room/IdentityStrip";
 import RoomTimeline from "../../components/loop/room/RoomTimeline";
 import WorkComposer from "../../components/loop/room/WorkComposer";
-import { FOCUS_NOTE, FOCUS_STEP } from "../../components/loop/room/TaskFocusRail";
+import { FOCUS_STEP, focusNote } from "../../components/loop/room/TaskFocusRail";
 import { TRAY_NOTE, TRAY_STEP } from "../../components/loop/room/OutputTray";
 import { ROOM_CSS, ROOM_CSS_PREFIX } from "../../components/loop/room/ui";
 import { LOOP_CSS } from "../../components/loop/ui";
@@ -54,7 +54,7 @@ import {
   OWNER_AUTHORITY_SOURCE,
   deriveAttention,
 } from "../../lib/loop/room/attention";
-import { ROOM_FACTS, ageText, mainConfirmation } from "../../lib/loop/room/header";
+import { ROOM_FACTS, ageText, mainConfirmation, roomIntro } from "../../lib/loop/room/header";
 import {
   IDENTITY_DISCLAIMER,
   IDENTITY_FIELDS_WITHOUT_SOURCE,
@@ -323,6 +323,69 @@ test("ROOM-KÄLLA: varje tidslinjepost bär sin källa, och gränsen mot live-yt
   assert.equal(TIMELINE_ORDER.GLOBAL_CAUSAL_ORDER_NOT_CLAIMED, "YES");
   assert.equal(TIMELINE_ORDER.WALL_CLOCK_IS_ORDERING_AUTHORITY, "NO");
   assert.equal(TIMELINE_ORDER.LIVE_EVENT_ORDER, "seq");
+});
+
+test("ROOM-KÄLLA: rummets egen prosa påstår ALDRIG controllerpublicerad härkomst för en fixtur", () => {
+  /*
+    Två motstridiga påståenden om samma data är värre än ett tyst. Renderas rummet med fixturen
+    får ingen mening i rummet säga att värdena kommer ur controllerns publicerade snapshot —
+    statusraden bär redan "FIXTUR · INTE LIVEDATA" och sidhuvudets sanningsrad säger fixtur.
+  */
+  const snapshot = snapshotOrThrow();
+  const text = withoutStyles(renderRoom(snapshot, true)).replace(/<[^>]+>/g, " ");
+
+  assert.ok(text.includes(roomIntro(true)), "fixturlägets ingress renderas inte");
+  assert.ok(!text.includes(roomIntro(false)), "ingressen påstår controllerpublicerad härkomst");
+  assert.ok(text.includes(focusNote(true)), "fixturlägets fokusnotis renderas inte");
+  assert.ok(!text.includes(focusNote(false)), "fokusnotisen påstår controllerpublicerad härkomst");
+  assert.ok(
+    !/controllerns publicerade snapshot/i.test(text),
+    "en mening i rummet påstår controllerpublicerad härkomst i fixturläge",
+  );
+
+  // Fixturlägets meningar NAMNGER fixturen — de är inte bara tystare, de är ärliga.
+  assert.match(roomIntro(true), /fixtur/i);
+  assert.match(focusNote(true), /fixtur/i);
+  assert.ok(text.includes("FIXTUR"), "fixturmärket saknas i samma vy");
+
+  // Och lägena är FAKTISKT olika texter — annars vore växlingen kosmetik.
+  assert.notEqual(roomIntro(true), roomIntro(false));
+  assert.notEqual(focusNote(true), focusNote(false));
+  assert.match(roomIntro(false), /controllerns publicerade snapshot/i);
+
+  // Regeln om authority står kvar i BÅDA lägena: state kommer ur snapshoten, aldrig ur strömmen.
+  for (const mode of [true, false]) {
+    assert.match(focusNote(mode), /aldrig ur strömmen/i, "authority-regeln föll bort");
+  }
+
+  // Märkningen är maskinläsbar, så växlingen kan mätas utan att läsa prosa.
+  const markup = withoutStyles(renderRoom(snapshot, true));
+  assert.ok(markup.includes('data-room-intro-source="fixture"'));
+  assert.ok(markup.includes('data-focus-source="fixture"'));
+  const live = withoutStyles(renderRoom(snapshot, false));
+  assert.ok(live.includes('data-room-intro-source="snapshot"'));
+  assert.ok(live.includes('data-focus-source="snapshot"'));
+});
+
+test("ROOM-KOPIA: transportläget påstås EN gång i rummet — ingen tredje formulering", () => {
+  /*
+    Sidhuvudet (utanför den här skivan) och strömpanelen äger redan meningen om VEM som bär
+    transportläget. Rummets paragraf ska bara bära rummets eget löfte: ingen andra anslutning.
+  */
+  const markup = withoutStyles(renderRoom(snapshotOrThrow()));
+  const note = markup.match(/<p[^>]*data-room-transport-state="unknown"[\s\S]*?<\/p>/)?.[0];
+  assert.ok(note, "rummets transportmening renderas inte");
+
+  const sentences = note
+    .replace(/<[^>]+>/g, "")
+    .split(/(?<=\.)\s+/)
+    .filter((part) => part.trim().length > 0);
+  assert.equal(sentences.length, 1, `rummets transportmening är ${sentences.length} meningar`);
+  assert.ok(
+    !/bär sitt eget transportläge|står i panelen|står där/i.test(note),
+    "rummet upprepar sidhuvudets mening om vem som äger transportläget",
+  );
+  assert.match(note, /ingen egen anslutning/i, "rummets eget löfte saknas");
 });
 
 test("ROOM-KÄLLA: utan fixturläge visas ingen fixturpost alls — hellre tomt än omärkt", () => {
@@ -617,7 +680,7 @@ test("ROOM-LAYOUT: banornas ordning är DOM-ordning — etikett, yta, notis, i a
     at(`data-room-step="${FOCUS_STEP}"`) < at('data-column="current"'),
     "aktuell uppgift ligger före sin etikett",
   );
-  assert.ok(at('data-column="current"') < at(FOCUS_NOTE), "fokusnotisen ligger före sin yta");
+  assert.ok(at('data-column="current"') < at(focusNote(true)), "fokusnotisen ligger före sin yta");
   assert.ok(
     at(`data-room-step="${TRAY_STEP}"`) < at('data-column="completed"'),
     "utmatningen ligger före sin etikett",

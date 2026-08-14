@@ -42,9 +42,9 @@ import {
 import {
   AGE_CAPTION_LEAD,
   AGE_NOTE,
-  ROOM_INTRO,
   ROOM_TITLE,
   mainConfirmation,
+  roomIntro,
 } from "@/lib/loop/room/header";
 
 export type FactoryRoomHeaderProps = {
@@ -63,7 +63,14 @@ export default function FactoryRoomHeader({ snapshot, fixture, now }: FactoryRoo
   return (
     <header className="rm-head" data-factory-room-header="true">
       <h2 className="rm-head-title">{ROOM_TITLE}</h2>
-      <p className="rm-head-intro">{ROOM_INTRO}</p>
+      {/*
+        KÄLLAN FÖLJER LÄGET. Ingressen får aldrig påstå controllerpublicerad härkomst för data
+        som statusraden två rader ned märker som fixtur — samma disciplin som sidhuvudets egen
+        sanningsrad. `fixture` är redan skalets flagga; den härleds inte om här.
+      */}
+      <p className="rm-head-intro" data-room-intro-source={fixture ? "fixture" : "snapshot"}>
+        {roomIntro(fixture)}
+      </p>
 
       {/* Maskinens egen statusrad — samma värden, samma märkning, en enda ägare. */}
       <RunStatusBar snapshot={snapshot} fixture={fixture} />

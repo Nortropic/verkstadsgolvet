@@ -34,9 +34,13 @@ export const OWNER_AUTHORITY_SOURCE = "NONE" as const;
 export const OWNER_AUTHORITY_NOTE =
   "Ingen ägaråtgärd kan visas: kontraktet har inget fält som säger att ägarens behörighet krävs.";
 
-/** Transportlägets ägare, utskrivet VID strömmen så att läsaren vet var det faktiska läget står. */
-export const TRANSPORT_NOTICE_OWNER =
-  "Anslutningens läge — öppen ström, återanslutning eller poll — står i panelen nedan.";
+/*
+  TRANSPORTNOTISER SKRIVS INTE HÄR. Anslutningens läge — öppen ström, återanslutning eller poll —
+  ägs och renderas av strömpanelen, och sidhuvudet pekar redan på den. En tredje formulering av
+  samma sak är dubblerad statusinformation, inte extra tydlighet. Rummets enda mening om
+  anslutningen står i ROOM_TRANSPORT_NOTE (./header.ts) och handlar om rummets EGET löfte:
+  ingen andra anslutning öppnas.
+*/
 
 /**
  * De tillstånd som drar uppmärksamhet till sig, i TASK_LIFECYCLE:s EGEN ordning. Ordningen
@@ -49,7 +53,7 @@ export const ATTENTION_STATES: readonly TaskLifecycle[] = TASK_LIFECYCLE.filter(
 /** Klartext per tillstånd. NEEDS_SPEC beskrivs som arbete, STOPPED som stopp — aldrig tvärtom. */
 const ATTENTION_DETAIL: Readonly<Record<"NEEDS_SPEC" | "STOPPED", string>> = Object.freeze({
   NEEDS_SPEC: "Källan räckte inte till en verifierbar uppgift. Nästa steg är att komplettera den.",
-  STOPPED: "Stoppat i controllerns snapshot. Ett stopp är aldrig ett klart arbete.",
+  STOPPED: "Stoppat i snapshoten. Ett stopp är aldrig ett klart arbete.",
 });
 
 export type AttentionItem = {
