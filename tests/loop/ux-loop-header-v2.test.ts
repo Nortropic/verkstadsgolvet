@@ -87,6 +87,28 @@ function pageHtml(): string {
   }
 }
 
+/**
+ * Öppningstaggen för det element som bär `needle` — i JSX-källa likaväl som i renderad markup.
+ *
+ * Uppslaget är AVSIKTLIGT okänsligt för attributordning och radbrytning: `[^>]` matchar även
+ * nyrad, så ett element som formaterats om över flera rader hittas ändå. Provet ska falla när
+ * BETEENDET ändras (fel taggnamn, fel mål, borttappad märkning) — aldrig när en formaterare
+ * flyttat ett attribut.
+ */
+function openingTagWith(source: string, needle: string): string | null {
+  for (const match of source.matchAll(/<[A-Za-z][^>]*>/g)) {
+    if (match[0].includes(needle)) return match[0];
+  }
+  return null;
+}
+
+/** Taggnamnet i en öppningstagg: `<Link ...>` → "Link", `<a ...>` → "a". */
+function tagNameOf(openingTag: string): string {
+  const match = openingTag.match(/^<([A-Za-z][\w.]*)/);
+  assert.ok(match, `kunde inte läsa taggnamnet ur ${openingTag}`);
+  return match[1];
+}
+
 function segmentFor(segments: HeaderTruthSegment[], id: HeaderTruthSegment["id"]): HeaderTruthSegment {
   const found = segments.find((segment) => segment.id === id);
   assert.ok(found, `sidhuvudet saknar segment för ${id}`);
@@ -325,21 +347,73 @@ test("H2: radlängden har ett tak i CSS, och taket når markupen", () => {
 /* ── H3 · CTA:n på /loop ──────────────────────────────────────────────────── */
 
 test("H3: CTA:n till /loop/mata renderas PÅ /loop och navigerar med next/link", () => {
+  /*
+    Provet mäter FAKTA, inte formatering: elementet slås upp på sitt mål (href="/loop/mata")
+    och granskas sedan attribut för attribut. En omformatering, en radbrytning eller en ändrad
+    attributordning får aldrig fälla grinden utan att beteendet ändrats — och omvänt: byts
+    <Link> tillbaka mot en rå <a> faller taggnamnet nedan direkt.
+  */
   const source = stripComments(sourceOf("components/loop/BacklogColumn.tsx"));
   assert.match(source, /import Link from "next\/link"/, "CTA:n importerar inte next/link");
-  assert.match(source, /<Link className="mk-link" href="\/loop\/mata"/, "CTA:n använder inte Link");
+
+  const cta = openingTagWith(source, 'href="/loop/mata"');
+  assert.ok(cta, "hittade inget element med målet /loop/mata i BacklogColumn");
+  assert.equal(
+    tagNameOf(cta),
+    "Link",
+    "CTA:n är inte en next/link — en rå <a> river hela kontrollrummet vid klick",
+  );
+  assert.ok(cta.includes('data-intake-cta="true"'), "CTA:ns märkning saknas i källan");
+  assert.ok(cta.includes('className="mk-link"'), "CTA:n bär inte husets länkform");
+
+  // Negativ kontroll, oberoende av uppslaget ovan: ingen rå <a> mot intake-routen finns kvar.
   assert.ok(
     !/<a\s[^>]*href="\/loop\/mata"/.test(source),
     "en rå <a> till intake-routen finns kvar — den river hela kontrollrummet",
   );
 
-  // Renderad på /loop: en riktig länk, rätt mål, kvar i markupen.
+  // Renderad på /loop: `next/link` ger fortfarande ett vanligt <a href> med rätt mål.
   const page = pageHtml();
-  assert.match(page, /<a[^>]*href="\/loop\/mata"[^>]*>/, "CTA:n renderar ingen länk på /loop");
-  assert.ok(page.includes('data-intake-cta="true"'), "CTA:ns märkning saknas på /loop");
+  const rendered = openingTagWith(page, 'data-intake-cta="true"');
+  assert.ok(rendered, "CTA:ns märkning saknas på /loop");
+  assert.equal(tagNameOf(rendered), "a", "CTA:n renderar ingen riktig länk på /loop");
+  assert.ok(rendered.includes('href="/loop/mata"'), "CTA:n på /loop pekar inte på intake-routen");
   assert.ok(page.includes("Mata maskinen"), "CTA:ns text saknas på /loop");
 
   // Även med tom backlog står CTA:n kvar — den är kolumnens ingång, inte en följd av innehåll.
   const empty = renderToStaticMarkup(createElement(BacklogColumn, { tasks: [] }));
-  assert.match(empty, /<a[^>]*href="\/loop\/mata"[^>]*>/);
+  const emptyCta = openingTagWith(empty, 'data-intake-cta="true"');
+  assert.ok(emptyCta, "CTA:n försvann när backlog var tom");
+  assert.ok(emptyCta.includes('href="/loop/mata"'));
+});
+
+test("H3-STUB: uppslaget tål omformatering men fäller fortfarande en rå <a>", () => {
+  /*
+    Ett prov som lossats från formateringen måste visa att det inte lossats från BETEENDET.
+    Två stubbar räcker: den ena är samma CTA ombruten över flera rader med omkastad
+    attributordning (ska accepteras), den andra är regressionen provet finns för (ska fällas).
+  */
+  const reflowed = [
+    "<Link",
+    '  data-intake-cta="true"',
+    '  href="/loop/mata"',
+    '  className="mk-link"',
+    ">",
+    "  + Mata maskinen",
+    "</Link>",
+  ].join("\n");
+  const reflowedTag = openingTagWith(reflowed, 'href="/loop/mata"');
+  assert.ok(reflowedTag, "en ombruten CTA hittades inte — uppslaget är fortfarande formatberoende");
+  assert.equal(tagNameOf(reflowedTag), "Link");
+  assert.ok(reflowedTag.includes('data-intake-cta="true"'));
+
+  // LÖGNSTUB: byts Link mot en rå <a> ska taggnamnet fälla den, oavsett attributordning.
+  const rawAnchor = '<a data-intake-cta="true" href="/loop/mata" className="mk-link">';
+  const rawTag = openingTagWith(rawAnchor, 'href="/loop/mata"');
+  assert.ok(rawTag);
+  assert.notEqual(tagNameOf(rawTag), "Link", "en rå <a> skulle ha passerat som next/link");
+  assert.ok(
+    /<a\s[^>]*href="\/loop\/mata"/.test(rawAnchor),
+    "den negativa kontrollen fäller inte ens en rå <a> mot intake-routen",
+  );
 });
