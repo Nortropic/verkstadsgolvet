@@ -25,6 +25,7 @@ import BacklogColumn from "./BacklogColumn";
 import CommandDeck from "./CommandDeck";
 import CompletedColumn from "./CompletedColumn";
 import CurrentTaskPanel from "./CurrentTaskPanel";
+import LiveEventStream from "./LiveEventStream";
 import RunStatusBar from "./RunStatusBar";
 import { LOOP_CSS } from "./ui";
 
@@ -65,6 +66,20 @@ export default function MaskinShell({
             <CurrentTaskPanel task={snapshot.current_task} />
             <CompletedColumn tasks={snapshot.completed} />
           </div>
+          {/*
+            V9 · strömpanelen. Den ansluter mot läsplanet SJÄLV (skalet äger fortfarande ingen
+            datahämtning) och bär sitt eget transportläge: öppen ström, återanslutning eller
+            poll — märkt som det det är. Vattenmärket kommer ur snapshoten så att rader som
+            controllern redan bekräftat kan skiljas från tail.
+          */}
+          {fixture && (
+            <p className="mk-hint" data-stream-source-boundary="true">
+              Kolumnerna ovan kommer ur den genererade fixturen. Strömpanelen nedan talar med
+              kontrollplanets läsyta på riktigt och märker själv ut sitt transportläge — de två
+              källorna blandas aldrig.
+            </p>
+          )}
+          <LiveEventStream watermark={snapshot.seq_watermark} />
         </>
       )}
     </div>

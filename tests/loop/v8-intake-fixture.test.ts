@@ -218,30 +218,35 @@ test("V8*-FIXTUR: läget märks ut synligt och maskinläsbart — skivan påstå
 /* ── 2 · Ingen transport, ingen route, ingen hash, ingen markdown-tolkning ─── */
 
 /**
- * V4 byggde LÄSYTAN (app/api/loop/{snapshot,events,task}) och V7 den SMALA KOMMANDOYTAN
- * (app/api/loop/command). Provet mäter därför inte att app/api/loop saknas, utan det som
- * fortfarande gäller för DEN HÄR skivan: katalogen får innehålla exakt de fyra byggda
- * routarna. Ingen intake-route (V8 live, blockerad på S10 + S13) och ingen ström (V9) har
- * smugit in — och kommandoytans egna gränser mäts av tests/loop/v7-command-surface.test.ts.
+ * V4 byggde LÄSYTAN (app/api/loop/{snapshot,events,task}), V7 den SMALA KOMMANDOYTAN
+ * (app/api/loop/command) och V9 SSE-TAILEN (app/api/loop/stream). Provet mäter därför inte att
+ * app/api/loop saknas, utan det som fortfarande gäller för DEN HÄR skivan: katalogen får
+ * innehålla exakt de BYGGDA routarna och ingenting mer.
+ *
+ * INTAKE-ROUTEN ÄR FORTFARANDE FÖRBJUDEN här: V8 live är blockerad på S10 + S13, och den här
+ * skivan är fixturbunden. Listan uppdateras när en skiva FAKTISKT byggt en route — aldrig i
+ * förväg, eftersom en förväntad route i listan hade slutat mäta något.
  */
-const ALLOWED_LOOP_API_ROUTES = ["command", "events", "snapshot", "task"];
+const ALLOWED_LOOP_API_ROUTES = ["command", "events", "snapshot", "stream", "task"];
 
-test("V8*-NEG: app/api/loop innehåller EXAKT de byggda routarna — ingen intake- eller strömväg", () => {
+test("V8*-NEG: app/api/loop innehåller EXAKT de byggda routarna — ingen intake-väg", () => {
   const loopApi = path.join(REPO_ROOT, "app/api/loop");
   const present = existsSync(loopApi) ? readdirSync(loopApi).sort() : [];
   assert.deepEqual(
     present,
     ALLOWED_LOOP_API_ROUTES,
-    "app/api/loop har en route utanför läsytan och kommandoytan",
+    "app/api/loop har en route utanför läsytan, kommandoytan och strömmen",
   );
 
-  for (const forbidden of ["intake", "stream"]) {
-    assert.equal(
-      existsSync(path.join(loopApi, forbidden, "route.ts")),
-      false,
-      `${forbidden}-routen finns — den skivan är inte byggd här`,
-    );
-  }
+  assert.equal(
+    existsSync(path.join(loopApi, "intake", "route.ts")),
+    false,
+    "intake-routen finns — den skivan är inte byggd här",
+  );
+
+  // Och strömmen är byggd av V9 — inte av intake-skivan. Att den finns mäts av
+  // tests/loop/v9-realtime.test.ts, som äger dess grindar och beteende.
+  assert.equal(existsSync(path.join(loopApi, "stream", "route.ts")), true);
 });
 
 test("V8*-NEG: ingen transportväg, ingen hashning och ingen semantisk markdown-tolkning", () => {
