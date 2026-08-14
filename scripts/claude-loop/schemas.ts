@@ -55,6 +55,33 @@ export function describePreviewOrigin(value: string | URL): string {
   return url ? `${url.protocol}//${url.host}` : 'an unparsable preview URL';
 }
 
+/**
+ * An optional additional capture situation: the same preview, shot again after a declared,
+ * selector-only page manipulation and/or at a declared URL.
+ *
+ * Existence is opt-in. A task without `captureStates` keeps exactly today's capture behavior, so
+ * every already-written task JSON keeps validating and producing the same evidence set.
+ *
+ * DELIBERATE EXECUTION LIMIT: `focusSelector` and `scrollToSelector` are CSS SELECTORS handed to the
+ * standard Playwright selector APIs, and `openDisclosures` toggles a fixed `details` query written
+ * in `visual-review.ts`. No field here is ever evaluated as JavaScript in the page: a task can name
+ * WHICH element to open, focus or scroll to, never WHAT code runs in the preview.
+ */
+export const VisualCaptureStateSchema = z.object({
+  /**
+   * Evidence filename segment. The alphabet is deliberately filename-safe and cannot start with a
+   * dot, so a task-declared name can never contain `/`, `\` or `..` and can never steer a
+   * screenshot out of the run's evidence directory.
+   */
+  name: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/),
+  /** Defaults to `previewUrl` when absent. Carries the identical loopback policy when authenticated. */
+  url: z.string().url().optional(),
+  openDisclosures: z.boolean().optional(),
+  focusSelector: z.string().min(1).optional(),
+  scrollToSelector: z.string().min(1).optional(),
+});
+export type VisualCaptureState = z.infer<typeof VisualCaptureStateSchema>;
+
 export const VisualConfigSchema = z.object({
   previewCommand: z.array(z.string().min(1)).min(1),
   previewUrl: z.string().url(),
@@ -66,15 +93,30 @@ export const VisualConfigSchema = z.object({
     { name: 'tablet', width: 900, height: 1000 },
     { name: 'mobile', width: 390, height: 844 },
   ]),
+  // Additive and optional on purpose: absent stays absent after a parse, so a legacy task's
+  // persisted run state round-trips unchanged.
+  captureStates: z.array(VisualCaptureStateSchema).optional(),
 }).superRefine((visual, ctx) => {
   // Schema barrier: a task may not even declare a credential-bearing preview against a remote
   // origin. Anonymous previews (authenticated=false, the default) keep accepting any URL.
   if (visual.authenticated !== true) return;
-  if (isLoopbackPreviewTarget(visual.previewUrl)) return;
-  ctx.addIssue({
-    code: 'custom',
-    path: ['previewUrl'],
-    message: `authenticated visual review is restricted to loopback preview origins (http/https on localhost, 127.0.0.1 or [::1]); ${describePreviewOrigin(visual.previewUrl)} is not loopback`,
+  if (!isLoopbackPreviewTarget(visual.previewUrl)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['previewUrl'],
+      message: `authenticated visual review is restricted to loopback preview origins (http/https on localhost, 127.0.0.1 or [::1]); ${describePreviewOrigin(visual.previewUrl)} is not loopback`,
+    });
+  }
+  // Every navigated URL carries the same policy as `previewUrl`. A capture state is another
+  // credential-bearing navigation, so a remote `state.url` is refused at the same barrier instead of
+  // becoming a second, weaker way to point the logged-in browser at a task-controlled host.
+  (visual.captureStates ?? []).forEach((state, index) => {
+    if (state.url === undefined || isLoopbackPreviewTarget(state.url)) return;
+    ctx.addIssue({
+      code: 'custom',
+      path: ['captureStates', index, 'url'],
+      message: `authenticated visual review is restricted to loopback preview origins (http/https on localhost, 127.0.0.1 or [::1]); ${describePreviewOrigin(state.url)} is not loopback`,
+    });
   });
 }).optional();
 
