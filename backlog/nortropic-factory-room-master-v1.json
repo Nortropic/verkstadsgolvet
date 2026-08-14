@@ -1,0 +1,973 @@
+{
+  "version": 1,
+  "programme": "nortropic-factory-room-master-v1",
+  "roadmap": "docs/nortropic-factory-room-master-roadmap-v1.md",
+  "handoff": "docs/nortropic-factory-room-handoff-v1.md",
+  "note": "Programme data for the Nortropic Factory Room master roadmap. This file is NOT a scheduler input and NOT a second canonical backlog: backlog/control-room-v1.json remains the canonical backlog consumed by scripts/claude-loop/backlog.ts, and scripts/claude-loop/** is untouched by this programme. An operator or session translates a slice below into an ordinary `npm run claude:run --task` file. Statuses use the roadmap's ledger vocabulary (NOT_STARTED, IN_PROGRESS, PROVEN, BLOCKED, DEFERRED_BY_OWNER, REJECTED_WITH_REASON) and never a percentage. allowedWrite is a best current estimate at freeze and is finalised in the task file for each slice. Gates listed for slices with a Nortropic/verkstadsgolvet half are this repository's real gate commands; slices whose target is the control plane or Nortropic/nortropic-system carry an empty gates array here because their gates are owned by that target's own operating model (nortropic-system AGENTS.md: $nortropic-test-author writes the spec row and the RED frozen gate in specs/** and verify/**, which are builder-denied).",
+  "measuredAt": "2026-08-14",
+  "measuredMain": {
+    "Nortropic/verkstadsgolvet": "4e5e796506599f36d124248652014061f7d3985d",
+    "Nortropic/nortropic-system": "32b6e076f96d095d32bb7bf9e6c2519632af80a1"
+  },
+  "slices": [
+    {
+      "id": "MASTER-00",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Freeze the complete Nortropic Factory Room master roadmap into repository-owned canonical artifacts: the master roadmap document, the session handoff and this machine-readable programme backlog. The slice changes no product code, no factory infrastructure and no tests outside its own artifacts. It records the measured current state of both repositories, the adopted source requirements verbatim, the locked trust and authority boundaries, every implementation slice with its exit criteria and negative controls, the full source-coverage ledger and the mandated final-report schema. After independent review and guarded publication the requirements portion is frozen and may only be changed by a separate explicit roadmap-authority task.",
+      "dependencies": [],
+      "authorityPrerequisites": [],
+      "allowedWrite": [
+        "docs/nortropic-factory-room-master-roadmap-v1.md",
+        "docs/nortropic-factory-room-handoff-v1.md",
+        "backlog/nortropic-factory-room-master-v1.json"
+      ],
+      "deniedWrite": [
+        "CLAUDE.md",
+        ".claude/**",
+        "docs/nortropic-control-room-plan-v1.md",
+        "docs/nortropic-control-room-codex-handoff.md",
+        "docs/claude-operating-model-v1.md",
+        "docs/claude-loop-runbook.md",
+        "backlog/control-room-v1.json",
+        "backlog/README.md",
+        "app/**",
+        "components/**",
+        "lib/**",
+        "tests/**",
+        "scripts/**",
+        "db/**",
+        "content/**",
+        "tools/**",
+        "public/**",
+        "reference/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "next.config.ts",
+        "package.json",
+        "package-lock.json",
+        "tsconfig.json",
+        "VERKSTADSGOLVET-BYGGSPEC.md",
+        "README.md",
+        "KUND-ONBOARDING-BYGGSPEC.md"
+      ],
+      "gates": [
+        ["node", "-e", "JSON.parse(require('fs').readFileSync('backlog/nortropic-factory-room-master-v1.json','utf8')); console.log('backlog JSON parses')"],
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "The three artifacts exist at the published merge commit, cross-reference each other by path, the backlog parses under node, and an independent reviewer confirms that no adopted requirement was dropped, weakened or silently reclassified.",
+      "remotePrerequisites": [],
+      "status": "IN_PROGRESS",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "ROOM-01",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Recompose /loop into a Factory Room (FactoryRoomHeader, RoomTimeline, WorkComposer, TaskFocusRail, IdentityStrip, OutputTray) from existing validated fixtures, snapshot rules, task cards, command surfaces, intake link and realtime components. Presentation only: no new backend authority, state store, event contract, API route, credential or natural-language command executor, and no claim that fixture data is live. Identity fields render separately and builder.agent is never labeled as workflow role; derived attention renders BEHÖVER UPPMÄRKSAMHET while ÄGARÅTGÄRD KRÄVS requires an authoritative field; the timeline is a segmented presentation projection that preserves every available identifier and claims no global causal order; exactly one tail connection per room; LOOP_CSS untouched with a separate namespaced ROOM_CSS; canonical task states stay exactly the eleven, submission states stay separate, and unknown data renders as an em dash with no percentages, progress bars or signal-free animation.",
+      "dependencies": ["MASTER-00"],
+      "authorityPrerequisites": [],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "app/api/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Visual review of actual screenshots at desktop, tablet and mobile must prove a room and not a dashboard matrix: one narrative axis, WorkComposer as primary input, the current task as visual focus, the event log secondary, no duplicate status, fixture and live visibly distinct, visible keyboard focus and no page-level horizontal scroll.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "ROOM-02",
+      "targetRepository": "Nortropic/verkstadsgolvet (primary), Nortropic/nortropic-system (controller work where required)",
+      "goal": "Implement the integrated intake and submission lifecycle end to end: drag, select or paste Markdown through submission.selected, submission.uploading, submission.stored, submission.command_queued, submission.claimed_by_controller and submission.rejected. Submission states never become task lifecycle states and the frontend never semantically compiles tasks. The controller resolves source_ref, reads the exact bytes, computes its own hash, requires a match and creates its own immutable source snapshot before planning begins. The fixture UX may precede live transport and may be published as fixture-complete; live completion requires actual backend proof of stored bytes, controller-side hash recomputation and a controller-created source snapshot.",
+      "dependencies": ["ROOM-01"],
+      "authorityPrerequisites": [
+        "nortropic-system S10 (controller/intag, intake/Task IR, h-023) frozen and built",
+        "nortropic-system S13 (controller/lucka, read+command surface, h-026) frozen and built"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "app/api/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Live half: real bytes are stored through the transport, the controller recomputes the hash and rejects a deliberate mismatch, the controller creates its own immutable source snapshot, and a task is compiled by the controller from that snapshot. A fixture-only pass is never reported as live-complete.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": {
+        "class": "EXTERNAL_BACKEND_SLICE",
+        "evidence": "live half only: nortropic-codex-autopilot roadmap prints UNFROZEN for S5/S10/S13 at 32b6e07"
+      }
+    },
+    {
+      "id": "ROOM-03",
+      "targetRepository": "Nortropic/verkstadsgolvet (plus read-model and event contracts in Nortropic/nortropic-system where required)",
+      "goal": "Build a traceable presentation of the chain operator/source to command to run to task to attempt to agent session to candidate to verification to review to attestation to promotion, in which every link is carried by an actual identifier and no relationship is inferred without one. Raw event inspection and raw evidence inspection stay available from the projection, and no client-side fold ever becomes authority.",
+      "dependencies": ["ROOM-01"],
+      "authorityPrerequisites": [
+        "nortropic-system S5 (controller/handelse, event store, h-019) for the live event half",
+        "nortropic-system S13 (controller/lucka) for evidence and diff references"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "app/api/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "For one real run, every hop of the chain resolves to a stored identifier and the raw event backing each hop can be opened from the projection.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "ROOM-04",
+      "targetRepository": "Nortropic/nortropic-system (read model) and Nortropic/verkstadsgolvet",
+      "goal": "Deliver a versioned, evidence-bound identity projection carrying asked_by, workflow_role, provider, model, execution_principal, service_identity, capability_bundle_id, session_identity, provenance_evidence_ref and promotion_authority. No invented names. The existing provider identity (h-032 config/codex-provider-identity.json) and authenticated-runner provenance (h-033 _nortropic_provenance receipts and digest-bound artifact manifest), the h-034 signed identity manifest and the h-035 authority classes in nortropic-system are inventoried first and reused wherever semantically applicable. Provider execution identity is never automatically service-account identity and never workflow role. The Verkstadsgolvet half may render only fields that exist in validated data today.",
+      "dependencies": ["ROOM-01", "ROOM-03"],
+      "authorityPrerequisites": [
+        "nortropic-system backend chain (h-031, supervisor resume, first autonomous launch, SUB-1..SUB-4, S2, S4-S13)",
+        "nortropic-system identity inventory of h-032, h-033, h-034, h-035 and specs/owner-production-paths.v1.json"
+      ],
+      "allowedWrite": [
+        "components/loop/**",
+        "lib/loop/**",
+        "app/(app)/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "For one real run each populated identity field resolves to its provenance_evidence_ref and each unpopulated field renders as an em dash rather than a guess; a provider execution identity is shown not to populate service_identity or workflow_role.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": {
+        "class": "EXTERNAL_BACKEND_SLICE",
+        "evidence": "controller-side fields only: nortropic-codex-autopilot roadmap prints UNFROZEN for S5/S10/S13 at 32b6e07; promotion_authority additionally blocked because GitHub App \"Nortropic Promoter\" does not exist (docs/loop/codex-autopilot-v3-full-roadmap.md)"
+      }
+    },
+    {
+      "id": "ROOM-05",
+      "targetRepository": "Nortropic/verkstadsgolvet and Nortropic/nortropic-system as required",
+      "goal": "Replace fixture-backed authoritative columns with controller-published snapshots, only after schema and transport compatibility are proven. Implement the resolution rules exactly: a missing snapshot yields no authoritative task state; a tail-only situation yields an activity log and a transient phase; a snapshot and tail conflict resolves as SNAPSHOT_WINS; DONE, ATTESTED, PROMOTED and MAIN_ADVANCED come only from the snapshot; current main is controller-confirmed only. Fixture mode remains available for tests and demos and stays visibly distinct from live at all times.",
+      "dependencies": ["ROOM-01", "ROOM-03", "ROOM-04"],
+      "authorityPrerequisites": [
+        "nortropic-system S5 (controller/handelse) frozen and built",
+        "nortropic-system S13 (controller/lucka) frozen and built",
+        "proven schema and transport compatibility between the controller snapshot and lib/loop/schema.ts"
+      ],
+      "allowedWrite": [
+        "app/api/loop/**",
+        "lib/loop/**",
+        "components/loop/**",
+        "app/(app)/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Against a real publishing controller, a deliberately conflicting tail event is observed losing to the snapshot, and a snapshot outage is observed removing authoritative state rather than freezing a stale one.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": {
+        "class": "EXTERNAL_BACKEND_SLICE",
+        "evidence": "nortropic-codex-autopilot roadmap prints UNFROZEN for S5/S10/S13 at 32b6e07"
+      }
+    },
+    {
+      "id": "ROOM-06",
+      "targetRepository": "Nortropic/nortropic-system (controller command interface) and Nortropic/verkstadsgolvet",
+      "goal": "Deliver typed operator actions end to end: exactly intake.submit, run.start, run.pause_at_safe_boundary, run.resume and inspect, unless a separately frozen contract deliberately changes the set. Every action carries command_id, dedup_key, issued_at, expires_at, expected_watermark, a typed payload, a status and a result or rejection. No generic command string, no shell, no Git, and no direct verdict, attestation, lease, breaker or promotion mutation. No optimistic authoritative state after dispatch: the controller validates and may always reject.",
+      "dependencies": ["ROOM-01", "ROOM-05"],
+      "authorityPrerequisites": [
+        "nortropic-system S13 (controller/lucka, command surface) frozen and built",
+        "frozen command contract before COMMAND_QUEUE_TRANSPORT leaves \"NONE\" in lib/loop/commands.ts"
+      ],
+      "allowedWrite": [
+        "app/api/loop/**",
+        "lib/loop/**",
+        "components/loop/**",
+        "app/(app)/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Each of the five verbs is issued against a real controller and both its accepted and its rejected path are observed, with the rejection reason rendered; a replayed command, an expired command and a stale expected_watermark are each observed being refused.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": {
+        "class": "EXTERNAL_BACKEND_SLICE",
+        "evidence": "live half only: nortropic-codex-autopilot roadmap prints UNFROZEN for S5/S10/S13 at 32b6e07; COMMAND_QUEUE_TRANSPORT=\"NONE\" at lib/loop/commands.ts:101"
+      }
+    },
+    {
+      "id": "ROOM-07",
+      "targetRepository": "Nortropic/verkstadsgolvet (conversational layer) and the shared operator adapter",
+      "goal": "Add a conversational operator layer that may summarize snapshots and events, explain blockers, suggest exactly one typed intention, prepare intake text, suggest a task or run to inspect and explain a controller rejection. Natural language may not create verbs, execute shell or Git, move refs, write a verdict or attestation, promote, or become canonical memory. Before dispatch the layer shows the exact typed intention, the payload target and the expected watermark, and the operator confirms.",
+      "dependencies": ["ROOM-01", "ROOM-06", "REMOTE-00"],
+      "authorityPrerequisites": [
+        "frozen typed verb set from ROOM-06 before any natural-language layer targets it"
+      ],
+      "allowedWrite": [
+        "components/loop/**",
+        "lib/loop/**",
+        "app/(app)/loop/**",
+        "app/api/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "An adversarial transcript that attempts to make the layer invent a verb, run a shell command and mark a task DONE is observed failing on all three, and each refusal is recorded; a dispatch without showing the exact typed intention is observed being impossible.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "ROOM-08",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Make the Factory Room a mobile-first remote control room covering status, current task, attention, commands, intake, events, evidence and notifications. Every evidence surface reachable on desktop is reachable on mobile; no authority-changing action is hidden; no critical distinction is carried by colour alone; there is no page-level horizontal scroll and keyboard focus stays visible.",
+      "dependencies": ["ROOM-01"],
+      "authorityPrerequisites": [],
+      "allowedWrite": [
+        "components/loop/**",
+        "app/(app)/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "app/api/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Visual review of actual screenshots at desktop 1440x1000, tablet 900x1000 and mobile 390x844, plus a real mobile pass over reading status, opening a task, opening evidence, submitting intake, issuing a command and reading its result.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "SUPERVISOR-01",
+      "targetRepository": "Nortropic/verkstadsgolvet (scripts/claude-loop/**) and controller-side equivalents in Nortropic/nortropic-system where that repository owns them",
+      "goal": "Inventory the current supervisor first, then close only measured gaps. Claims, heartbeats, resume, the no-progress circuit breaker and autopilot already exist and are proven by tests; the gap closure covers persistent run and task state, process-death recovery, session reconstruction, event-driven wakeups, continue-until-no-ready-work, bounded remediation, dependency wakeup, exact candidate retention and stale-run classification. Every closed gap cites the measurement that showed it open. No second scheduler and no second canonical backlog may be introduced.",
+      "dependencies": ["MASTER-00"],
+      "authorityPrerequisites": [
+        "owner acknowledgement that scripts/claude-loop/** is edited by a supervisor-scoped task, not by a product slice"
+      ],
+      "allowedWrite": [
+        "scripts/claude-loop/**",
+        "tests/claude-loop/**"
+      ],
+      "deniedWrite": [
+        "backlog/control-room-v1.json",
+        "backlog/nortropic-factory-room-master-v1.json",
+        "app/**",
+        "components/**",
+        "lib/**",
+        "middleware.ts",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "A killed supervisor process is observed recovering, reconstructing session state, retaining the exact candidate and continuing until no eligible work remains, without a human handoff.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "CONTEXT-01",
+      "targetRepository": "Operator/context service plus its clients (Nortropic/verkstadsgolvet and the remote adapter)",
+      "goal": "Provide durable room context that is never authority: persistent operator preferences, room summaries, UI state, decisions and rationale, links to canonical evidence and previous interaction context. Context is editable, auditable, versioned, deletable and scope-bound. Every canonical claim shown from memory resolves to a current snapshot or an evidence reference before it is displayed as fact, and a memory conflict never overrides controller truth.",
+      "dependencies": ["ROOM-01", "REMOTE-00"],
+      "authorityPrerequisites": [
+        "locked invariants MEMORY_IS_AUTHORITY=NO and ROOM_CONTEXT_IS_AUTHORITY=NO enforced mechanically, not by prose"
+      ],
+      "allowedWrite": [
+        "lib/loop/**",
+        "components/loop/**",
+        "app/api/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "A deliberately stale memory claim is observed being corrected by the current snapshot at render time, the correction is auditable, a deletion is observed being real, and a cross-room context leak attempt is observed failing.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "IDENTITY-01",
+      "targetRepository": "Control-plane execution environment",
+      "goal": "Create distinct mechanical identities wherever the architecture supports them: factory-builder, factory-reviewer, factory-owner-author, nortropic-promoter, remote-operator-adapter, observer and retrospective-agent. Every separation claim requires mechanical evidence such as a UID, account, app, token, certificate, process identity or an enforced platform equivalent, and never role-name prose. Workflow role remains a workflow concept and is never presented as a security boundary.",
+      "dependencies": ["MASTER-00"],
+      "authorityPrerequisites": [
+        "owner decision on which principals the platform can actually materialize",
+        "GitHub App \"Nortropic Promoter\" created before the promoter principal can exist"
+      ],
+      "allowedWrite": [],
+      "deniedWrite": [
+        "CLAUDE.md",
+        ".claude/**",
+        "docs/nortropic-control-room-plan-v1.md",
+        "docs/claude-operating-model-v1.md"
+      ],
+      "gates": [],
+      "visualReview": false,
+      "empiricalReview": "For each materialized principal, a command executed under it shows that principal's mechanical identity in the audit record, and a cross-principal attempt is observed being rejected.",
+      "remotePrerequisites": [
+        "GitHub App \"Nortropic Promoter\" (organisation-level app creation and installation)"
+      ],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": {
+        "class": "EXTERNAL_ACCOUNT_OR_ENTITLEMENT",
+        "evidence": "promoter principal only: GitHub App \"Nortropic Promoter\" does not exist (nortropic-system docs/loop/codex-autopilot-v3-full-roadmap.md; only FULL_ROADMAP_SOFTWARE_COMPLETE may be set until it exists)"
+      }
+    },
+    {
+      "id": "IDENTITY-02",
+      "targetRepository": "Control-plane policy",
+      "goal": "Bind each principal to an explicit versioned capability and access bundle naming repositories, read paths, write paths, tools, network destinations, external API operations, credential classes, task classes and expiry or revocation, with default deny throughout. Reuse the existing enforced bundles as precedent and implementation where applicable: config/managed-settings.json in nortropic-system (34 permission denies, 13 sandbox write denies, network allowlist api.anthropic.com only), specs/owner-production-paths.v1.json as a versioned authority registry, and per-task allowedWrite and deniedWrite enforcement via scripts/claude-loop/scope.ts. No broad personal operator credential and no capability inferred from role prose.",
+      "dependencies": ["IDENTITY-01"],
+      "authorityPrerequisites": [
+        "owner approval of each bundle's contents",
+        "IDENTITY-01 principals materialized with mechanical evidence"
+      ],
+      "allowedWrite": [],
+      "deniedWrite": [
+        "CLAUDE.md",
+        ".claude/**",
+        "docs/nortropic-control-room-plan-v1.md",
+        "docs/claude-operating-model-v1.md"
+      ],
+      "gates": [],
+      "visualReview": false,
+      "empiricalReview": "For one principal, an operation inside its bundle succeeds and the same operation against an unlisted destination is denied, both with audit evidence; a stale bundle version is observed being rejected.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "IDENTITY-03",
+      "targetRepository": "Control-plane credential proxy (separately threat-modelled component)",
+      "goal": "Build the Nortropic Credential Proxy with the exact request path: agent request, authenticate execution principal, bind current task, run and candidate, validate destination, validate operation, validate capability bundle, inject or broker the minimum credential, execute or request, emit auditable evidence. Requirements are default-deny destinations, secret redaction, rotation, revocation, short-lived grants, no secret in model context, browser, repository or generic logs, replay protection and task and run binding. The threat model and its adversarial gates are frozen before production implementation begins.",
+      "dependencies": ["IDENTITY-01", "IDENTITY-02"],
+      "authorityPrerequisites": [
+        "threat model authored and owner-frozen before implementation",
+        "adversarial gates frozen before implementation",
+        "IDENTITY-02 bundles in force"
+      ],
+      "allowedWrite": [],
+      "deniedWrite": [
+        "CLAUDE.md",
+        ".claude/**",
+        "docs/nortropic-control-room-plan-v1.md",
+        "docs/claude-operating-model-v1.md"
+      ],
+      "gates": [],
+      "visualReview": false,
+      "empiricalReview": "The frozen adversarial gates run against the real component: proxy bypass, secret appearing in model context, browser, repository or generic log, replayed grant, grant used outside its bound task or run, revoked credential and expired grant are each observed failing the attack; any control that could not be executed is reported NOT_RUN with its exact blocker.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "OBSERVER-01",
+      "targetRepository": "Controller projections (Nortropic/nortropic-system), observer service and clients",
+      "goal": "Deliver a signal-based ambient observer producing machine-signal notifications for a task blocked beyond a policy threshold, no eligible ready work, owner authority explicitly required, the same gate failing repeatedly, a backend dependency now satisfied, main drift, transport outage, a stale run, credential expiry or revocation and a rejected remote command. A model may summarize a mechanically triggered condition only after the trigger fired. This observer does not replace the controller-alarm channel specced as backend h-014 (controller/notis) and respects owner decision LOOP-AGARHAND-37, which keeps the Slack webhook secret at ~/.nortropic/slack-webhook and rejected the model-facing Claude Code Slack plugin as the alarm mechanism.",
+      "dependencies": ["SUPERVISOR-01", "REMOTE-00"],
+      "authorityPrerequisites": [
+        "each condition derivable from controller-published state, never from prose",
+        "nortropic-system S5 and S13 for the controller-side projections",
+        "owner decision LOOP-AGARHAND-37 respected: h-014 controller alarms stay separate"
+      ],
+      "allowedWrite": [
+        "lib/loop/**",
+        "app/api/loop/**",
+        "components/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Each of the ten conditions is provoked and observed producing exactly one mechanically triggered notification, and a model-invented notification without a trigger record is observed being impossible.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": {
+        "class": "EXTERNAL_BACKEND_SLICE",
+        "evidence": "controller-side projections only: nortropic-codex-autopilot roadmap prints UNFROZEN for S5/S10/S13 at 32b6e07"
+      }
+    },
+    {
+      "id": "AUDIT-01",
+      "targetRepository": "Control-plane evidence and read model (Nortropic/nortropic-system and Nortropic/verkstadsgolvet)",
+      "goal": "Make every operation traceable by stable identifiers from trigger to publication: source identity and hash, asked-by, remote or client identity, command identity, run, task and attempt identity, workflow role, execution principal, provider and model identity, capability bundle, workspace, base SHA, candidate SHA, gate identity, review identity, evidence references, PR identity, merge and promotion identity and the authoritative main result. The audit distinguishes workflow claim, mechanically authenticated identity, model output, gate result and owner authority, and no audit record ever manufactures a trust verdict.",
+      "dependencies": ["ROOM-03", "ROOM-04", "IDENTITY-01", "IDENTITY-02"],
+      "authorityPrerequisites": [
+        "ROOM-04 identity contract frozen",
+        "IDENTITY-01 mechanical principals available for the authenticated-identity class"
+      ],
+      "allowedWrite": [
+        "lib/loop/**",
+        "app/api/loop/**",
+        "components/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "One real end-to-end operation is reconstructed from the audit alone, from trigger to authoritative main, with every hop carrying a stable identifier and every record correctly labelled by class.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "RETRO-01",
+      "targetRepository": "Evidence analysis plus the ordinary task pipeline (Nortropic/verkstadsgolvet)",
+      "goal": "Add a retrospective improvement agent that analyses completed runs for recurring review findings, builder failures, gate blind spots, excess remediation rounds, prompt weaknesses, missing skills, transport failures and remote usability failures, and that may create proposed improvement tasks. It may not directly modify its own rules, gates, permissions or authority, and every improvement travels through the normal test-author, builder, reviewer and publication process.",
+      "dependencies": ["AUDIT-01"],
+      "authorityPrerequisites": [
+        "the agent runs under its own principal from IDENTITY-01 with a read-oriented bundle from IDENTITY-02"
+      ],
+      "allowedWrite": [
+        "scripts/claude-loop/**",
+        "tests/claude-loop/**"
+      ],
+      "deniedWrite": [
+        "backlog/control-room-v1.json",
+        "backlog/nortropic-factory-room-master-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**",
+        "app/**",
+        "components/**",
+        "lib/**",
+        "middleware.ts"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "One proposed improvement is observed travelling the ordinary pipeline end to end, and one attempted self-modification of rules, gates, permissions or authority is observed being blocked by write scope.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "REMOTE-00",
+      "targetRepository": "Controller read and command interface (Nortropic/nortropic-system) plus a shared adapter",
+      "goal": "Build one stable Nortropic-owned remote operator interface used by all clients, exposing controller snapshots, events and backfill, task inspection, evidence references, command submission, command status and notifications. It accepts only the authoritative typed intentions. Remote sessions are authenticated, scoped and replay-resistant. No incoming generic shell and no incoming generic Git. No remote owner-authority operation unless separately designed, frozen and explicitly authorized. The Verkstadsgolvet-side adapter shape may be designed and fixture-proven before the controller side exists.",
+      "dependencies": ["ROOM-05", "ROOM-06"],
+      "authorityPrerequisites": [
+        "nortropic-system S13 (controller/lucka) frozen and built for the controller-side interface",
+        "frozen typed verb set from ROOM-06",
+        "owner authorization before any remote owner-authority path is even designed"
+      ],
+      "allowedWrite": [
+        "app/api/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Two different clients drive the same operation through the same adapter and produce identical audit records apart from client identity; a generic shell payload, a generic Git payload and a replayed session are each observed being refused.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": {
+        "class": "EXTERNAL_BACKEND_SLICE",
+        "evidence": "controller-side interface only: nortropic-codex-autopilot roadmap prints UNFROZEN for S5/S10/S13 at 32b6e07"
+      }
+    },
+    {
+      "id": "REMOTE-01",
+      "targetRepository": "Slack / Claude Tag adapter plus the remote operator interface",
+      "goal": "Deliver the required real Slack and Claude Tag integration covering at least status, what-needs-attention, submitting Markdown or text, starting an eligible run, inspecting a run or task, pausing after the current task, resuming, showing command status, showing evidence links and receiving observer notifications. Claude Tag is a conversational client and not the controller: it calls the same adapter and the same typed intentions as Verkstadsgolvet, and Claude memory is ergonomic context only. Claude Tag must never receive the owner freeze secret, an unrestricted production credential, the promoter credential, a generic shell, generic Git or direct main mutation. Before implementing, current behaviour is verified against current official Anthropic documentation and the version, availability and contract are pinned in evidence. This slice does not replace or absorb backend h-014's controller-alarm channel and respects owner decision LOOP-AGARHAND-37.",
+      "dependencies": ["REMOTE-00"],
+      "authorityPrerequisites": [
+        "owner authorization for remote operation",
+        "frozen typed verb set from ROOM-06",
+        "REMOTE-00 adapter in force as the only remote entrypoint"
+      ],
+      "allowedWrite": [
+        "app/api/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "The ten listed operations are performed from the real Slack / Claude Tag product and produce correct controller-confirmed results; a wrong sender, a duplicate message and a replayed message are each observed being refused. Evidence pins the product version, availability and contract as verified against current official Anthropic documentation.",
+      "remotePrerequisites": [
+        "Team or Enterprise claude.ai organisation with Claude Tag (Claude in Slack) enabled (public beta)",
+        "organisation-Owner pairing of the Slack workspace",
+        "Claude Code Routines enabled for the account (a Claude Tag prerequisite)",
+        "no custom MCP backend is available for Claude Tag: the adapter routes through the stable Nortropic operator API"
+      ],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": {
+        "class": "EXTERNAL_ACCOUNT_OR_ENTITLEMENT",
+        "evidence": "empirical proof only: Claude Tag is public beta, Team/Enterprise plans only, conversational only, no custom MCP backends and no inbound API layer — /Users/elinhaggstrom/nortropic/evidence/factory-room/remote-surfaces-verification-2026-08-14.md (verified 2026-08-14)"
+      }
+    },
+    {
+      "id": "REMOTE-02",
+      "targetRepository": "Feature-flagged Claude Code Channel adapter plus the remote operator interface",
+      "goal": "Deliver the required Claude Code Channels integration as a feature-flagged custom MCP channel server fronting the operator API. Channel events and requests translate only into read requests, typed intentions and non-authoritative context, and no Channel event becomes canonical task state by itself. As a preview surface it requires a feature flag, a pinned protocol and version, a fallback path, non-destructive preview removal, and it is never canonical authority. Sender-identity allowlist gating is mandatory.",
+      "dependencies": ["REMOTE-00"],
+      "authorityPrerequisites": [
+        "owner authorization for preview infrastructure",
+        "REMOTE-00 adapter in force as the only remote entrypoint"
+      ],
+      "allowedWrite": [
+        "app/api/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Empirical tests for reconnect, duplicate event, stale session and unauthorized sender are all observed; a Channel event alone is observed being unable to change task state; preview removal is observed being non-destructive. Evidence pins the research-preview status and the --dangerously-load-development-channels flag.",
+      "remotePrerequisites": [
+        "Claude Code with the Channels research preview available locally",
+        "preview flag --dangerously-load-development-channels for a custom channel server",
+        "a running Claude Code session: channel events queue only while a session is open"
+      ],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "REMOTE-03",
+      "targetRepository": "Feature-flagged Claude Code Routines adapter plus Nortropic triggers",
+      "goal": "Deliver the required Claude Code Routines integration as a feature-flagged proposal generator. Candidate uses are a scheduled drift audit, dependency research, PR and review triage, documentation drift detection, market and environment monitoring, observer follow-up and remote scheduled status summaries. Routines never replace Nortropic's candidate, gate, review, attestation and promotion machinery, and a Routine proposing code or control-plane changes enters the ordinary task pipeline. Trigger semantics, repository identity, connector identity and the resulting evidence are pinned, and the HTTP fire endpoint's text is treated as explicitly untrusted input that never reaches tool routing.",
+      "dependencies": ["REMOTE-00", "OBSERVER-01"],
+      "authorityPrerequisites": [
+        "owner authorization for preview infrastructure",
+        "the ordinary task pipeline carries anything a Routine proposes"
+      ],
+      "allowedWrite": [
+        "app/api/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "One scheduled trigger and one fire-endpoint trigger produce evidence-linked proposals that are then carried by the ordinary pipeline; untrusted fire text is observed never reaching tool routing. Evidence pins the dated beta header anthropic-beta: experimental-cc-routine-2026-04-01 as the version.",
+      "remotePrerequisites": [
+        "claude.ai account with the Claude Code Routines research preview enabled",
+        "beta header anthropic-beta: experimental-cc-routine-2026-04-01 for the HTTP fire endpoint",
+        "no custom MCP servers are available to Routines: connectors only; results are claude.ai sessions with no push delivery"
+      ],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": {
+        "class": "EXTERNAL_ACCOUNT_OR_ENTITLEMENT",
+        "evidence": "empirical proof only: Claude Code Routines is a research preview, account-owned scheduled cloud runs — /Users/elinhaggstrom/nortropic/evidence/factory-room/remote-surfaces-verification-2026-08-14.md (verified 2026-08-14)"
+      }
+    },
+    {
+      "id": "REMOTE-04",
+      "targetRepository": "Shared notification layer and its clients (Nortropic/verkstadsgolvet and the remote adapter)",
+      "goal": "Enable safe phone operation covering status, attention notification, task inspection, evidence inspection, intake, start, pause at a safe boundary, resume, command result and transport status. No critical distinction is carried by colour alone and no remote action claims success before controller confirmation.",
+      "dependencies": ["OBSERVER-01", "ROOM-08", "REMOTE-00"],
+      "authorityPrerequisites": [
+        "OBSERVER-01 mechanical triggers in force",
+        "controller confirmation required before any remote success is displayed"
+      ],
+      "allowedWrite": [
+        "app/api/loop/**",
+        "lib/loop/**",
+        "components/loop/**",
+        "app/(app)/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "A real phone session performs the ten listed operations and each result is observed being controller-confirmed; a notification without a mechanical trigger and a success claimed before confirmation are both observed being impossible.",
+      "remotePrerequisites": [
+        "a notification delivery channel authorized by the owner and holding no broad credential"
+      ],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "HARDEN-01",
+      "targetRepository": "All affected repositories and components",
+      "goal": "Freeze and run negative controls for forged role, forged execution principal, stale capability bundle, revoked credential, wrong remote user or channel, duplicate command, replayed command, expired command, stale expected watermark, cross-room context leak, cross-channel context leak, secret exfiltration, destination bypass, generic command smuggling, prompt injection into tool routing, event disorder, snapshot and tail divergence, transport outage, process death, stale supervisor, provider drift, credential proxy bypass and a direct main attempt. Each control asserts that the attack fails, not merely that the happy path works, and NOT_RUN remains distinct from PASS in every report.",
+      "dependencies": [
+        "IDENTITY-01",
+        "IDENTITY-02",
+        "IDENTITY-03",
+        "REMOTE-00",
+        "CONTEXT-01",
+        "SUPERVISOR-01"
+      ],
+      "authorityPrerequisites": [
+        "the adversarial gates are frozen before the implementations they test are declared complete",
+        "no frozen test, owner gate, authority file or security invariant may be weakened to make an implementation pass"
+      ],
+      "allowedWrite": [
+        "tests/loop/**",
+        "tests/claude-loop/**"
+      ],
+      "deniedWrite": [
+        "app/**",
+        "components/**",
+        "lib/**",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "A single report enumerates all twenty-three controls with exactly one status each, no control is silently omitted, and every control that could not be executed is reported NOT_RUN with its exact blocker rather than PASS.",
+      "remotePrerequisites": [
+        "real remote transports for the remote-specific controls; their absence is reported BLOCKED with prerequisite evidence"
+      ],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "EMPIRICAL-01",
+      "targetRepository": "Full system (Nortropic/verkstadsgolvet, Nortropic/nortropic-system and the remote clients)",
+      "goal": "Prove the programme end to end, unattended and remotely: submit real work remotely, the controller validates the exact source, tasks are compiled by the controller, an eligible run starts, the builder works autonomously, reviewer findings are remediated, gates run, guarded publication occurs when authorized, the remote client receives accurate status, pause and resume are tested at a safe boundary, evidence is inspectable remotely, the final authoritative main is controller-confirmed and no local interactive terminal handoff is required during the ordinary flow. Network interruption, client restart, controller and worker restart, a duplicate remote request, a rejected stale request, an observer notification and the no-ready-work terminal condition are also exercised. The slice is not complete merely because a UI demo works.",
+      "dependencies": [
+        "ROOM-01",
+        "ROOM-02",
+        "ROOM-03",
+        "ROOM-04",
+        "ROOM-05",
+        "ROOM-06",
+        "ROOM-07",
+        "ROOM-08",
+        "SUPERVISOR-01",
+        "CONTEXT-01",
+        "IDENTITY-01",
+        "IDENTITY-02",
+        "IDENTITY-03",
+        "OBSERVER-01",
+        "AUDIT-01",
+        "RETRO-01",
+        "REMOTE-00",
+        "REMOTE-01",
+        "REMOTE-02",
+        "REMOTE-03",
+        "REMOTE-04",
+        "HARDEN-01"
+      ],
+      "authorityPrerequisites": [
+        "guarded publication authorization from the owner",
+        "a real controller publishing snapshots",
+        "real remote entitlements for the remote leg"
+      ],
+      "allowedWrite": [
+        "tests/loop/**",
+        "tests/claude-loop/**"
+      ],
+      "deniedWrite": [
+        "app/**",
+        "components/**",
+        "lib/**",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "All thirteen scenario steps plus the seven disruption cases are executed for real and reported with base SHA, candidate SHA, merge SHA, PR URL, gate exit codes, decisive test output and evidence paths, and the authoritative main result is read back from the controller. A simulated step reported as PASS invalidates the slice.",
+      "remotePrerequisites": [
+        "a working remote client with its entitlement satisfied (Claude Tag, a Channel session or the notification client)"
+      ],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    }
+  ]
+}
