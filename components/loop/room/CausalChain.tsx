@@ -38,6 +38,7 @@ import {
   CAUSAL_CHAIN_LIVE_BLOCKED_ON,
   EVIDENCE_REFERENCE_NOTE,
   buildCausalChain,
+  type ChainField,
   type ChainHop,
   type ChainIdentifier,
 } from "@/lib/loop/room/causality";
@@ -88,6 +89,20 @@ function Identifier({ id }: { id: ChainIdentifier }) {
   );
 }
 
+/**
+ * Ett BESKRIVANDE fält. Egen märkning (`data-chain-field`), aldrig `data-chain-id`: den
+ * maskinläsbara identifierarytan ska vara exakt identiteterna, så att påståendet "varje länk bärs
+ * av ett verkligt id" går att mäta utan att först sortera bort ett `verb` eller ett `origin`.
+ */
+function Field({ item }: { item: ChainField }) {
+  return (
+    <li className="rm-id" data-chain-field={item.key} data-value={item.value}>
+      <span className="rm-id-key">{item.key}</span>
+      <span className={item.mono ? "rm-id-value mk-mono" : "rm-id-value"}>{item.value}</span>
+    </li>
+  );
+}
+
 function Hop({ hop }: { hop: ChainHop }) {
   const boundByKeys = hop.bound_by.map((id) => id.key).join(" ");
   const badge = hop.present ? (hop.bound_to === null ? "ROT" : "BUNDEN") : MISSING;
@@ -121,6 +136,14 @@ function Hop({ hop }: { hop: ChainHop }) {
               <Identifier id={id} key={`${id.key}-${id.value}`} />
             ))}
           </ul>
+
+          {hop.fields.length > 0 && (
+            <ul className="rm-ids" data-chain-fields="true">
+              {hop.fields.map((item, index) => (
+                <Field item={item} key={`${index}-${item.key}`} />
+              ))}
+            </ul>
+          )}
 
           {hop.bound_to === null ? (
             <p className="rm-chain-bind" data-chain-root="true">

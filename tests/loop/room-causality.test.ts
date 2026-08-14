@@ -55,7 +55,7 @@ import {
   AGENT_SESSION_ABSENT_NOTE,
   AGENT_SESSION_IDENTITY_IN_CONTRACT,
   ATTEMPT_ABSENT_NOTE,
-  BINDING_IDENTIFIER_KEYS,
+  CHAIN_IDENTITY_KEYS,
   CAUSAL_CHAIN_LIVE_BLOCKED_ON,
   CAUSAL_CHAIN_MODE,
   CAUSAL_ORDER,
@@ -288,7 +288,7 @@ test("ROOM-03-ID: varje utskriven länk bärs av ett verkligt id som finns i BÅ
       assert.ok(one.bound_by.length > 0, `${one.kind}: bindning utan bärande identifierare`);
       for (const bond of one.bound_by) {
         assert.ok(
-          (BINDING_IDENTIFIER_KEYS as readonly string[]).includes(bond.key),
+          (CHAIN_IDENTITY_KEYS as readonly string[]).includes(bond.key),
           `${one.kind}: bindningen bärs av ${bond.key}, som inte är en identitet`,
         );
         // Värdet ska finnas i BÅDA posternas identifierare …
@@ -467,6 +467,110 @@ test("ROOM-03-ID: typade intentioner utan command_id kan aldrig binda ett hopp",
  * 2 · PROMOTION BINDS PÅ SHA — OCH BARA NÄR DEN FINNS
  * ──────────────────────────────────────────────────────────────────────────── */
 
+test("ROOM-03-ID: identifierarytan är EXAKT identiteterna — beskrivande fält står för sig", () => {
+  /*
+    Skivans hela påstående är att varje länk bärs av ett verkligt id. Då får identifierarytan inte
+    innehålla något annat: `verb`, `origin`, `source_name`, `issued_by` och `locator` står i
+    posterna och visas, men de identifierar ingen enskild post. Låg de bland `ids` kunde ett hopp
+    påstå närvaro på styrkan av ett verb — och den maskinläsbara ytan hade påstått fem
+    identifierare som inte är identifierare.
+  */
+  const descriptive = ["verb", "origin", "source_name", "issued_by", "locator"];
+
+  for (const taskId of allChainTaskIds()) {
+    for (const one of chainFor(taskId).hops) {
+      for (const id of one.ids) {
+        assert.ok(
+          (CHAIN_IDENTITY_KEYS as readonly string[]).includes(id.key),
+          `${taskId}/${one.kind}: ${id.key} står bland identifierarna utan att vara en identitet`,
+        );
+      }
+      if (one.present) {
+        assert.ok(
+          one.ids.some((id) => (CHAIN_IDENTITY_KEYS as readonly string[]).includes(id.key)),
+          `${taskId}/${one.kind}: närvarande hopp utan en enda verklig identitet`,
+        );
+      }
+      for (const item of one.fields) {
+        assert.ok(
+          !(CHAIN_IDENTITY_KEYS as readonly string[]).includes(item.key),
+          `${taskId}/${one.kind}: identiteten ${item.key} degraderades till ett beskrivande fält`,
+        );
+      }
+    }
+  }
+
+  // Fälten är INTE bortkastade — de visas, bara under sin egen märkning.
+  const outcome = linkedOutcome();
+  const answer = outcome.controller_answer;
+  assert.ok(answer);
+  const linkedChain = chainFor(answer.tasks[0].task_id);
+  assert.deepEqual(
+    hop(linkedChain, "operator").fields.map((item) => item.key),
+    ["source_name", "origin"],
+  );
+  assert.deepEqual(
+    hop(linkedChain, "command").fields.map((item) => item.key),
+    ["verb", "issued_by"],
+  );
+  assert.equal(
+    hop(linkedChain, "operator").fields.find((item) => item.key === "source_name")?.value,
+    outcome.source.source_name,
+  );
+
+  // …och `locator` följer samma regel när kontraktet faktiskt bär ett värde.
+  const base = snapshotOrThrow().current_task;
+  assert.ok(base?.source);
+  const withLocator = chainFor(base.task_id, {
+    snapshot: snapshotWithCurrentTask({
+      ...structuredClone(base),
+      source: { ...structuredClone(base.source), locator: "fixtur://kalla/005" },
+    }),
+  });
+  const sourceHop = hop(withLocator, "source");
+  assert.deepEqual(withLocator.violations, []);
+  assert.deepEqual(sourceHop.fields.map((item) => item.key), ["locator"]);
+  assert.ok(!sourceHop.ids.some((id) => id.key === "locator"));
+
+  /* MARKUPEN: varje data-chain-id är en identitet, och de beskrivande värdena bär data-chain-field. */
+  const html = [renderChain(base), renderChain(answer.tasks[0])].join("\n");
+  const renderedIdKeys = [...html.matchAll(/data-chain-id="([^"]+)"/g)].map((match) => match[1]);
+  assert.ok(renderedIdKeys.length > 0, "ingen identifierare renderades — mätaren mäter ingenting");
+  for (const key of renderedIdKeys) {
+    assert.ok(
+      (CHAIN_IDENTITY_KEYS as readonly string[]).includes(key),
+      `markupen påstår ${key} som identifierare`,
+    );
+    assert.ok(!descriptive.includes(key), `markupen påstår det beskrivande fältet ${key} som id`);
+  }
+  const renderedFieldKeys = [...html.matchAll(/data-chain-field="([^"]+)"/g)].map((m) => m[1]);
+  for (const key of ["source_name", "origin", "verb", "issued_by"]) {
+    assert.ok(renderedFieldKeys.includes(key), `det beskrivande fältet ${key} visas inte alls`);
+  }
+
+  /* LÖGNSTUBBAR: valideringen måste fälla båda formerna som fanns innan. */
+  const asId = (key: string, value: string) => [
+    { key, value, mono: false, origin: "record" as const },
+  ];
+  assert.ok(
+    validateCausalChain({
+      hops: [stubHop({ kind: "operator", ids: asId("origin", "file") })],
+    }).some((violation) => violation.code === "non_identity_in_ids"),
+    "ett beskrivande fält fick stå bland identifierarna",
+  );
+  assert.ok(
+    validateCausalChain({
+      hops: [stubHop({ kind: "command", ids: asId("verb", "intake.submit") })],
+    }).some((violation) => violation.code === "present_without_ids"),
+    "ett hopp fick påstå närvaro på styrkan av ett verb",
+  );
+  // POSITIV KONTROLL: en riktig identitet fälls inte.
+  assert.deepEqual(
+    validateCausalChain({ hops: [stubHop({ kind: "task", ids: asId("task_id", "p-1") })] }),
+    [],
+  );
+});
+
 test("ROOM-03-PROMOTION: candidate_sha/to_sha binder bara när båda finns och är samma värde", () => {
   // Fixturen bär ingen promotion: hoppet är då FRÅNVARANDE med orsak, aldrig ett tomt påstående.
   for (const task of allFixtureTasks()) {
@@ -536,6 +640,7 @@ function stubHop(overrides: Partial<ChainHop> & { kind: ChainHopKind }): ChainHo
     present: true,
     record_source: "snapshot",
     ids: [],
+    fields: [],
     bound_to: null,
     bound_by: [],
     binding: "root",
@@ -921,7 +1026,7 @@ test("ROOM-03-MARKUP: bindningen som renderas är alltid ett id ur den validerad
     assert.deepEqual(keys, projected.bound_by.map((id) => id.key));
     for (const key of keys) {
       assert.ok(
-        (BINDING_IDENTIFIER_KEYS as readonly string[]).includes(key),
+        (CHAIN_IDENTITY_KEYS as readonly string[]).includes(key),
         `${block.kind}: markupen påstår en bindning på ${key}`,
       );
     }

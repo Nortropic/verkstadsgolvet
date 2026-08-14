@@ -223,6 +223,21 @@ export type ChainIdentifier = {
   origin: ChainIdentifierOrigin;
 };
 
+/**
+ * Ett BESKRIVANDE fält ur posten — aldrig en identitet.
+ *
+ * `verb`, `issued_by`, `source_name`, `origin` och `locator` står i kontraktets poster och är
+ * värda att visa, men de identifierar ingen enskild post: två inlämningar kan heta samma sak och
+ * två kommandon kan bära samma verb. De hålls därför ISÄR från `ids`, både i typen och i
+ * markupen, så att identifierarytan är exakt identiteterna och ingenting annat.
+ */
+export type ChainField = {
+  /** Kontraktets eget nyckelnamn. Aldrig omdöpt. */
+  key: string;
+  value: string;
+  mono: boolean;
+};
+
 /** Hur bindningen bärs. Båda vilar på ett VERKLIGT id — ingen av dem är en slutsats. */
 export type ChainBindingKind =
   | "root"
@@ -244,8 +259,13 @@ export type ChainHop = {
   title: string;
   present: boolean;
   record_source: ChainRecordSource;
-  /** Endast de identifierare som FAKTISKT finns i posten. Tom lista när hoppet är frånvarande. */
+  /**
+   * ENDAST identiteter (`CHAIN_IDENTITY_KEYS`) som FAKTISKT står i posten. Tom när hoppet är
+   * frånvarande. Beskrivande fältvärden hör hemma i `fields` — aldrig här.
+   */
   ids: ChainIdentifier[];
+  /** Beskrivande fält ur samma post. Bär aldrig en bindning och gör aldrig ett hopp närvarande. */
+  fields: ChainField[];
   /** Hoppet som den här posten är bunden till. null = kedjans rot (eller frånvarande hopp). */
   bound_to: ChainHopKind | null;
   /** Identifierarna som bär bindningen. Tom när hoppet är rot eller frånvarande. */
@@ -266,11 +286,18 @@ export type ChainHop = {
 };
 
 /**
- * Nycklar som får BÄRA en bindning. Listan är avsiktligt smal: bara det som är en identitet i
- * kontraktet. `verb`, `origin`, `issued_by` och `source_name` finns i posterna och visas — men
- * de identifierar ingen enskild post och får därför aldrig hålla ihop två hopp.
+ * KONTRAKTETS IDENTITETER — hela listan, och ingenting annat.
+ *
+ * Listan har två roller, och båda mäts av valideringen nedan:
+ *   1. Bara dessa nycklar får stå i ett hopps `ids`. Identifierarytan ÄR identiteterna; en
+ *      beskrivande fältvärde som `verb` eller `origin` hör hemma i `fields`, aldrig här.
+ *   2. Bara dessa nycklar får BÄRA en bindning mellan två hopp.
+ *
+ * Skälet till 1 är inte kosmetik: ett hopp får bara kallas närvarande på styrkan av en verklig
+ * identitet. Räknades beskrivande fält som id hade ett hopp kunnat påstå närvaro med enbart ett
+ * `verb` — precis den härledda relation utan id som ROOM-03 förbjuder.
  */
-export const BINDING_IDENTIFIER_KEYS = [
+export const CHAIN_IDENTITY_KEYS = [
   "submission_id",
   "command_id",
   "dedup_key",
@@ -287,9 +314,16 @@ export const BINDING_IDENTIFIER_KEYS = [
   "from_sha",
   "to_sha",
 ] as const;
+export type ChainIdentityKey = (typeof CHAIN_IDENTITY_KEYS)[number];
+
+/** Är nyckeln en identitet i kontraktet? Mätbart, så påståendet inte bara står i en kommentar. */
+export function isChainIdentityKey(key: string): key is ChainIdentityKey {
+  return (CHAIN_IDENTITY_KEYS as readonly string[]).includes(key);
+}
 
 export const CHAIN_VIOLATION_CODES = [
   "present_without_ids",
+  "non_identity_in_ids",
   "binding_on_non_identifier",
   "bound_to_absent_hop",
   "binding_without_identifier",
@@ -350,8 +384,12 @@ function taskFromSnapshot(snapshot: LoopSnapshot | null, taskId: string): TaskVi
  * HJÄLPARE
  * ──────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * En IDENTITET ur posten. Nyckeln måste stå i `CHAIN_IDENTITY_KEYS` — hjälparen tar inte emot
+ * något annat, så ett beskrivande fält kan inte hamna i identifierarytan av misstag.
+ */
 function identifier(
-  key: string,
+  key: ChainIdentityKey,
   value: string | null | undefined,
   options: { mono?: boolean; origin?: ChainIdentifierOrigin } = {},
 ): ChainIdentifier[] {
@@ -363,6 +401,14 @@ function identifier(
   ];
 }
 
+/** Ett BESKRIVANDE fält ur posten. Aldrig en identitet, aldrig en bindning. */
+function field(key: string, value: string | null | undefined, mono = false): ChainField[] {
+  if (value === null || value === undefined) return [];
+  const text = value.trim();
+  if (text === "") return [];
+  return [{ key, value: text, mono }];
+}
+
 /** Ett frånvarande hopp bär INGENTING: inga id, ingen bindning, ingen post — bara en orsak. */
 function absentHop(kind: ChainHopKind, reason: string): ChainHop {
   return {
@@ -371,6 +417,7 @@ function absentHop(kind: ChainHopKind, reason: string): ChainHop {
     present: false,
     record_source: "none",
     ids: [],
+    fields: [],
     bound_to: null,
     bound_by: [],
     binding: "none",
@@ -385,6 +432,7 @@ function presentHop(input: {
   kind: ChainHopKind;
   record_source: ChainRecordSource;
   ids: ChainIdentifier[];
+  fields?: ChainField[];
   bound_to: ChainHopKind | null;
   bound_by: ChainIdentifier[];
   binding: ChainBindingKind;
@@ -398,6 +446,7 @@ function presentHop(input: {
     present: true,
     record_source: input.record_source,
     ids: input.ids,
+    fields: input.fields ?? [],
     bound_to: input.bound_to,
     bound_by: input.bound_by,
     binding: input.binding,
@@ -464,7 +513,13 @@ export function validateCausalChain(chain: {
 
   for (const hop of hops) {
     if (!hop.present) {
-      if (hop.ids.length > 0 || hop.bound_to !== null || hop.bound_by.length > 0 || hop.raw !== null) {
+      if (
+        hop.ids.length > 0 ||
+        hop.fields.length > 0 ||
+        hop.bound_to !== null ||
+        hop.bound_by.length > 0 ||
+        hop.raw !== null
+      ) {
         violations.push({
           hop: hop.kind,
           code: "absent_hop_carries_claim",
@@ -481,11 +536,27 @@ export function validateCausalChain(chain: {
       continue;
     }
 
-    if (hop.ids.length === 0) {
+    /*
+      NÄRVARO KRÄVER EN VERKLIG IDENTITET, inte bara "något i listan". Ett beskrivande fält
+      (`verb`, `origin`, `source_name`, …) räcker aldrig: hade det gjort det kunde ett hopp
+      påstå närvaro utan att någon post gick att peka ut.
+    */
+    if (!hop.ids.some((one) => isChainIdentityKey(one.key))) {
       violations.push({
         hop: hop.kind,
         code: "present_without_ids",
         message: `${hop.kind}: hoppet renderas som närvarande utan en enda identifierare.`,
+      });
+    }
+    /* …och identifierarytan är EXAKT identiteterna. Ett beskrivande fält hör hemma i `fields`. */
+    for (const one of hop.ids) {
+      if (isChainIdentityKey(one.key)) continue;
+      violations.push({
+        hop: hop.kind,
+        code: "non_identity_in_ids",
+        message:
+          `${hop.kind}: ${one.key} står bland identifierarna men är ingen identitet i ` +
+          "kontraktet — beskrivande fält hör hemma för sig.",
       });
     }
     if (hop.raw === null || hop.raw.trim() === "") {
@@ -529,7 +600,7 @@ export function validateCausalChain(chain: {
     const ownValues = new Set(hop.ids.map((one) => one.value));
     const targetValues = new Set(target.ids.map((one) => one.value));
     for (const bond of hop.bound_by) {
-      if (!(BINDING_IDENTIFIER_KEYS as readonly string[]).includes(bond.key)) {
+      if (!isChainIdentityKey(bond.key)) {
         violations.push({
           hop: hop.kind,
           code: "binding_on_non_identifier",
@@ -636,10 +707,13 @@ export function buildCausalChain(input: CausalInput): CausalChain {
           record_source: "submission",
           ids: [
             ...identifier("submission_id", outcome.submission_id),
-            ...identifier("source_name", outcome.source.source_name, { mono: false }),
-            ...identifier("origin", outcome.source.origin, { mono: false }),
             ...identifier("command_id", outcome.command?.command_id ?? null),
             ...taskIdentifier,
+          ],
+          /* Källans NAMN och inmatningssätt beskriver inlämningen; de identifierar den inte. */
+          fields: [
+            ...field("source_name", outcome.source.source_name),
+            ...field("origin", outcome.source.origin),
           ],
           bound_to: null,
           bound_by: [],
@@ -678,9 +752,10 @@ export function buildCausalChain(input: CausalInput): CausalChain {
             ids: [
               ...identifier("source_id", task.source.source_id),
               ...identifier("sha256", task.source.sha256),
-              ...identifier("locator", task.source.locator, { mono: false }),
               ...containerTaskIdentifier,
             ],
+            /* `locator` PEKAR UT var källan finns; identiteten är source_id och sha256. */
+            fields: field("locator", task.source.locator),
             bound_to: "task",
             bound_by: containerTaskIdentifier,
             binding: "record_containment",
@@ -699,10 +774,13 @@ export function buildCausalChain(input: CausalInput): CausalChain {
             record_source: "command_record",
             ids: [
               ...identifier("command_id", record.command_id),
-              ...identifier("verb", record.verb),
               ...identifier("dedup_key", record.dedup_key),
-              ...identifier("issued_by", record.issued_by, { mono: false }),
             ],
+            /*
+              Verbet och utfärdaren beskriver kommandot. Två kommandon kan bära samma verb och
+              samma utfärdare — identiteten är command_id och dedup-nyckeln.
+            */
+            fields: [...field("verb", record.verb, true), ...field("issued_by", record.issued_by)],
             bound_to: "operator",
             bound_by: identifier("command_id", record.command_id),
             binding: "shared_identifier",
@@ -924,6 +1002,7 @@ export function buildCausalChain(input: CausalInput): CausalChain {
   */
   for (const hop of hops) {
     Object.freeze(hop.ids);
+    Object.freeze(hop.fields);
     Object.freeze(hop.bound_by);
     Object.freeze(hop.evidence_refs);
     Object.freeze(hop);
