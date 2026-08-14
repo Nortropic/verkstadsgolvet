@@ -544,18 +544,75 @@ test("ROOM-NEG: rummets filer har noll nätverk, noll exekvering och noll egen a
  * 6 · INGEN PROCENT, INGEN STAPEL, INGEN FEJKAD RÖRELSE
  * ──────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * V2:s grep, ORDAGRANT dubblerad hit — och det är avsikten.
+ *
+ * V2 mäter components/loop/** rekursivt och täcker därför rummets komponenter. lib/loop/room/**
+ * ligger UTANFÖR det trädet och mäts BARA här. Ett urval av V2:s mönster hade alltså lämnat
+ * halva rummet omätt; listan är därför en äkta delmängdsspegling: samma fyra regler, samma
+ * ordalydelse, plus procenttecknet som mäts separat nedan.
+ *
+ * RÄCKVIDD PER REGEL, med samma skäl som V2 anger:
+ *   raw  — mäts på hela filen. Strängare, och inget legitimt bruk finns i kommentarer heller.
+ *   code — mäts med kommentarerna bortskalade. En fil som i klartext FÖRBJUDER framstegsstaplar
+ *          ("Ingen procentsats, ingen framstegsstapel …") får inte fällas av sitt eget förbud;
+ *          det är exakt V2:s eget resonemang, och att avvika från det hade straffat ärlig
+ *          dokumentation utan att stänga något hål.
+ *
+ * Varje regel bär en LÖGNSTUBBE: ett mönster som inte kan fälla sitt eget brott mäter ingenting.
+ */
+const FORBIDDEN_PRESENTATION: {
+  pattern: RegExp;
+  why: string;
+  scope: "raw" | "code";
+  stub: string;
+}[] = [
+  {
+    pattern: /<progress|role=["']progressbar|aria-valuenow|<meter\b/i,
+    why: "framstegselement",
+    scope: "raw",
+    stub: '<progress value="1" max="2" />',
+  },
+  {
+    pattern: /\b(progressbar|progress-bar|framstegsstapel|procentsats|percentage)\b/i,
+    why: "framstegs-/procentsemantik",
+    scope: "code",
+    stub: "export const percentage = 1;",
+  },
+  {
+    pattern: /@keyframes|animation:|animate-|\bpulse\b|\bblink\b/i,
+    why: "fabricerad liveness-rörelse",
+    scope: "raw",
+    stub: ".rm-x { animation: pulse 1s infinite; }",
+  },
+];
+
 test("ROOM-NEG: varken källan eller markupen bär procent, framstegselement eller rörelse", () => {
-  for (const { path, source } of roomSourceFiles()) {
+  const files = roomSourceFiles();
+  assert.ok(files.length >= 8, `hittade inte rummets träd — mätaren mäter inget (${files.length})`);
+
+  for (const { path, source } of files) {
     assert.ok(!source.includes("%"), `procenttecken i ${path}`);
+    for (const rule of FORBIDDEN_PRESENTATION) {
+      const measured = rule.scope === "raw" ? source : stripComments(source);
+      assert.ok(!rule.pattern.test(measured), `${rule.why} i ${path}`);
+    }
+  }
+
+  // LÖGNSTUBBAR: varje mönster måste fälla sitt eget brott, annars är listan bara dekoration.
+  for (const rule of FORBIDDEN_PRESENTATION) {
     assert.ok(
-      !/<progress|role=["']progressbar|aria-valuenow|<meter\b/i.test(source),
-      `framstegselement i ${path}`,
-    );
-    assert.ok(
-      !/@keyframes|animation:|animate-/i.test(source),
-      `fabricerad rörelse i ${path}`,
+      rule.pattern.test(rule.stub),
+      `mönstret för ${rule.why} fäller inte ens sin egen stubbe`,
     );
   }
+  // NEGATIV KONTROLL: en kommentar som FÖRBJUDER framstegsstaplar får aldrig fällas av förbudet.
+  assert.ok(
+    !FORBIDDEN_PRESENTATION[1].pattern.test(
+      stripComments("/* Ingen procentsats, ingen framstegsstapel. */\nexport const ok = true;"),
+    ),
+    "det egna förbudet i en kommentar fälls som om det vore ett brott",
+  );
 
   const { snapshot } = snapshotWithEveryState();
   const html = [renderRoom(snapshotOrThrow()), renderRoom(snapshot), renderRoom(null)].join("\n");
