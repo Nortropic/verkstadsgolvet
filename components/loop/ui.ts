@@ -62,6 +62,24 @@ export function countLabel(n: number): string {
  * FIXTURE_MODE via `fixture`-flaggan) i stället för att skrivas som en fri mening. Byts ett
  * läge byts etiketten med det — en sanning som måste redigeras för hand blir osann.
  *
+ * VAD "LIVE" BETYDER HÄR — OCH VAD DET INTE BETYDER
+ * -------------------------------------------------
+ * `mode: "live"` för strömsegmentet betecknar KÄLLAN: vilket plan panelen läser. Det är
+ * INGET påstående om att transporten är uppe, ansluten eller konfigurerad just nu.
+ *
+ * Därför är strömsegmentets läge medvetet konstant medan `commands` och `snapshot` härleds:
+ *   · KÄLLAN är strukturell. Panelen läser kontrollplanets läsyta i varje läge — även när
+ *     transporten inte är konfigurerad och den återansluter eller pollar. Byts källan byts
+ *     koden, inte en flagga.
+ *   · TRANSPORTLÄGET är däremot rörligt, och det ÄGS AV PANELEN: V9 renderar det som märke
+ *     (`data-transport-mode`) med en orsaksrad under sig. Sidhuvudet har ingen egen
+ *     liveness-signal och skulle bara kunna gissa. Två ägare av samma sanning glider isär —
+ *     och den som gissar hinner alltid bli den som ljuger.
+ *
+ * Sidhuvudet duplicerar därför INTE panelens läge; det PEKAR på det
+ * (MASKIN_HEADER_TRANSPORT_NOTE), så att en läsare som ser "LIVE" i huvudet och "transporten
+ * är inte konfigurerad" i panelen vet vilken av raderna som bär det rörliga läget.
+ *
  * FORM: en kort ingress plus korta, avgränsade segment — aldrig en lång oavgränsad
  * caption-paragraf. Radlängden begränsas dessutom av `max-width` i MASKIN_HEADER_CSS.
  */
@@ -82,6 +100,14 @@ export const MASKIN_HEADER_SUB =
   "Kontrollrummets läsvy — ingen authority. Tre källor med olika läge:";
 
 /**
+ * Hänvisningen till den som FAKTISKT äger transportläget. Sidhuvudet säger vilken källa
+ * panelen läser; om anslutningen är öppen, återansluter, pollar eller inte ens är konfigurerad
+ * står i panelen — och bara där.
+ */
+export const MASKIN_HEADER_TRANSPORT_NOTE =
+  "Strömpanelen nedan bär sitt eget transportläge — det står där, inte här.";
+
+/**
  * Segmenten. `channelEnabled` och `fixture` kommer ur de FAKTISKA lägena, aldrig ur en
  * handskriven bedömning: står kanalen öppen påstår texten inte 503, och är snapshoten inte
  * längre en fixtur påstås ingen fixtur.
@@ -95,6 +121,10 @@ export function maskinHeaderTruth({
 }): HeaderTruthSegment[] {
   return [
     {
+      /*
+        KÄLLA, inte transportstatus: se blocket ovan. Texten påstår därför bara vad panelen
+        LÄSER och skriver ut det ärliga tomläget — aldrig att anslutningen är uppe.
+      */
       id: "stream",
       mode: "live",
       label: "Live",
@@ -152,6 +182,10 @@ export const MASKIN_HEADER_CSS = `
   background: var(--bg-surface-1); box-shadow: var(--hairline); flex: none; }
 .mk-header-truth-text { font-size: 12px; line-height: 17px; color: var(--text-secondary);
   min-width: 0; overflow-wrap: anywhere; }
+/* Hänvisningen är en fotnot till segmenten, inte ett fjärde läge: nedtonad, utan etikettchip,
+   och med samma radlängdstak som resten av huvudet. */
+.mk-header-truth-note { margin: 6px 0 0; max-width: 64ch; font-size: 11px; line-height: 16px;
+  color: var(--text-muted); overflow-wrap: anywhere; }
 `;
 
 /**

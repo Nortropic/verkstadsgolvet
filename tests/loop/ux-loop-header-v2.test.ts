@@ -31,6 +31,7 @@ import BacklogColumn from "../../components/loop/BacklogColumn";
 import {
   MASKIN_HEADER_CSS,
   MASKIN_HEADER_SUB,
+  MASKIN_HEADER_TRANSPORT_NOTE,
   maskinHeaderTruth,
   type HeaderTruthSegment,
 } from "../../components/loop/ui";
@@ -205,6 +206,61 @@ test("H1: texten följer läget — inget påstående skrivs för hand", () => {
   );
 });
 
+test("H1: strömsegmentets LIVE betecknar KÄLLAN — transportläget ägs av panelen", () => {
+  /*
+    Fyndet HDR-STREAM-MODE-HARDCODED: strömsegmentets `mode` är konstant medan `commands` och
+    `snapshot` härleds. Asymmetrin är AVSIKTLIG och får därför bäras av tre mekaniska krav:
+
+      1 · Segmentet påstår aldrig att transporten är uppe, ansluten eller konfigurerad. Det
+          säger vilken KÄLLA panelen läser, och skriver ut det ärliga tomläget.
+      2 · Sidhuvudet duplicerar inte panelens rörliga läge — det HÄNVISAR till det, så att
+          "LIVE" i huvudet och "transporten är inte konfigurerad" i panelen inte läses som en
+          motsägelse på fotoytan.
+      3 · Skälet står utskrivet i components/loop/ui.ts, så nästa läsare inte "rättar" en
+          medveten konstant till en gissad flagga.
+  */
+  const stream = segmentFor(maskinHeaderTruth({ fixture: true }), "stream");
+
+  for (const claim of [
+    /\bansluten\b/i,
+    /\buppkopplad\b/i,
+    /\bkonfigurerad\b/i,
+    /\bstr[öo]mmar\b/i,
+    /\bjust nu\b/i,
+    /\brealtid\b/i,
+  ]) {
+    assert.ok(
+      !claim.test(stream.text),
+      `strömsegmentet påstår ${claim} — det är panelens rörliga läge, inte huvudets`,
+    );
+  }
+  // Källan och tomläget står däremot utskrivna.
+  assert.match(stream.text, /kontrollplanet/i, "källan namnges inte");
+  assert.match(stream.text, /tom/i, "det ärliga tomläget står inte utskrivet");
+
+  // Hänvisningen finns, och pekar på panelen som faktiskt bär läget.
+  assert.match(MASKIN_HEADER_TRANSPORT_NOTE, /transportläge/i);
+  assert.match(MASKIN_HEADER_TRANSPORT_NOTE, /panel/i);
+  const markup = withoutStyles(headerHtml());
+  assert.ok(markup.includes('data-truth-note="transport"'), "hänvisningen renderas inte");
+  assert.ok(markup.includes(MASKIN_HEADER_TRANSPORT_NOTE), "hänvisningens text når inte markupen");
+
+  // Och panelen bär verkligen läget — annars vore hänvisningen en tom gest.
+  const panel = sourceOf("components/loop/EventStream.tsx");
+  assert.match(panel, /data-transport-mode=/, "strömpanelen renderar inget transportläge");
+
+  // Avsikten är dokumenterad där konstanten bor.
+  const ui = sourceOf("components/loop/ui.ts");
+  assert.ok(
+    /betecknar KÄLLAN/.test(ui),
+    "ui.ts dokumenterar inte att LIVE betecknar källan, inte transportstatus",
+  );
+  assert.ok(
+    /ÄGS AV PANELEN/.test(ui),
+    "ui.ts dokumenterar inte vem som äger det rörliga transportläget",
+  );
+});
+
 /* ── H2 · Textens form ────────────────────────────────────────────────────── */
 
 test("H2: ingressen är kort och segmenten är korta — ingen oavgränsad paragraf", () => {
@@ -245,6 +301,11 @@ test("H2: radlängden har ett tak i CSS, och taket når markupen", () => {
     MASKIN_HEADER_CSS,
     /\.mk-header-truth \{[^}]*max-width:\s*\d+ch/,
     "sanningssegmenten saknar max-bredd",
+  );
+  assert.match(
+    MASKIN_HEADER_CSS,
+    /\.mk-header-truth-note \{[^}]*max-width:\s*\d+ch/,
+    "hänvisningen till panelens transportläge saknar max-bredd",
   );
 
   const html = headerHtml();

@@ -19,10 +19,18 @@
  *   ur de faktiska lägena (`commandChannelEnabled`, fixturflaggan) — inte ur en fri mening här.
  * · Ingen animation, ingen procentsats, ingen liveness-markör: ordet "Live" gäller VILKEN KÄLLA
  *   panelen läser, aldrig ett påstående om att något rör sig just nu.
+ * · TRANSPORTLÄGET ÄGS AV STRÖMPANELEN (V9), som har den faktiska signalen och renderar den
+ *   med orsak. Sidhuvudet upprepar det aldrig — det hänvisar till det. Ett huvud som gissade
+ *   anslutningsläge skulle förr eller senare motsäga panelen två rader längre ned.
  */
 import * as React from "react";
 import PageHeader from "@/components/PageHeader";
-import { MASKIN_HEADER_CSS, MASKIN_HEADER_SUB, maskinHeaderTruth } from "./ui";
+import {
+  MASKIN_HEADER_CSS,
+  MASKIN_HEADER_SUB,
+  MASKIN_HEADER_TRANSPORT_NOTE,
+  maskinHeaderTruth,
+} from "./ui";
 
 export default function MaskinHeader({ fixture }: { fixture: boolean }) {
   const segments = maskinHeaderTruth({ fixture });
@@ -44,6 +52,9 @@ export default function MaskinHeader({ fixture }: { fixture: boolean }) {
           </li>
         ))}
       </ul>
+      <p className="mk-header-truth-note" data-truth-note="transport">
+        {MASKIN_HEADER_TRANSPORT_NOTE}
+      </p>
     </div>
   );
 }
