@@ -8,8 +8,9 @@
  *
  * BINDANDE REGLER
  * ---------------
- * · Den här skivan har ingen eventström och därmed INGEN liveness-signal. Raden visar därför
- *   alltid "○ OKÄNT" med eventålder "—". Den påstår aldrig AUTONOM, och den animerar aldrig.
+ * · Raden läser BARA snapshoten. Eventströmmen finns sedan V9, men den är kopplad till
+ *   strömpanelen, inte hit — raden får därför ingen liveness-signal och visar alltid
+ *   "○ OKÄNT" med eventålder "—". Den påstår aldrig AUTONOM, och den animerar aldrig.
  * · `main`-SHA:t kommer ur snapshotens `current_main`. Verkstadsgolvet slår ALDRIG upp
  *   origin/main själv — det vore en andra sanning.
  * · `run.state`, `run.breaker` och `run.budget` är OLÖSTA kontrakt (S5). De renderas som "—"
@@ -64,7 +65,11 @@ export default function RunStatusBar({
         </span>
       </div>
 
-      <Item label="Senaste event" value={null} title="Eventströmmen kopplas in i en senare skiva." />
+      <Item
+        label="Senaste event"
+        value={null}
+        title="Eventströmmen renderas i strömpanelen, med sitt eget transportläge. Den här raden läser bara snapshoten, som inte bär någon eventålder."
+      />
       <Item label="Kör-id" value={snapshot.run_id} mono />
       <Item label="Kör-tillstånd" value={snapshot.run.state} />
       <Item label="Brytare" value={snapshot.run.breaker === null ? null : "opakt värde"} />

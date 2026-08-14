@@ -17,6 +17,9 @@
  *   ingen attestation och ingen promotion renderas här.
  * · Avkortning rapporteras ÄRLIGT: visas de senaste raderna står det utskrivet hur många av
  *   hur många. Ingen rad försvinner tyst.
+ * · TALEN GRUPPERAS med samma delade regel som inlämningsytan (`groupDigits`), så att fyra
+ *   siffror ser likadana ut överallt i /loop. Grupperingen gäller RÄKNARE — seq-nummer är
+ *   identitet, inte mängd, och lämnas därför orörda så de går att jämföra mot rådata.
  * · Ingen animation, ingen framstegsindikator. En "pågår"-signal kräver ett faktiskt event.
  */
 import * as React from "react";
@@ -25,6 +28,9 @@ import EventRow from "./EventRow";
 import StaleBanner from "./StaleBanner";
 import { toneClass } from "./ui";
 import { MISSING, orMissing } from "@/lib/loop/labels";
+// Talgrupperingen är EN regel för hela /loop. Den bor i lib/loop/intake (ren funktion, ingen
+// I/O) och återanvänds här ordagrant — en andra implementation vore en andra sanning.
+import { groupDigits } from "@/lib/loop/intake";
 import {
   TRANSPORT_PRESENTATION,
   tailNotices,
@@ -126,8 +132,9 @@ export default function EventStream({
         <>
           {truncated > 0 && (
             <p className="mk-hint" data-stream-truncated={truncated}>
-              Visar de {rows.length} senaste raderna av {stream.rows.length} i minnet. Äldre
-              rader finns kvar i kontrollplanets eventbutik.
+              Visar de {groupDigits(rows.length)} senaste raderna av{" "}
+              {groupDigits(stream.rows.length)} i minnet. Äldre rader finns kvar i
+              kontrollplanets eventbutik.
             </p>
           )}
           <div className="mk-stream-rows" ref={listRef} data-stream-rows={rows.length}>
@@ -149,17 +156,17 @@ export default function EventStream({
           senast sedda seq {orMissing(connection.cursor)}
         </span>
         {" · "}
-        <span data-ledger-rows={stats.retained}>{stats.retained} rader i minnet</span>
+        <span data-ledger-rows={stats.retained}>{groupDigits(stats.retained)} rader i minnet</span>
         {" · "}
         <span data-ledger-duplicates={stats.duplicates}>
-          {stats.duplicates} dubbletter avvisade
+          {groupDigits(stats.duplicates)} dubbletter avvisade
         </span>
         {" · "}
         <span
           data-ledger-invalid={stats.invalid}
           title="Rader som inte validerar mot eventkontraktet — oläsbara SSE-ramar räknas här."
         >
-          {stats.invalid} ogiltiga rader
+          {groupDigits(stats.invalid)} ogiltiga rader
         </span>
         {stats.low_water_seq !== null && (
           <>
