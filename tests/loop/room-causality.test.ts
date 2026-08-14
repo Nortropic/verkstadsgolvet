@@ -55,6 +55,10 @@ import {
   AGENT_SESSION_ABSENT_NOTE,
   AGENT_SESSION_IDENTITY_IN_CONTRACT,
   ATTEMPT_ABSENT_NOTE,
+  ATTESTATION_ABSENT_NOTE,
+  CANDIDATE_ABSENT_NOTE,
+  SOURCE_ABSENT_NOTE,
+  VERIFICATION_ABSENT_NOTE,
   CHAIN_IDENTITY_KEYS,
   CAUSAL_CHAIN_LIVE_BLOCKED_ON,
   CAUSAL_CHAIN_MODE,
@@ -982,6 +986,53 @@ test("ROOM-03-FRÅNVARO: attempt utan attempt_id i strömmen blir ABSENT, aldrig
   assert.equal(attempt.absent_reason, ATTEMPT_ABSENT_NOTE);
 });
 
+test("ROOM-03-FRÅNVARO: varje frånvaroorsak är en KONSTANT som går att peka på", () => {
+  /*
+    En orsak som bara finns som inbäddad sträng går inte att provas på identitet — då mäter ett
+    prov ordalydelsen i stället för regeln, och nästa formulering glider igenom. Varje hopps
+    frånvaro bärs därför av en exporterad konstant, och här mäts att kedjan FAKTISKT använder dem.
+  */
+  const expected: Record<string, string> = {
+    operator: OPERATOR_ABSENT_NOTE,
+    command: COMMAND_WITHOUT_SUBMISSION_NOTE,
+    attempt: ATTEMPT_ABSENT_NOTE,
+    agent_session: AGENT_SESSION_ABSENT_NOTE,
+    candidate: CANDIDATE_ABSENT_NOTE,
+    verification: VERIFICATION_ABSENT_NOTE,
+    review: REVIEW_ABSENT_NOTE,
+    attestation: ATTESTATION_ABSENT_NOTE,
+    promotion: PROMOTION_ABSENT_NOTE,
+  };
+  const current = chainFor(snapshotOrThrow().current_task?.task_id ?? "");
+  for (const [kind, note] of Object.entries(expected)) {
+    const one = hop(current, kind as ChainHopKind);
+    assert.equal(one.present, false, `${kind}: provet mäter inte en frånvaro`);
+    assert.equal(one.absent_reason, note, `${kind}: orsaken är inte konstanten`);
+  }
+
+  /* Källan saknas bara när kontraktet FAKTISKT saknar den — mätt på en konstruerad uppgift. */
+  const base = snapshotOrThrow().current_task;
+  assert.ok(base);
+  const withoutSource = chainFor(base.task_id, {
+    snapshot: snapshotWithCurrentTask({ ...structuredClone(base), source: null }),
+  });
+  const sourceHop = hop(withoutSource, "source");
+  assert.deepEqual(withoutSource.violations, []);
+  assert.equal(sourceHop.present, false, "en källidentitet uppfanns ur ingenting");
+  assert.equal(sourceHop.absent_reason, SOURCE_ABSENT_NOTE);
+  assert.deepEqual(sourceHop.ids, []);
+  assert.deepEqual(sourceHop.fields, []);
+
+  // …och orsaken når läsaren ordagrant, inte bara projektionen.
+  assert.ok(
+    renderChain(base).includes(TASK_ABSENT_NOTE) === false,
+    "uppgiftens frånvaroorsak visas för en uppgift som finns",
+  );
+  for (const note of [AGENT_SESSION_ABSENT_NOTE, REVIEW_ABSENT_NOTE, PROMOTION_ABSENT_NOTE]) {
+    assert.ok(renderChain(base).includes(note), "en frånvaroorsak når aldrig markupen");
+  }
+});
+
 /* ────────────────────────────────────────────────────────────────────────────
  * 7 · MARKUPEN: MASKINLÄSBAR, ÄRLIG OCH ALDRIG PÅSTÅENDE UTAN ID
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -1035,6 +1086,98 @@ test("ROOM-03-MARKUP: bindningen som renderas är alltid ett id ur den validerad
   // Kommandots id står i markupen som ett verkligt värde, inte som en omskrivning.
   assert.ok(html.includes(`data-value="${outcome.command?.command_id}"`));
   assert.ok(html.includes(`data-value="${task.task_id}"`));
+});
+
+test("ROOM-03-MARKUP: bindningens identifierare är EGNA element — två värden kan aldrig flyta ihop", () => {
+  /*
+    Ett hopp kan bindas av FLERA identifierare. Renderas de som intilliggande spans utan
+    avgränsare blir "run_id run-1run_id run-2" — läsaren kan då inte se var det ena id:t slutar
+    och det andra börjar, och en orsakskedja vars hela värde är läsbara identiteter tappar exakt
+    det. Varje bindningsidentifierare ska därför vara sitt EGET element i inline-flex-listan.
+  */
+  const outcome = linkedOutcome();
+  const answer = outcome.controller_answer;
+  assert.ok(answer);
+  const html = [renderChain(answer.tasks[0]), renderChain(snapshotOrThrow().current_task)].join("\n");
+
+  const bindingItems = [...html.matchAll(/<li[^>]*data-chain-binding-id="([^"]+)"[^>]*>/g)];
+  assert.ok(bindingItems.length > 0, "ingen bindning renderades — mätaren mäter ingenting");
+
+  // Varje bindningsvärde bär HELA värdet maskinläsbart, oavsett hur det visas.
+  for (const [tag, key] of bindingItems.map((match) => [match[0], match[1]] as const)) {
+    assert.ok(
+      (CHAIN_IDENTITY_KEYS as readonly string[]).includes(key),
+      `markupen påstår en bindning på ${key}`,
+    );
+    assert.match(tag, /data-value="[^"]+"/, `bindningen ${key} bär inget fullständigt värde`);
+  }
+
+  /* MÄTAREN: bindningsidentifierare som INTE är egna listelement. Ska alltid vara tom. */
+  const bindingsOutsideList = (markup: string) =>
+    [...markup.matchAll(/data-chain-binding-line="[^"]*"[^>]*>([\s\S]*?)<\/p>/g)]
+      .map((match) => match[1])
+      .filter((text) => (text.match(/mk-mono/g) ?? []).length > 1);
+  assert.deepEqual(bindingsOutsideList(html), [], "bindningens id ritas inne i meningen");
+
+  /* LÖGNSTUBBE: den gamla formen — två mono-värden i samma mening utan avgränsare. */
+  const stub =
+    '<p data-chain-binding-line="shared_identifier">Bunden till via' +
+    '<span class="mk-mono">run-1</span><span class="mk-mono">run-2</span></p>';
+  assert.equal(bindingsOutsideList(stub).length, 1, "mätaren ser inte ens den gamla formen");
+
+  /*
+    Och att fallet med FLERA bindande id är verkligt, inte hypotetiskt: en ström där samma uppgift
+    bär två körningar ger ett försök som binds av två run_id — därför måste listan avgränsa dem.
+  */
+  const rawEvents = structuredClone(RAW_FIXTURES.events) as unknown as {
+    task_id: string | null;
+    run_id: string;
+    attempt_id: string | null;
+  }[];
+  const streamTaskId = streamOnlyTaskIds()[0];
+  assert.ok(streamTaskId, "fixturen har ingen ström-endast-uppgift");
+  const mine = rawEvents.filter((event) => event.task_id === streamTaskId && event.attempt_id !== null);
+  assert.ok(mine.length >= 2, "för få rader för att kunna dela uppgiften på två körningar");
+  mine[0].run_id = "run-fixture-delad";
+  const multi = chainFor(streamTaskId, { events: validEvents(rawEvents) });
+  assert.deepEqual(multi.violations, []);
+  assert.ok(
+    hop(multi, "attempt").bound_by.length >= 2,
+    "flerbindningsfallet gick inte att skapa — mätaren ovan skyddar ingenting",
+  );
+});
+
+test("ROOM-03-MARKUP: en trunkerad SHA bär hela värdet — samma väg i listan och i bindningen", () => {
+  /*
+    Husets regel (components/loop/ui.ts): trunkering är presentation, aldrig identitet, och den
+    som renderar bär hela strängen i `title`. Regeln mäts där den FAKTISKT når markupen — källans
+    sha256 och uppgiftens base_sha — och därutöver mäts att ytan bara har EN implementation av
+    trunkeringen, så att bindningsraden inte kan drifta ifrån identifierarlistan.
+  */
+  const task = snapshotOrThrow().current_task;
+  assert.ok(task?.source);
+  const html = renderChain(task);
+
+  for (const [key, value] of [
+    ["sha256", task.source.sha256],
+    ["base_sha", task.base_sha],
+  ] as const) {
+    assert.ok(value);
+    const item = html.match(new RegExp(`<li[^>]*data-chain-id="${key}"[^>]*>[\\s\\S]*?</li>`));
+    assert.ok(item, `${key} renderades inte`);
+    assert.ok(item[0].includes(`data-value="${value}"`), `${key} bär inte hela värdet`);
+    assert.ok(item[0].includes(`title="${value}"`), `${key} trunkeras utan att bära hela värdet`);
+    assert.ok(!item[0].includes(`>${value}<`), `${key} trunkeras inte alls`);
+  }
+
+  // EN implementation: `shortSha` anropas bara i den delade värdekomponenten.
+  const source = stripComments(readSlice("components/loop/room/CausalChain.tsx"));
+  assert.equal(
+    (source.match(/shortSha\(/g) ?? []).length,
+    1,
+    "trunkeringen finns på flera ställen i ytan — då kan bindningsraden drifta ifrån listan",
+  );
+  assert.match(source, /function IdValue/, "den delade värdekomponenten finns inte");
 });
 
 test("ROOM-03-MARKUP: kedjan är märkt som FIXTUR och blandas aldrig med live-strömmen", () => {

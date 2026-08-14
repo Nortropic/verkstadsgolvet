@@ -145,6 +145,10 @@ export const COMMAND_WITHOUT_SUBMISSION_NOTE =
 export const COMMAND_WITHOUT_RECORD_NOTE =
   "Inlämningen bär ingen kommandorad i fixturen: kommandots öde är okänt, aldrig lyckat.";
 
+export const SOURCE_ABSENT_NOTE =
+  "Uppgiften bär ingen källidentitet i posten: varken source_id eller sha256 finns. Ingen källa " +
+  "härleds ur ett filnamn, ur en inlämning eller ur en annan uppgift.";
+
 export const RUN_ABSENT_NOTE =
   "Ingen körningsidentitet binder uppgiften: varken en händelse med uppgiftens task_id eller en " +
   "snapshot som bär uppgiften finns. run_id härleds aldrig ur en annan uppgifts händelser.";
@@ -742,10 +746,7 @@ export function buildCausalChain(input: CausalInput): CausalChain {
     task === null
       ? absentHop("source", TASK_ABSENT_NOTE)
       : task.source === null
-        ? absentHop(
-            "source",
-            "Uppgiften bär ingen källidentitet i posten: varken source_id eller sha256 finns.",
-          )
+        ? absentHop("source", SOURCE_ABSENT_NOTE)
         : presentHop({
             kind: "source",
             record_source: taskSource,

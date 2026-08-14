@@ -68,9 +68,27 @@ export const CHAIN_NO_TASK_TEXT =
 /** Nycklar vars värde visas KORTAT i mono. Hela värdet bärs i `title` och i rådatan. */
 const SHA_KEYS = ["sha256", "base_sha", "candidate_sha", "from_sha", "to_sha", "grind_sha256"];
 
-function Identifier({ id }: { id: ChainIdentifier }) {
+/**
+ * ETT identifierarvärde, EN implementation.
+ *
+ * Trunkeringen är PRESENTATION och aldrig identitet: en SHA visas kort och bär hela strängen i
+ * `title` (husets regel i components/loop/ui.ts). Både identifierarlistan och bindningsraden
+ * renderar genom den HÄR komponenten — annars kunde den ena drifta ifrån den andra och visa en
+ * kapad SHA utan att någonstans bära hela värdet.
+ */
+function IdValue({ id }: { id: ChainIdentifier }) {
   const isSha = SHA_KEYS.includes(id.key);
-  const shown = isSha ? shortSha(id.value) : id.value;
+  return (
+    <span
+      className={id.mono ? "rm-id-value mk-mono" : "rm-id-value"}
+      title={isSha ? id.value : undefined}
+    >
+      {isSha ? shortSha(id.value) : id.value}
+    </span>
+  );
+}
+
+function Identifier({ id }: { id: ChainIdentifier }) {
   return (
     <li
       className="rm-id"
@@ -79,12 +97,7 @@ function Identifier({ id }: { id: ChainIdentifier }) {
       data-value={id.value}
     >
       <span className="rm-id-key">{id.key}</span>
-      <span
-        className={id.mono ? "rm-id-value mk-mono" : "rm-id-value"}
-        title={isSha ? id.value : undefined}
-      >
-        {shown}
-      </span>
+      <IdValue id={id} />
     </li>
   );
 }
@@ -151,15 +164,31 @@ function Hop({ hop }: { hop: ChainHop }) {
               den, och ingen bindning påstås.
             </p>
           ) : (
-            <p className="rm-chain-bind" data-chain-binding-line={hop.binding}>
-              Bunden till <span className="rm-chain-kind mk-mono">{hop.bound_to}</span> via{" "}
-              {hop.bound_by.map((id) => (
-                <span key={`${id.key}-${id.value}`}>
-                  <span className="rm-id-key">{id.key}</span>{" "}
-                  <span className="mk-mono">{SHA_KEYS.includes(id.key) ? shortSha(id.value) : id.value}</span>
-                </span>
-              ))}
-            </p>
+            <>
+              <p className="rm-chain-bind" data-chain-binding-line={hop.binding}>
+                Bunden till <span className="rm-chain-kind mk-mono">{hop.bound_to}</span> via
+              </p>
+              {/*
+                EN LISTA, INTE EN RAD MED INTILLIGGANDE SPANS. Ett hopp kan bindas av FLERA
+                identifierare (försöket mot körningen när strömmen bär två run_id), och två värden
+                utan avgränsare hade runnit ihop till en enda oläsbar sträng. Samma inline-flex-
+                mönster som identifierarlistan, så avgränsningen kommer ur stilarket och inte ur
+                ett hoppas-på-mellanslag.
+              */}
+              <ul className="rm-ids" data-chain-binding-ids="true">
+                {hop.bound_by.map((id, index) => (
+                  <li
+                    className="rm-id"
+                    data-chain-binding-id={id.key}
+                    data-value={id.value}
+                    key={`${index}-${id.key}-${id.value}`}
+                  >
+                    <span className="rm-id-key">{id.key}</span>
+                    <IdValue id={id} />
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
 
           {hop.note !== null && (
