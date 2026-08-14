@@ -210,6 +210,11 @@ export const ROOM_CSS = `
   overflow-wrap: anywhere; }
 .rm-chain-bind, .rm-chain-absent { margin: 0; font-size: 11.5px; line-height: 16px;
   color: var(--text-secondary); max-width: 82ch; overflow-wrap: anywhere; }
+/* Härkomstmärket vid en identifierare som står i den BÄRANDE posten, inte i hoppets eget utdrag.
+   Dämpat och litet: det är en upplysning bredvid värdet, aldrig en etikett som tar över raden. */
+.rm-id-origin { font-size: 9.5px; line-height: 14px; color: var(--text-disabled);
+  background: var(--bg-surface-0); box-shadow: var(--hairline); border-radius: var(--radius-control);
+  padding: 0 5px; white-space: nowrap; }
 .rm-chain-dash { font-family: var(--font-mono); color: var(--text-muted); }
 
 /* Bred teknisk text scrollar i SIN EGEN behållare — aldrig hela sidan. */

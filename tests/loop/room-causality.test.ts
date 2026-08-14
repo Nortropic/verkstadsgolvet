@@ -35,6 +35,8 @@ import MaskinShell from "../../components/loop/MaskinShell";
 import CausalChain, {
   CHAIN_NO_FIXTURE_TEXT,
   CHAIN_NO_TASK_TEXT,
+  CONTAINER_ORIGIN_LABEL,
+  CONTAINER_ORIGIN_NOTE,
 } from "../../components/loop/room/CausalChain";
 import {
   RAW_FIXTURES,
@@ -1144,6 +1146,77 @@ test("ROOM-03-MARKUP: bindningens identifierare är EGNA element — två värde
   assert.ok(
     hop(multi, "attempt").bound_by.length >= 2,
     "flerbindningsfallet gick inte att skapa — mätaren ovan skyddar ingenting",
+  );
+});
+
+test("ROOM-03-MARKUP: en identifierare ur den BÄRANDE posten är märkt som sådan, synligt", () => {
+  /*
+    Flera hopp är DELPOSTER: källan, kandidaten, verifieringen, attestationen och promotionen är
+    fält inne i uppgiftsposten, och den snapshotbundna körningen står i snapshoten. Deras task_id
+    står i den bärande posten och alltså INTE i hoppets egna rådata. Utan ett synligt märke ser en
+    operatör som jämför id-listan med rådatan strax under den en avvikelse utan att kunna avgöra
+    om den är ärlig. Bindningen är verklig — men ärligheten måste synas, inte bara stå i ett
+    dataattribut.
+  */
+  const task = snapshotOrThrow().current_task;
+  assert.ok(task);
+  const html = renderChain(task);
+  const chain = chainFor(task.task_id);
+
+  /* MÄTAREN: identifierare märkta som container i markupen men utan synligt märke. Alltid tom. */
+  const containerIdsWithoutLabel = (markup: string) =>
+    [...markup.matchAll(/<li[^>]*data-chain-identifier-origin="container"[^>]*>([\s\S]*?)<\/li>/g)]
+      .filter((match) => !match[1].includes(CONTAINER_ORIGIN_LABEL))
+      .map((match) => match[0]);
+  assert.deepEqual(containerIdsWithoutLabel(html), [], "en lånad identifierare visas som hoppets egen");
+
+  const containerItems = [
+    ...html.matchAll(/<li[^>]*data-chain-identifier-origin="container"[^>]*>[\s\S]*?<\/li>/g),
+  ];
+  assert.ok(containerItems.length > 0, "ingen bärande identifierare renderades — mätaren mäter inget");
+
+  /* NEGATIV KONTROLL: hoppets EGNA identifierare får aldrig bära märket. */
+  const ownItems = [
+    ...html.matchAll(/<li[^>]*data-chain-identifier-origin="record"[^>]*>[\s\S]*?<\/li>/g),
+  ];
+  assert.ok(ownItems.length > 0);
+  for (const [item] of ownItems.map((match) => [match[0]] as const)) {
+    assert.ok(!item.includes(CONTAINER_ORIGIN_LABEL), "en egen identifierare märktes som lånad");
+  }
+
+  /* LÖGNSTUBBE: den gamla formen — container-märkning utan synligt märke — måste fällas. */
+  const stub =
+    '<li data-chain-id="task_id" data-chain-identifier-origin="container" data-value="p-1">' +
+    '<span>task_id</span><span>p-1</span></li>';
+  assert.equal(containerIdsWithoutLabel(stub).length, 1, "mätaren ser inte ens den gamla formen");
+
+  /* Notisen står vid de hopp den gäller — och bara där. */
+  for (const block of hopBlocks(html)) {
+    const projected = hop(chain, block.kind as ChainHopKind);
+    const borrows = projected.ids.some((id) => id.origin === "container");
+    assert.equal(
+      block.markup.includes('data-chain-origin-note="container"'),
+      borrows,
+      `${block.kind}: notisen om bärande post står ${borrows ? "inte" : "trots att inget id lånas"}`,
+    );
+  }
+  assert.ok(html.includes(CONTAINER_ORIGIN_NOTE), "notisens ordalydelse når aldrig läsaren");
+
+  /*
+    OCH PÅSTÅENDET ÄR SANT: värdet står FAKTISKT i den bärande posten och inte i utdraget. Utan
+    den här mätningen kunde märket bli en artig brasklapp framför en påhittad identifierare.
+  */
+  const sourceHop = hop(chain, "source");
+  const taskHop = hop(chain, "task");
+  const borrowed = sourceHop.ids.find((id) => id.origin === "container");
+  assert.ok(borrowed, "källhoppet lånar ingen identifierare — provet mäter inte det det säger");
+  assert.ok(
+    !(sourceHop.raw ?? "").includes(borrowed.value),
+    "identifieraren står i utdraget ändå — då är märket fel",
+  );
+  assert.ok(
+    (taskHop.raw ?? "").includes(borrowed.value),
+    "den bärande posten bär inte värdet — då vore bindningen en gissning",
   );
 });
 

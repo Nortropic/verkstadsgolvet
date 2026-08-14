@@ -69,6 +69,22 @@ export const CHAIN_NO_TASK_TEXT =
 const SHA_KEYS = ["sha256", "base_sha", "candidate_sha", "from_sha", "to_sha", "grind_sha256"];
 
 /**
+ * Märket vid en identifierare som står i den post som BÄR hoppets utdrag.
+ *
+ * Flera hopp är delposter: källan, kandidaten, verifieringen, attestationen och promotionen är
+ * fält INNE i uppgiftsposten, och den snapshotbundna körningen står i snapshoten. Deras `task_id`
+ * står därför i den bärande posten och INTE i hoppets egna rådata. Utan märket ser en operatör som
+ * jämför id-listan med rådatan strax under den en avvikelse och har inget sätt att avgöra om den
+ * är ärlig — märket säger var identifieraren faktiskt står.
+ */
+export const CONTAINER_ORIGIN_LABEL = "ur bärande post";
+
+export const CONTAINER_ORIGIN_NOTE =
+  `Identifierare märkta «${CONTAINER_ORIGIN_LABEL}» står i posten som BÄR det här utdraget — ` +
+  "uppgiftsposten respektive snapshoten — och syns därför inte i utdragets rådata nedan. Värdet " +
+  "är utskrivet där, aldrig gissat, och det är precis det värdet bindningen vilar på.";
+
+/**
  * ETT identifierarvärde, EN implementation.
  *
  * Trunkeringen är PRESENTATION och aldrig identitet: en SHA visas kort och bär hela strängen i
@@ -98,6 +114,12 @@ function Identifier({ id }: { id: ChainIdentifier }) {
     >
       <span className="rm-id-key">{id.key}</span>
       <IdValue id={id} />
+      {/* Härkomsten SYNS, inte bara i ett dataattribut: id-listan och rådatan ska kunna jämföras. */}
+      {id.origin === "container" && (
+        <span className="rm-id-origin" data-chain-origin-label="container">
+          {CONTAINER_ORIGIN_LABEL}
+        </span>
+      )}
     </li>
   );
 }
@@ -149,6 +171,17 @@ function Hop({ hop }: { hop: ChainHop }) {
               <Identifier id={id} key={`${id.key}-${id.value}`} />
             ))}
           </ul>
+
+          {/*
+            Notisen står BARA vid de hopp den gäller. Ett hopp vars alla identifierare finns i dess
+            egen rådata behöver ingen förklaring, och en upprepad brasklapp vid varje hopp hade
+            gjort den till bakgrundsbrus i stället för en upplysning.
+          */}
+          {hop.ids.some((id) => id.origin === "container") && (
+            <p className="rm-chain-note" data-chain-origin-note="container">
+              {CONTAINER_ORIGIN_NOTE}
+            </p>
+          )}
 
           {hop.fields.length > 0 && (
             <ul className="rm-ids" data-chain-fields="true">
