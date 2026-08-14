@@ -101,7 +101,12 @@ export default function MaskinShell({
               egna värden — run_id, aktuell uppgift och det vattenmärke vyn såg) och skickas in
               som barn, så att banan äger placeringen utan att äga ytan.
             */}
-            <TaskFocusRail task={snapshot.current_task}>
+            {/*
+              ROOM-03 · fixturläget lämnas vidare till fokusbanan, som monterar orsakskedjan för
+              den aktuella uppgiften. Kedjan är fixtursidans projektion och måste kunna märka sig
+              själv som sådan; skalet äger fortfarande ingen datahämtning.
+            */}
+            <TaskFocusRail task={snapshot.current_task} fixture={fixture}>
               <CommandDeck
                 runId={snapshot.run_id}
                 watermark={snapshot.seq_watermark}

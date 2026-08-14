@@ -184,6 +184,39 @@ export const ROOM_CSS = `
 .rm-details > summary:focus-visible { box-shadow: var(--focus-ring); }
 .rm-details[open] > summary { margin-bottom: 6px; }
 
+/* ── Orsakskedjan (ROOM-03) ───────────────────────────────────────────────────
+   Kedjan är en LISTA, inte ett rutnät: hoppen läses i sin fasta semantiska ordning uppifrån och
+   ned. Ett frånvarande hopp tonas ned men göms ALDRIG — em-strecket och orsaken är information,
+   inte brus. Ingen rörelse, ingen stapel och ingen kopplingsgrafik som antyder en kedja där
+   bindningen saknas: bindningen står i klartext med sitt id. */
+.rm-chain { display: flex; flex-direction: column; gap: 9px; background: var(--bg-surface-0);
+  box-shadow: var(--hairline); border-radius: var(--radius-card); padding: 12px 14px; min-width: 0; }
+.rm-chain-title { margin: 0; font-size: var(--fs-body); line-height: var(--lh-body);
+  font-weight: 600; color: var(--text-primary); letter-spacing: 0.2px; }
+.rm-chain-note { margin: 0; font-size: 11px; line-height: 16px; color: var(--text-muted);
+  max-width: 82ch; overflow-wrap: anywhere; }
+.rm-chain-violations { list-style: none; margin: 0; padding: 8px 10px; display: flex;
+  flex-direction: column; gap: 4px; background: var(--tint-danger-bg);
+  box-shadow: inset 0 0 0 1px var(--tint-danger-border); border-radius: var(--radius-control); }
+.rm-chain-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
+  gap: 7px; }
+.rm-chain-hop { display: flex; flex-direction: column; gap: 6px; background: var(--bg-surface-1);
+  box-shadow: var(--hairline); border-radius: var(--radius-control); padding: 9px 11px;
+  min-width: 0; }
+.rm-chain-hop-absent { background: var(--bg-surface-0); }
+.rm-chain-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rm-chain-kind { font-size: 10.5px; letter-spacing: 0.6px; color: var(--text-muted); }
+.rm-chain-hop-title { font-size: 12.5px; line-height: 17px; color: var(--text-primary);
+  overflow-wrap: anywhere; }
+.rm-chain-bind, .rm-chain-absent { margin: 0; font-size: 11.5px; line-height: 16px;
+  color: var(--text-secondary); max-width: 82ch; overflow-wrap: anywhere; }
+/* Härkomstmärket vid en identifierare som står i den BÄRANDE posten, inte i hoppets eget utdrag.
+   Dämpat och litet: det är en upplysning bredvid värdet, aldrig en etikett som tar över raden. */
+.rm-id-origin { font-size: 9.5px; line-height: 14px; color: var(--text-disabled);
+  background: var(--bg-surface-0); box-shadow: var(--hairline); border-radius: var(--radius-control);
+  padding: 0 5px; white-space: nowrap; }
+.rm-chain-dash { font-family: var(--font-mono); color: var(--text-muted); }
+
 /* Bred teknisk text scrollar i SIN EGEN behållare — aldrig hela sidan. */
 .rm-scroll-x { overflow-x: auto; min-width: 0; }
 
