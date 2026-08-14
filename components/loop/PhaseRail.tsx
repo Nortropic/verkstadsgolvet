@@ -6,8 +6,9 @@
  *
  * BINDANDE REGLER FÖR JUST DEN HÄR SKIVAN
  * ---------------------------------------
- * V2 har INGEN eventström och ingen fold — den byggs i V3/V5. Fasraden får därför bara läsa
- * snapshotens `phase`, och gör exakt två saker:
+ * Eventströmmen finns sedan V9, men fasraden läser den INTE: någon fold från event till
+ * fasmarkörer är inte byggd. Fasraden får därför fortfarande bara läsa snapshotens `phase`,
+ * och gör exakt två saker:
  *
  *   1. Markerar snapshotens fas som PÅGÅENDE — men BARA när snapshotens task state säger att
  *      uppgiften faktiskt är i arbete (WORKING · VERIFYING · REVIEWING · MERGING). En STOPPAD
@@ -78,9 +79,10 @@ export default function PhaseRail({ task }: { task: TaskView }) {
         })}
       </div>
       <p className="mk-hint">
-        Fasmarkörer kommer ur eventströmmen, som inte är kopplad i den här skivan. Här visas
-        endast den fas snapshoten anger, och bara när uppgiften är i arbete. Övriga faser står
-        som — (inte känt här) — aldrig som klara.
+        Eventströmmen finns och läser kontrollplanet; dess transportläge står i strömpanelen.
+        Fasmarkörerna härleds ändå inte ur den i den här skivan. Här visas endast den fas
+        snapshoten anger, och bara när uppgiften är i arbete. Övriga faser står som — (inte
+        känt här) — aldrig som klara.
       </p>
     </div>
   );
