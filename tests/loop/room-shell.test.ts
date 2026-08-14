@@ -119,6 +119,33 @@ function identityCell(html: string, id: string): string {
   return next === -1 ? rest : rest.slice(0, next);
 }
 
+/**
+ * Väljarna i ett stilark som sätter `order`, med media-blocken genomskådade.
+ *
+ * Uppslaget går BAKLÄNGES från varje `order:`-deklaration till regelns egen öppningsklammer och
+ * vidare till närmast föregående klammer — så en regel inne i ett `@media`-block ger sin EGEN
+ * väljare, inte media-frågan. `border-radius` och liknande fälls inte: tecknet före `order` måste
+ * vara radbörjan, `;`, `{` eller blanktecken.
+ */
+function selectorsSettingOrder(css: string): string[] {
+  const found: string[] = [];
+  const pattern = /(?:^|[;{\s])order\s*:/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(css)) !== null) {
+    const ruleOpen = css.lastIndexOf("{", match.index);
+    if (ruleOpen < 0) continue;
+    const boundary = Math.max(css.lastIndexOf("}", ruleOpen), css.lastIndexOf("{", ruleOpen - 1));
+    found.push(
+      css
+        .slice(boundary + 1, ruleOpen)
+        .replace(/\/\*[\s\S]*?\*\//g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    );
+  }
+  return found;
+}
+
 /** Textinnehållet i varje element som märkts som saknat värde. */
 function missingValues(html: string): string[] {
   const matches = html.match(/data-missing="true"[^>]*>([^<]*)</g) ?? [];
@@ -725,6 +752,39 @@ test("ROOM-LAYOUT: banornas ordning är DOM-ordning — etikett, yta, notis, i a
     det media-blocket — och det är `aria-hidden`, för DOM-ordningen bär redan sekvensen för
     den som lyssnar i stället för att titta.
   */
+  /*
+    ORDNING SÄTTS BARA PÅ SCENENS EGNA BARN.
+
+    Hyllan (.rm-lane-out) är sedan den flyttades ut ur scenen ett direkt barn till .rm-room. En
+    `order` på den ordnar då HELA rummet, inte en spalt: hyllan målades sist på mobilen — efter
+    tidslinjen, gränsstycket och live-panelen — vilket både bröt axeln in → arbete → ut och gjorde
+    gränsstyckets påstående falskt, eftersom en fixturbaserad yta hamnade under live-panelen.
+    Provet mäter därför VARJE order-deklaration i stilarket, inte bara den som fanns då.
+  */
+  const ORDER_ALLOWED = [".rm-lane-focus", ".rm-lane > .mk-col"];
+  const ordering = selectorsSettingOrder(ROOM_CSS);
+  assert.ok(ordering.length > 0, "stilarket sätter ingen order alls — mätaren mäter ingenting");
+  for (const selector of ordering) {
+    assert.ok(
+      ORDER_ALLOWED.includes(selector),
+      `«${selector}» sätter order utanför scenens egna barn — rummets egen ordning kan flyttas`,
+    );
+  }
+  assert.ok(
+    !ordering.some((selector) => selector.includes("rm-lane-out")),
+    "hyllan ordnas om — på mobilen hamnar den då efter live-panelen",
+  );
+
+  // LÖGNSTUB: regeln som togs bort ska fällas av samma mätare, även inne i ett media-block …
+  const stub = "@media (max-width: 719px) {\n  .rm-lane-out { order: 2; }\n}";
+  assert.deepEqual(selectorsSettingOrder(stub), [".rm-lane-out"], "mätaren ser inte den gamla regeln");
+  // … och NEGATIV KONTROLL: `border-radius` och liknande får aldrig läsas som en order-regel.
+  assert.deepEqual(
+    selectorsSettingOrder(".rm-x { border-radius: 4px; box-shadow: inset 0 0 0 1px red; }"),
+    [],
+    "mätaren fälls av ord som bara innehåller «order»",
+  );
+
   assert.ok(markup.includes('class="rm-step-n" aria-hidden="true"'), "ordningstalet är inte urskilt");
   const narrow = ROOM_CSS.slice(ROOM_CSS.indexOf("@media (max-width: 959px)"));
   assert.match(

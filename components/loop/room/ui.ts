@@ -210,10 +210,24 @@ export const ROOM_CSS = `
      påstå det. Namnet står kvar, för det är sant i varje vy. */
   .rm-step-n { display: none; }
 }
+/*
+  ORDNING SÄTTS BARA PÅ SCENENS EGNA BARN.
+
+  Utmatningen är sedan hyllan flyttades ut ur .rm-stage ett direkt flexbarn till .rm-room. Ett
+  order-värde på .rm-lane-out gäller därför inte längre "tredje spalten i scenen" utan HELA
+  rummets ordning — och eftersom rummets övriga barn ligger på order 0 målades hyllan sist på mobilen:
+  efter tidslinjen, efter gränsstycket och efter live-panelen. Två saker gick sönder av det:
+  axeln in → arbete → ut stämde inte längre med vad ögat såg, och gränsstyckets påstående
+  ("ytorna ovan kommer ur fixturen, panelen nedan talar med läsplanet") blev falskt, eftersom en
+  fixturbaserad yta hamnade UNDER live-panelen.
+
+  Regeln är därför borta. Scenens interna ordning räcker: .rm-lane-focus ligger först vid 959 px
+  och ingången faller på sin DOM-plats efter den. Provet ROOM-LAYOUT mäter numera att inget
+  order-värde sätts på något annat än scenens egna barn, så samma miss inte kan komma tillbaka
+  nästa gång en yta flyttar.
+*/
 @media (max-width: 719px) {
   .rm-stage { grid-template-columns: minmax(0, 1fr); }
   .rm-lane-focus { order: -1; }
-  .rm-lane-in { order: 1; }
-  .rm-lane-out { order: 2; }
 }
 `;
