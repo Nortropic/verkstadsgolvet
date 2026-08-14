@@ -151,10 +151,9 @@ function snapshotWithEveryState(): { snapshot: LoopSnapshot; idOf: (s: TaskLifec
   return { snapshot: (validated as { ok: true; data: LoopSnapshot }).data, idOf };
 }
 
-/** Objektet vid HEAD, eller null om git-objektet inte går att läsa i den här kloningen. */
-function gitShow(relative: string): string | null {
+function git(args: string[]): string | null {
   try {
-    return execFileSync("git", ["show", `HEAD:${relative}`], {
+    return execFileSync("git", args, {
       cwd: REPO_ROOT,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
@@ -162,6 +161,34 @@ function gitShow(relative: string): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * KÖRNINGENS FRUSNA BAS — den commit grenen utgår ifrån, ALDRIG `HEAD`.
+ *
+ * Skälet är att mätaren annars blir tom precis när den behövs: körs grinden EFTER att kandidaten
+ * committats är `HEAD` kandidaten själv, och en jämförelse mot `HEAD` jämför då kandidaten med
+ * sig själv. En committad regression i en yta som ligger utanför skivan hade passerat obemärkt.
+ * `merge-base` ger basen både före och efter commit: körs provet på en ren arbetskopia är basen
+ * lika med `HEAD` (rätt), och ligger kandidatcommits ovanpå pekar den fortfarande på basen (rätt).
+ *
+ * Samma bindning som tests/loop/security.ts gör mot PLAN_BASE_SHA, men mätt i stället för
+ * transkriberad — en handskriven SHA i den här filen hade behövt uppdateras för hand vid varje
+ * skiva och blivit osann i tysthet.
+ */
+function frozenBaseSha(): string | null {
+  for (const ref of ["origin/main", "main"]) {
+    const sha = git(["merge-base", "HEAD", ref]);
+    if (sha === null) continue;
+    const trimmed = sha.trim();
+    if (/^[0-9a-f]{40}$/.test(trimmed)) return trimmed;
+  }
+  return null;
+}
+
+/** Filens innehåll vid en given commit, eller null när git-objektet inte går att läsa. */
+function gitShow(sha: string, relative: string): string | null {
+  return git(["show", `${sha}:${relative}`]);
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -449,14 +476,30 @@ test("ROOM-NEG: varken källan eller markupen bär procent, framstegselement ell
   assert.ok(html.includes(ROOM_CSS), "rummets stilark når aldrig markupen");
   assert.ok(html.includes(LOOP_CSS), "Maskinens stilark föll bort");
   assert.equal(ROOM_CSS_PREFIX, "rm-");
-  const loopUi = gitShow("components/loop/ui.ts");
-  if (loopUi !== null) {
-    assert.equal(
-      readFileSync(join(REPO_ROOT, "components/loop/ui.ts"), "utf8"),
-      loopUi,
-      "components/loop/ui.ts (LOOP_CSS) ändrades — den ligger utanför den här skivan",
-    );
+
+  /*
+    LOOP_CSS är Maskinens provade stilark och ligger UTANFÖR den här skivan. Jämförelsen görs mot
+    körningens frusna bas — inte mot HEAD, som efter en commit är kandidaten själv och därför
+    hade jämfört filen med sig själv.
+  */
+  const base = frozenBaseSha();
+  const loopUi = base === null ? null : gitShow(base, "components/loop/ui.ts");
+  if (loopUi === null) {
+    // Går git-objektet inte att läsa ska det SYNAS att jämförelsen inte gjordes. Kravet bärs då
+    // av det svagare men verkliga: rummet definierar aldrig om Maskinens stilark, det importerar det.
+    for (const { path, source } of roomSourceFiles()) {
+      assert.ok(
+        !/export const LOOP_CSS/.test(source),
+        `NOT_MEASURED mot basen OCH ${path} definierar om LOOP_CSS`,
+      );
+    }
+    return;
   }
+  assert.equal(
+    readFileSync(join(REPO_ROOT, "components/loop/ui.ts"), "utf8"),
+    loopUi,
+    `components/loop/ui.ts (LOOP_CSS) ändrades sedan basen ${base} — den ligger utanför den här skivan`,
+  );
 });
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -583,21 +626,44 @@ test("ROOM-ISOLERING: rummet rör ingen annan yta, och startsidan är byte-ident
     assert.ok(!/app\/\(app\)\/page|components\/Sidebar/.test(source), `${path} rör en annan route`);
   }
 
+  /*
+    Startsidan jämförs mot KÖRNINGENS FRUSNA BAS, inte mot HEAD: efter en commit är HEAD
+    kandidaten, och en jämförelse mot HEAD hade jämfört filen med sig själv — en committad
+    regression på / hade då passerat. Basen mäts med merge-base mot origin/main.
+  */
   const relative = "app/(app)/page.tsx";
-  const base = gitShow(relative);
-  if (base === null) {
+  const baseSha = frozenBaseSha();
+  const baseSource = baseSha === null ? null : gitShow(baseSha, relative);
+  if (baseSource === null) {
     // Git-objektet kan saknas i en grund klon. Då bärs kravet av den statiska kontrollen ovan,
     // och det ska SYNAS att jämförelsen inte kunde göras.
     assert.ok(
       roomSourceFiles().every(({ source }) => !source.includes("(app)/page")),
-      "kunde inte läsa startsidan ur git OCH rummet refererar den",
+      "NOT_MEASURED mot basen OCH rummet refererar startsidan",
     );
     return;
   }
   assert.equal(
     readFileSync(join(REPO_ROOT, relative), "utf8"),
-    base,
-    "startsidan ändrades — den ligger utanför den här skivan",
+    baseSource,
+    `startsidan ändrades sedan basen ${baseSha} — den ligger utanför den här skivan`,
+  );
+
+  /*
+    MÄTNINGEN SKA VARA VERKLIG. Två kontroller på själva mätaren:
+      · basen är en FÖRFADER till HEAD — den pekar alltså på grenens utgångspunkt, och ligger
+        kandidatcommits ovanpå jämförs de mot basen, inte mot sig själva;
+      · en enda tillagd rad i innehållet fälls av samma jämförelse (lögnstub).
+  */
+  assert.notEqual(
+    git(["merge-base", "--is-ancestor", baseSha as string, "HEAD"]),
+    null,
+    `basen ${baseSha} är inte en förfader till HEAD — jämförelsen mäter fel commit`,
+  );
+  assert.notEqual(
+    `${baseSource}\n// regression`,
+    baseSource,
+    "jämförelsen skulle inte se ens en tillagd rad",
   );
 
   // Routen matar fortfarande skalet med fixturen, och flaggan läses vid request.
