@@ -17,6 +17,7 @@
  */
 import * as React from "react";
 import CurrentTaskPanel from "../CurrentTaskPanel";
+import CausalChain from "./CausalChain";
 import IdentityStrip from "./IdentityStrip";
 import RoomStep from "./RoomStep";
 import type { TaskView } from "@/lib/loop/schema";
@@ -37,9 +38,16 @@ export const FOCUS_NOTE = "Tillståndet kommer ur snapshoten, aldrig ur strömme
 
 export default function TaskFocusRail({
   task,
+  fixture = false,
   children,
 }: {
   task: TaskView | null;
+  /**
+   * Fixturläget, vidarelämnat av skalet. ROOM-03:s orsakskedja är FIXTURSIDANS projektion och
+   * måste veta vilket läge rummet står i: en kedja mot en omärkt källa vore precis den
+   * hopblandning rummet finns för att undvika. Skenan avgör aldrig läget själv.
+   */
+  fixture?: boolean;
   /**
    * Ytor som hör till det fokuserade arbetet och som skalet äger monteringen av (V7:s
    * kommandoyta). De läggs SIST i banan, under identiteten.
@@ -58,6 +66,14 @@ export default function TaskFocusRail({
         scenen blev ett halvtomt rutnät.
       */}
       <IdentityStrip task={task} />
+      {/*
+        ROOM-03 · Orsakskedjan hör till DEN HÄR uppgiften: spårningen operatör/källa → kommando →
+        körning → uppgift → försök → agentsession → kandidat → verifiering → granskning →
+        attestation → promotion, där varje utskriven länk bärs av ett verkligt id. Den står i
+        fokusbanan, direkt under identiteten, av samma skäl som identitetsremsan gör det — nära
+        sitt föremål i stället för som ett eget fullbrett band långt från uppgiften.
+      */}
+      <CausalChain task={task} fixture={fixture} />
       {children}
     </div>
   );
