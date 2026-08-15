@@ -101,6 +101,22 @@ const LEADS = [
  * utrymmet i remsan och klämts till noll bredd: två nåbara poster försvinner för att de andra
  * immuniserades. Regeln är alltså «varje element med klassen nav-item», aldrig «varje länk».
  *
+ * OCH «ALLA POSTER» BETYDER OCKSÅ «Ny kund», SOM INTE BÄR KLASSEN nav-item.
+ * Precis samma fälla, ett steg längre ut: `.nav-cta` ligger i samma `.sidebar-nav` men får sitt
+ * mått ur en egen regel i app/globals.css som inte deklarerar någon flex alls. Den ärver därför
+ * `flex-shrink: 1` medan varje nav-item står på `flex: none` — och blir det ENDA krympbara
+ * flexbarnet i raden.
+ *
+ * MÄTT VID 390 PX, FÖRE ÅTGÄRDEN: `.nav-cta` hade «0/1/auto» (alltså krympfaktor ett) medan
+ * samtliga nav-item hade «0/0/auto», och raden ville vara 1887 px bred i en 276 px bred behållare.
+ * Hela det negativa utrymmet — drygt 1600 px — lades alltså på EN enda post, som pressades ihop
+ * mot sitt min-content-mått. Att immunisera elva poster och lämna den tolfte är att flytta
+ * problemet, inte lösa det: efter den förra ändringen hade posterna full basbredd att ge ifrån
+ * sig, nu har de ingen alls, och CTA:n bär hela skulden ensam.
+ *
+ * Måttet delas därför av CTA:n också. Sidled-scrollen i `.sidebar` är den mekanism som ska bära
+ * överskottsbredden — inte en godtyckligt utvald post.
+ *
  * DEN RIKTIGA FIXEN LIGGER I STILARKET, som den här skivan inte äger: full bredd hör inte hemma i
  * radläget alls. Tills en skiva som äger app/globals.css tar bort den bär posterna sitt mått själva.
  */
@@ -176,7 +192,11 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        <Link href="/onboarding" className={`nav-cta${isActive("/onboarding") ? " active" : ""}`}>
+        <Link
+          href="/onboarding"
+          className={`nav-cta${isActive("/onboarding") ? " active" : ""}`}
+          style={NAV_ITEM_ROW_FIT}
+        >
           <span className="nav-cta-ic">
             <svg viewBox="0 0 16 16" fill="none" width="15" height="15"><circle cx="6.3" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5" /><path d="M2.3 13c0-2.4 1.9-3.9 4-3.9.5 0 1 .1 1.5.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /><path d="M11.6 8.6v4M9.6 10.6h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
           </span>
