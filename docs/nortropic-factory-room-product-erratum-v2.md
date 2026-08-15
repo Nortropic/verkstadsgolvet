@@ -470,17 +470,35 @@ P13 Nortropic standing-work contract
 P14 event-driven wakeups
     status    NOT_STARTED
     showroom  none
-    live      SUPERVISOR-01 closed measured recover/stale-run gaps only; no event-driven wakeup
-              exists in scripts/claude-loop/** at this measurement
+    live      PARTIAL — measured by reading scripts/claude-loop/autopilot.ts at ac2ba4ea…:
+              SUPERVISOR-01 landed watchForReadyWork (git log -S watchForReadyWork = 4967ba2,
+              merged in 851c0b25…, an ancestor of this run's base), a bounded POLL-based wakeup
+              primitive. It blocks until there is something to wake up for and then exits, with
+              wake = READY (any ready slice, or one named slice) / RUN_TERMINAL (a watched run
+              reached a terminal phase) / TIMEOUT. It takes no claim, writes no state, starts no
+              run, chooses between no slices and re-invokes nothing, and its timeout is mandatory
+              so it can never become an unattended daemon. Covered by
+              tests/claude-loop/supervisor-async-ownership.test.ts.
     blocker   none
-    next      SUPERVISOR-02 — measured-gap only, no second scheduler, no second canonical backlog
+    gap       narrow and specific: a wake driven by a CONTROLLER EVENT rather than by an elapsed
+              poll interval. NOT "no wakeup exists" — that categorical negative was wrong
+    next      SUPERVISOR-02 — inventory watchForReadyWork FIRST and EXTEND it; measured gaps only,
+              no second scheduler, no second canonical backlog, and no parallel wake path beside
+              the primitive that already exists
 
 P15 dependency-satisfied wakeups
     status    NOT_STARTED
     showroom  none
-    live      none
+    live      PARTIAL — the same primitive: the taskId-scoped form of watchForReadyWork already IS
+              a dependency-satisfied OBSERVATION. Its docstring records that waking for one named
+              slice "is the same thing as 'this slice's dependencies are now satisfied'", because
+              the ready evaluation it observes is the canonical one the scheduler performs.
+              Exercised with taskId in tests/claude-loop/supervisor-async-ownership.test.ts.
     blocker   none
-    next      SUPERVISOR-02 (dependency_satisfied trigger class, STANDING-01 contract)
+    gap       the same as P14: the observation is poll-driven, and it observes rather than acts —
+              no controller event pushes it and it starts nothing
+    next      SUPERVISOR-02 (dependency_satisfied trigger class, STANDING-01 contract), extending
+              the existing taskId-scoped watchForReadyWork rather than duplicating it
 
 P16 scheduled work
     status    NOT_STARTED

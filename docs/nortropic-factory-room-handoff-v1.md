@@ -216,6 +216,13 @@ SUPERVISOR-01   measured-gap closure in scripts/claude-loop/**
     run       supervisor-01_async_ownership-20260815011935
     closes    measured gaps in recover / stale-run classification, per that run's summary
               (inventory-first: each closed gap cites the measurement that showed it open)
+    also      lands the WAKEUP PRIMITIVE watchForReadyWork in scripts/claude-loop/autopilot.ts —
+              recorded here by erratum-02 after re-reading the file at ac2ba4ea…, because it was
+              first omitted from this entry. Bounded poll-based observation returning READY /
+              RUN_TERMINAL / TIMEOUT, optionally scoped to one taskId (the existing
+              dependency-satisfied observation). Takes no claim, writes no state, starts no run,
+              mandatory timeout: a wake primitive, NOT a second scheduler. SUPERVISOR-02 extends
+              it; it does not rebuild it.
 
 ERRATUM-01   remote-operation and Railway corrections (docs only)
     merge     5accd9e533e9280de52c17e91b31a1c1aea2e5e3
