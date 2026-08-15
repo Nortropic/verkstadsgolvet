@@ -62,16 +62,23 @@ Authority reading list for a session picking this up: `CLAUDE.md`,
 
 ## CURRENT_AUTHORITATIVE_MAIN
 
-Re-measured 2026-08-15 in the ERRATUM-02_PRODUCT_V2 run worktree, after two further publications
-(ERRATUM-01, PR #33; SHREDDER-01A, PR #34).
+Re-measured 2026-08-15 in the ERRATUM-02_PRODUCT_V2 run worktree, after four further publications
+(STATUS-02, PR #31; REPORT-01, PR #32; ERRATUM-01, PR #33; SHREDDER-01A, PR #34).
 
 ```text
 Nortropic/verkstadsgolvet  origin/main = ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08
     measurement: git rev-parse origin/main (ERRATUM-02_PRODUCT_V2 run worktree, 2026-08-15); the
-    value matches the SHREDDER-01A merge commit (PR #34). Previous recorded values were
-    851c0b25b7463d616d5c95d94d55245687bf0a8b (SUPERVISOR-01, recorded by STATUS-02) and before it
-    cb133c53e189a14255faefceaeb459cd21165d2c (REPORT-01, PR #32) and
-    5accd9e533e9280de52c17e91b31a1c1aea2e5e3 (ERRATUM-01, PR #33).
+    value matches the SHREDDER-01A merge commit (PR #34). The previously recorded value was
+    851c0b25b7463d616d5c95d94d55245687bf0a8b (SUPERVISOR-01, PR #30, recorded by STATUS-02), and
+    main has moved FORWARD from it through four merges, measured with
+    git log --merges 851c0b25…..ac2ba4ea… (oldest first):
+        be624ad6610dba12fa47c6a2515b87499600efe4  STATUS-02      PR #31
+        cb133c53e189a14255faefceaeb459cd21165d2c  REPORT-01      PR #32
+        5accd9e533e9280de52c17e91b31a1c1aea2e5e3  ERRATUM-01     PR #33
+        ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08  SHREDDER-01A   PR #34
+    cb133c53… is therefore the THIRD-newest merge on main, not an older recorded value: it is the
+    commit the Railway CLI verified as deployed during ERRATUM-01, and two merges (#33 and #34)
+    have landed on main after it. That ordering is what makes CORRECTED_DECISION_6 bite.
 Nortropic/nortropic-system origin/main = e56edc08e5f069f16b5bdb853302a0f39c1f7075
     measurement: reported by the supervising session outside this worktree, 2026-08-15 — the
     backend moved to h-032 (host-builder-r2, PR #79). Previous recorded value was
