@@ -7,7 +7,7 @@ import { originMain, createWorktree, changedFiles, commitCandidate, clean, candi
 import { ClaudeRoleFailure, runRole, WRITE_ROLES, type RoleName } from './claude';
 import { assertOwnerAuthorPublicationGuard, laneForAuthorityClass, resolveAuthorityClass, type AuthorityClass, type AuthoritySelection } from './authority';
 import { assertDeclaredScope, assertNoForbiddenWorktreeFiles, formatScopeViolations, validateExactScope } from './scope';
-import { ClaimLostError, acquireClaim, ownerToken, releaseClaim, startClaimHeartbeat } from './claims';
+import { ClaimLostError, acquireClaim, acquireRunClaim, ownerToken, releaseClaim, startClaimHeartbeat } from './claims';
 import { runGates } from './gates';
 import { saveState, loadState } from './state';
 import { Telemetry } from './telemetry';
@@ -280,7 +280,12 @@ export async function startRun(taskFile: string, cliOwnerAuthorTaskIds: readonly
     selection: supervisorAuthoritySelection(config, cliOwnerAuthorTaskIds),
     source: `task file ${path.basename(taskFile)}`,
   });
-  return await startRunFromTask({ repo, config, task, authorityClass });
+  // `runClaim` is what makes an operator-started run OBSERVABLE and RECOVERABLE. Without it a
+  // direct `claude:run` that is killed leaves a run state stuck in a non-terminal phase with no
+  // liveness evidence anywhere on disk, so nothing could distinguish it from a run still working
+  // and `claude:autopilot-recover` had nothing to sweep. The autopilot does not need it: its task
+  // claim already covers the run it started.
+  return await startRunFromTask({ repo, config, task, authorityClass, runClaim: true });
 }
 
 /**
@@ -337,6 +342,15 @@ export async function startRunFromTask(args: {
   authorityClass: AuthorityClass;
   heartbeat?: RunHeartbeat;
   deps?: RunDeps;
+  /**
+   * Take, heartbeat and release a RUN claim for the whole run.
+   *
+   * Off by default because the autopilot's task claim already covers the run it starts, and a
+   * caller that supplies its own `heartbeat` is already claim-covered. `claude:run` turns it on:
+   * an operator-started run otherwise carries no liveness evidence at all, so a process killed
+   * mid-phase could neither be classified as stale nor recovered.
+   */
+  runClaim?: boolean;
 }): Promise<RunState> {
   const repo = args.repo ?? repoRoot();
   const config = args.config ?? loadConfig(repo);
@@ -351,14 +365,45 @@ export async function startRunFromTask(args: {
   if (task.baseSha && task.baseSha !== main) throw new Error(`explicit task base is not current origin/main`);
   const deps = args.deps ?? productionRunDeps;
   const runId = `${slug(task.id)}-${nowId()}`;
-  const wtRoot = deps.worktreeRoot ?? path.join(os.homedir(), 'nortropic', 'worktrees', 'claude-factory');
-  const { worktree, branch } = createWorktree(repo, wtRoot, task.id, runId, baseSha);
-  // The frozen base is the first entry of the append-only progress history, so a later candidate
-  // that undoes the whole run back to the base tree is recognised as oscillation rather than work.
-  const baseRecord: ProgressRecord = { round: 0, source: 'builder', kind: 'base', candidateSha: baseSha, candidateTree: candidateTree(worktree), fingerprint: '', files: [], relevantChange: false, detail: 'frozen base' };
-  let state: RunState = { version: 1, runId, task, authorityClass, baseSha, branch, worktree, phase: 'ARCHITECT', attempt: 0, candidateSha: null, sessions: { architect: null, builder: null, reviewer: null, visualReviewer: null }, ownerRemediationExtensionRounds: 0, builderContinuationResumesUsed: 0, progressHistory: [baseRecord], findings: [], advisoryFindings: [], prUrl: null, blockedReason: null };
-  saveState(repo, state);
-  return await execute(repo, config, state, args.heartbeat, deps);
+
+  // The run claim is taken BEFORE the worktree exists, so ownership of the run id is established
+  // before any Git object or run state carries it. A fresh run id cannot collide with a live claim
+  // except when the same task is started twice in the same second, and that is refused rather than
+  // resolved: two supervisors in one worktree on one candidate is exactly what claims prevent.
+  const claimed = args.runClaim
+    ? acquireRunClaim({ repo, runId, owner: ownerToken('run'), nowMs: Date.now(), ttlSeconds: config.autopilot.claimTtlSeconds, note: 'operator-started run' })
+    : null;
+  if (claimed && !claimed.ok) {
+    throw new Error(`run ${runId} is already claimed by ${claimed.current?.owner ?? 'another supervisor'} (${claimed.reason}); start the task again or recover the stale claim with npm run claude:autopilot-recover`);
+  }
+  const runHeartbeat = claimed?.ok
+    ? startClaimHeartbeat({ repo, claim: claimed.claim, ttlSeconds: config.autopilot.claimTtlSeconds })
+    : null;
+  // Both liveness checkpoints fail closed: the caller's claim (the autopilot's task claim, when
+  // there is one) and this run's own claim. Either loss stops the run instead of letting a
+  // taken-over supervisor keep writing.
+  const heartbeat: RunHeartbeat | undefined = runHeartbeat
+    ? () => { args.heartbeat?.(); runHeartbeat.checkpoint(); }
+    : args.heartbeat;
+
+  try {
+    const wtRoot = deps.worktreeRoot ?? path.join(os.homedir(), 'nortropic', 'worktrees', 'claude-factory');
+    const { worktree, branch } = createWorktree(repo, wtRoot, task.id, runId, baseSha);
+    // The frozen base is the first entry of the append-only progress history, so a later candidate
+    // that undoes the whole run back to the base tree is recognised as oscillation rather than work.
+    const baseRecord: ProgressRecord = { round: 0, source: 'builder', kind: 'base', candidateSha: baseSha, candidateTree: candidateTree(worktree), fingerprint: '', files: [], relevantChange: false, detail: 'frozen base' };
+    const state: RunState = { version: 1, runId, task, authorityClass, baseSha, branch, worktree, phase: 'ARCHITECT', attempt: 0, candidateSha: null, sessions: { architect: null, builder: null, reviewer: null, visualReviewer: null }, ownerRemediationExtensionRounds: 0, builderContinuationResumesUsed: 0, progressHistory: [baseRecord], findings: [], advisoryFindings: [], prUrl: null, blockedReason: null };
+    saveState(repo, state);
+    return await execute(repo, config, state, heartbeat, deps);
+  } finally {
+    // A run that ENDS — completed or blocked — releases its claim, so the run id is never left
+    // looking abandoned by a supervisor that is simply finished. A run that is KILLED never reaches
+    // this line, which is precisely what leaves the stale claim that recovery sweeps.
+    if (runHeartbeat && claimed?.ok) {
+      runHeartbeat.stop();
+      releaseClaim({ repo, claim: claimed.claim, nowMs: Date.now(), note: 'released after run' });
+    }
+  }
 }
 
 export async function resumeRun(runId: string, cliOwnerAuthorTaskIds: readonly string[] = []): Promise<RunState> {

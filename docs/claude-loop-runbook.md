@@ -166,6 +166,38 @@ npm run claude:resume -- <run-id> --owner-author <taskId>   # only for an owner-
 
 A resume takes an atomic **run claim** and keeps it heartbeating for the whole resume, so two operators cannot put two model sessions on the same recorded run and the same candidate however long the resume takes; a second resume is refused with the current owner's identity. If a resume is killed, its claim stops beating and becomes recoverable through `npm run claude:autopilot-recover`.
 
+`claude:run --task` takes the same run claim for the whole run and releases it when the run ends, completed or blocked. A run that is **killed** never reaches that release, so its claim keeps the last heartbeat it wrote and expires: that expiry is the only evidence the Factory accepts that a supervisor process is gone.
+
+### Process death
+
+A killed supervisor cannot write its own epitaph: nothing else was ever going to move `state.json` out of `BUILD`/`REMEDIATE`/`REVIEW`, so the run sat in a non-terminal phase forever while `claude:autopilot-recover` printed `NOTHING_TO_RECOVER` — it swept claims and autopilot ledger rows, never run states. Recovery now also classifies every persisted run:
+
+| Classification | What proves it | What recovery does |
+|---|---|---|
+| `LIVE` | a claim covering the run (its own run claim, or the autopilot's task claim) beat inside its TTL | nothing, ever — a live supervisor is never declared lost |
+| `LOST` | such a claim exists but stopped beating beyond its TTL | releases the claim and demotes the non-terminal run to `BLOCKED` |
+| `UNPROVEN` | no claim covers the run, or only a released one | **nothing**: it is listed as `RUN_UNRECOVERED` and waits for an explicit operator decision |
+| `UNREADABLE` | the run state does not parse | nothing: it is listed, never written over |
+
+```bash
+npm run claude:autopilot-recover                 # sweep: stale claims, ledger rows, LOST run states
+npx tsx scripts/claude-loop/cli.ts autopilot-recover --run <run-id>   # the explicit operator decision
+```
+
+The demotion writes exactly two fields — `phase` and `blockedReason` — on a run state re-read from disk at that moment. The reason begins with the stable prefix `supervisor process lost (recovered)`. Nothing else is touched: the candidate commit, its branch, its worktree, the recorded session identities, `attempt`, the pending findings and the append-only `progressHistory` all survive byte-identically, which is what makes the recovered run resumable rather than restartable. No ledger row is invented for a task that never had one.
+
+A recovered run is **not** an entitlement. `supervisor process lost (recovered)` is not a breaker reason and not a budget reason, so `resume` continues through the ordinary path and `extend-remediation` still refuses it: recovery restores an accurate record, it never grants another model round. `--run` fails closed on a live claim, on an already-terminal run, on an unreadable state and on an unknown run id, and validates every named id **before** it writes anything.
+
+### Telling live runs from abandoned ones
+
+`npm run claude:status` and `npm run claude:autopilot-status` carry the classification and the heartbeat age of the claim it came from, so the judgement is mechanical instead of a manual read of claim files. Unknown ages render as `—`, never as an invented number:
+
+```text
+room-08_mobile_room-20260815000407  ROOM-08_MOBILE_ROOM  REMEDIATE  6831fbd…  UNPROVEN  heartbeat_age=—
+```
+
+`UNPROVEN` on an unfinished run means exactly one thing: that run was started before run claims covered the direct path, so nothing on disk proves anything about its process. It is reported rather than swept.
+
 Do not reset/rebase/amend a blocked worktree. The supervisor resumes from recorded facts and existing immutable candidate commits. Terminal builder errors preserve the recoverable builder session ID in run state. A circuit-breaker block does NOT gain another model round by repeated `resume`; it requires an explicit owner re-open:
 
 ```bash
@@ -173,6 +205,20 @@ npx tsx scripts/claude-loop/cli.ts extend-remediation <run-id> 1
 ```
 
 An extension is runtime workflow state, not publication or trust authority. Keep it bounded and owner-reviewed.
+
+## Waiting for work
+
+There is exactly **one** scheduler (`runAutopilot`) and exactly **one** canonical backlog. `watch-ready` adds neither: it blocks until there is something to wake up *for*, prints what woke it, and exits. It takes no claim, starts no run, writes no state and chooses between no slices — the caller decides what to do next.
+
+```bash
+npx tsx scripts/claude-loop/cli.ts watch-ready                       # any slice becomes READY
+npx tsx scripts/claude-loop/cli.ts watch-ready --task ROOM-09        # that slice becomes READY (its dependencies are satisfied)
+npx tsx scripts/claude-loop/cli.ts watch-ready --run <run-id>        # …or that run reaches DONE/BLOCKED
+```
+
+The observation is the same canonical evaluation the scheduler makes its own decisions on, so a slice becomes wake-worthy through the ordinary dependency and ledger rules and through nothing else. The wait is bounded by a mandatory timeout (`--timeout-ms`, default one hour; `--interval-ms` default 15s) so a wakeup can never drift into an unattended daemon. `WATCH_WAKE=READY|RUN_TERMINAL|TIMEOUT` is the marker; a timeout also exits non-zero, so a caller can branch without parsing prose. An unreadable or missing watched run is `—`, never a terminal verdict.
+
+A pass that ends because there is nothing left to do now says so explicitly: `autopilot.no_ready_work` (with the number of slices completed in that pass) followed by `autopilot.stopped`. Every other stop reason emits `autopilot.stopped` alone — "awaiting publication" is not the same statement as "no work". Both are telemetry: no scheduling decision is taken, deferred or repeated by either.
 
 ## Remediation circuit breaker
 
