@@ -389,8 +389,12 @@ const HIDING_ALLOWED: { selector: string; why: string }[] = [
   {
     selector: ".rm-step-n",
     why:
-      "ordningstalet är ett PÅSTÅENDE OM LAYOUTEN och döljs bara i de vyer där banorna inte " +
-      "längre står i den ordningen. Namnet på steget står kvar i varje vy.",
+      "ordningstalet är ett PÅSTÅENDE OM LAYOUTEN, aldrig ett värde ur snapshoten. Efter " +
+      "SHREDDER-01C leder ingången i varje vy, så talet är SANT också vid 720–959 px — och " +
+      "utelämnas ändå där. Att utelämna ett sant tal är en utelämning, aldrig en osanning: " +
+      "namnet på steget står kvar i varje vy. Regeln ligger kvar därför att den är frusen av " +
+      "ROOM-LAYOUT i tests/loop/room-shell.test.ts, vars 959-mätning ligger utanför den här " +
+      "skivans skrivrätt; att ta tillbaka talet hör till den skiva som äger den mätningen.",
   },
   {
     selector: ".rm-details > summary::-webkit-details-marker",
@@ -869,8 +873,20 @@ test("ROOM-MOBIL-ORDNING: vid 390 px är spalten huvud → uppmärksamhet → ma
     "mätaren fäller fortfarande bara en enda stavning av påståendet",
   );
   /*
-    Och den nya prosan säger BÅDA intervallen: en fil som bara nämner det ena hade beskrivit
-    halva sanningen lika tyst som den gamla beskrev fel sanning.
+    SKALET SKA NÄMNA BÅDA BREDDERNA — MEN INTE LÄNGRE SOM TVÅ OLIKA LÄSORDNINGAR.
+
+    Raderna nedan skrevs när 720–959 px och ≤719 px FAKTISKT hade skilda ordningar, och skälet
+    var då att en fil som bara nämnde det ena beskrev halva sanningen. Efter SHREDDER-01C delar
+    de två intervallen EN läsordning: ingången leder i båda. Kravet som står kvar är alltså
+    smalare än det en gång var — skalets bindande regler ska fortfarande beskriva rummet vid
+    BÅDA bredderna, eftersom en brytpunkt som ingen text nämner är en brytpunkt nästa läsare
+    inte vet finns. Det är en NÄRVAROKONTROLL, inte ett påstående om att ordningarna skiljer sig.
+
+    RESIDUAL, UTSKRIVEN I STÄLLET FÖR UNDERFÖRSTÅDD: components/loop/MaskinShell.tsx beskriver
+    fortfarande de två intervallen som olika arrangemang, och den filen ligger utanför den här
+    skivans skrivrätt. Raderna nedan pinnar därför tillfälligt fast en formulering som ska
+    skrivas om. Den skiva som äger MaskinShell.tsx ska rätta skalets prosa OCH samtidigt se över
+    det här paret, så att kontrollen inte blir ett skäl att låta den gamla distinktionen stå kvar.
   */
   const shell = readFileSync(join(REPO_ROOT, "components/loop/MaskinShell.tsx"), "utf8");
   assert.match(shell, /720–959 px/, "skalet beskriver inte längre surfplattans ordning");
