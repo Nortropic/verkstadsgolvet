@@ -91,6 +91,20 @@ export function isClaimStale(claim: ClaimRecord, nowMs: number): boolean {
   return nowMs - beat > claim.ttlSeconds * 1000;
 }
 
+/**
+ * How long ago this claim last beat, in whole seconds, or `null` when its heartbeat is unreadable.
+ *
+ * A pure read of the recorded heartbeat. It is the number an operator (or a later observer surface)
+ * needs to tell a long live run from an abandoned one MECHANICALLY, instead of by opening claim
+ * files by hand. It answers nothing on its own: `isClaimStale` remains the only staleness verdict,
+ * and this helper never widens, refreshes or weakens a claim.
+ */
+export function claimHeartbeatAgeSeconds(claim: ClaimRecord, nowMs: number): number | null {
+  const beat = Date.parse(claim.heartbeatAt);
+  if (!Number.isFinite(beat)) return null;
+  return Math.floor((nowMs - beat) / 1000);
+}
+
 /** True only while this exact epoch is still the newest one: the owner has not been taken over. */
 export function claimIsCurrent(repo: string, claim: ClaimRecord): boolean {
   const now = currentClaim(repo, claim.scope, claim.key);
@@ -160,6 +174,28 @@ export function acquireClaim(args: AcquireArgs): AcquireResult {
     return { ok: false, reason: 'RACE_LOST', current: currentClaim(args.repo, args.scope, args.key) };
   }
   return { ok: true, claim: record, recovered: stale ? current : null };
+}
+
+/**
+ * Takes the RUN-scope claim for one run id. Ordinary `acquireClaim`, with the scope fixed.
+ *
+ * It exists so that a run started directly by an operator is covered by the same claim mechanism as
+ * a resumed one, without a second copy of the scope/key/runId wiring drifting apart from it.
+ * `resumeRun` deliberately keeps its own inline acquisition: its exact shape and its position
+ * relative to the resume guards are pinned as source facts by `tests/claude-loop/claims.test.ts`,
+ * so this task does not restate it.
+ */
+export function acquireRunClaim(args: { repo: string; runId: string; owner: string; nowMs: number; ttlSeconds: number; note?: string | null }): AcquireResult {
+  return acquireClaim({
+    repo: args.repo,
+    scope: 'run',
+    key: args.runId,
+    owner: args.owner,
+    nowMs: args.nowMs,
+    ttlSeconds: args.ttlSeconds,
+    runId: args.runId,
+    note: args.note ?? null,
+  });
 }
 
 export type HeartbeatResult = { ok: true; claim: ClaimRecord } | { ok: false; reason: 'LOST'; current: ClaimRecord | null };

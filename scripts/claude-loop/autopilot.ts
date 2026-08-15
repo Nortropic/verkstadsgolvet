@@ -17,18 +17,24 @@ import {
   type ItemEvaluation,
 } from './backlog';
 import {
+  CLAIM_KEY_PATTERN,
   ClaimLostError,
   acquireClaim,
+  claimHeartbeatAgeSeconds,
+  currentClaim,
   heartbeatClaim,
   heartbeatIntervalMs,
+  isClaimStale,
   listClaims,
   ownerToken,
   recoverStaleClaims,
   releaseClaim,
   type ClaimRecord,
+  type ClaimScope,
   type ClaimSummary,
   type HeartbeatResult,
 } from './claims';
+import { isTerminalRunPhase, listRunStates, loadState, saveState } from './state';
 import {
   clearLedgerEntry,
   findEntry,
@@ -203,10 +209,32 @@ export async function runAutopilot(args: {
   const started: AutopilotTaskOutcome[] = [];
   let evaluations: ItemEvaluation[] = [];
 
+  /**
+   * The single exit point of a pass, as an OBSERVABLE event.
+   *
+   * The stop reason was already returned to the caller, but the event stream — the thing an
+   * observer or a `watch-ready` caller consumes — carried nothing at all when a pass simply ran out
+   * of work. `autopilot.no_ready_work` is that missing marker: it states, mechanically, that a pass
+   * ended with zero READY slices and how many it completed on the way there. It is telemetry only:
+   * no scheduling decision is taken, deferred or repeated here.
+   */
+  const finish = (result: AutopilotResult): AutopilotResult => {
+    if (result.stopReason === 'IDLE') {
+      deps.emit('autopilot.no_ready_work', {
+        completed_this_pass: result.started.length,
+        waiting: result.evaluations.filter((e) => e.status === 'WAITING').length,
+        ready: result.evaluations.filter((e) => e.status === 'READY').length,
+        detail: result.detail,
+      });
+    }
+    deps.emit('autopilot.stopped', { stop_reason: result.stopReason, detail: result.detail, completed_this_pass: result.started.length });
+    return result;
+  };
+
   // Checked before anything is fetched or claimed: a disarmed autopilot touches nothing at all.
   if (!config.autopilot.enabled && !args.force) {
     const snapshot = evaluateNow({ deps, selection });
-    return { stopReason: 'DISABLED', detail: 'autopilot.enabled=false; run with --force for a single explicit operator-driven pass', started, evaluations: snapshot.evaluations, base: null };
+    return finish({ stopReason: 'DISABLED', detail: 'autopilot.enabled=false; run with --force for a single explicit operator-driven pass', started, evaluations: snapshot.evaluations, base: null });
   }
 
   let base = deps.originMain();
@@ -248,7 +276,7 @@ export async function runAutopilot(args: {
       const detail = skipped.size
         ? `every READY slice is claimed by another supervisor: ${[...skipped].join(', ')}`
         : `no READY slice: ${evaluations.filter((e) => e.status === 'WAITING').map((e) => `${e.id} (${e.reasons[0] ?? 'waiting'})`).join('; ') || 'backlog empty'}`;
-      return { stopReason: skipped.size ? 'CLAIM_UNAVAILABLE' : 'IDLE', detail, started, evaluations, base };
+      return finish({ stopReason: skipped.size ? 'CLAIM_UNAVAILABLE' : 'IDLE', detail, started, evaluations, base });
     }
 
     const item = claimed.evaluation.item;
@@ -286,7 +314,7 @@ export async function runAutopilot(args: {
       // Taken over while running: this supervisor no longer owns the slice, so it must not write
       // the ledger entry for it either. The owner that holds the claim decides the outcome.
       deps.emit('autopilot.task_abandoned', { task: item.id, reason: failure.message });
-      return { stopReason: 'CLAIM_LOST', detail: failure.message, started, evaluations, base };
+      return finish({ stopReason: 'CLAIM_LOST', detail: failure.message, started, evaluations, base });
     }
 
     if (failure || !state || state.phase !== 'DONE') {
@@ -297,7 +325,7 @@ export async function runAutopilot(args: {
       deps.emit('autopilot.task_blocked', { task: item.id, reason });
       // A blocked slice — including an exhausted remediation budget — stops the autopilot. The
       // budget is never widened by scheduling; that requires an explicit owner extension.
-      return { stopReason: 'RUN_BLOCKED', detail: `${item.id} blocked: ${reason}`, started, evaluations, base };
+      return finish({ stopReason: 'RUN_BLOCKED', detail: `${item.id} blocked: ${reason}`, started, evaluations, base });
     }
 
     const mainAfter = deps.originMain();
@@ -313,7 +341,7 @@ export async function runAutopilot(args: {
       deps.release({ claim: claimed.claim, nowMs: deps.now(), note: 'released after base drift' });
       started.push({ taskId: item.id, runId: state.runId, baseSha: base, status: 'BLOCKED', candidateSha: state.candidateSha, mergedMain: null, reason });
       deps.emit('autopilot.base_drift', { task: item.id, expected: base, actual: mainAfter, candidate_sha: state.candidateSha });
-      return { stopReason: 'BASE_DRIFT', detail: reason, started, evaluations, base: mainAfter };
+      return finish({ stopReason: 'BASE_DRIFT', detail: reason, started, evaluations, base: mainAfter });
     }
 
     const status: LedgerEntry['status'] = merged ? 'DONE' : 'AWAITING_PUBLICATION';
@@ -329,10 +357,10 @@ export async function runAutopilot(args: {
       // CONTINUE-AFTER-MERGE, negative case: the work is not in main, so any later slice would be
       // built on a base that lacks it. Later slices that do not depend on this one stay selectable
       // on the next invocation; this invocation stops rather than silently stacking candidates.
-      return { stopReason: 'AWAITING_PUBLICATION', detail: `${item.id} produced candidate ${state.candidateSha ?? '-'} and is awaiting operator publication; main was not moved`, started, evaluations, base };
+      return finish({ stopReason: 'AWAITING_PUBLICATION', detail: `${item.id} produced candidate ${state.candidateSha ?? '-'} and is awaiting operator publication; main was not moved`, started, evaluations, base });
     }
     if (!config.autopilot.continueAfterMerge) {
-      return { stopReason: 'CONTINUE_AFTER_MERGE_DISABLED', detail: `${item.id} merged as ${mainAfter}; autopilot.continueAfterMerge=false`, started, evaluations, base: mainAfter };
+      return finish({ stopReason: 'CONTINUE_AFTER_MERGE_DISABLED', detail: `${item.id} merged as ${mainAfter}; autopilot.continueAfterMerge=false`, started, evaluations, base: mainAfter });
     }
     // CONTINUE-AFTER-MERGE, positive case: the reviewed candidate really is main now, proven from
     // Git parents, so the next slice legitimately builds on it.
@@ -340,7 +368,111 @@ export async function runAutopilot(args: {
     deps.emit('autopilot.continue_after_merge', { task: item.id, next_base: base });
   }
 
-  return { stopReason: 'MAX_TASKS', detail: `reached autopilot.maxTasks=${config.autopilot.maxTasks}`, started, evaluations, base };
+  return finish({ stopReason: 'MAX_TASKS', detail: `reached autopilot.maxTasks=${config.autopilot.maxTasks}`, started, evaluations, base });
+}
+
+/* ------------------------------------------------------------------ stale-run classification */
+
+/**
+ * What the persisted evidence says about the process that owns a run.
+ *
+ * `LIVE`      — a claim covering this run is HELD and still beating inside its TTL.
+ * `LOST`      — a claim covering it is HELD but stopped beating: the TTL contract says the owner is
+ *               gone, which is the same proof `recoverStaleClaims` has always used.
+ * `UNPROVEN`  — no claim covers it (or only a RELEASED one). Nothing on disk proves either liveness
+ *               or death, so recovery fails closed and touches it only when an operator names it.
+ * `UNREADABLE`— the run state does not parse. It is reported, never written over.
+ */
+export type RunLiveness = 'LIVE' | 'LOST' | 'UNPROVEN' | 'UNREADABLE';
+
+export type RunOwnership = {
+  runId: string;
+  taskId: string | null;
+  phase: string | null;
+  /** True for `DONE`/`BLOCKED`: there is no interrupted work to recover. */
+  terminal: boolean;
+  liveness: RunLiveness;
+  /** Age of the heartbeat of the claim the verdict came from, or `null` when there is none. */
+  heartbeatAgeSeconds: number | null;
+  claim: { scope: ClaimScope; key: string; owner: string; epoch: number; state: ClaimRecord['state'] } | null;
+  evidence: string;
+  error: string | null;
+};
+
+function claimIfKeyIsSafe(repo: string, scope: ClaimScope, key: string): ClaimRecord | null {
+  return CLAIM_KEY_PATTERN.test(key) ? currentClaim(repo, scope, key) : null;
+}
+
+/**
+ * The claims that may speak for one run, in the order of their authority.
+ *
+ * A **HELD run-scope claim is the run's own ownership record and is authoritative for it, alone**.
+ * Nothing in the Factory ever adopts an existing run id — a fresh run mints a new one and a resume
+ * takes over that exact key — so a HELD-but-stale run claim can only belong to a dead process. The
+ * task claim of the same slice must therefore NOT be consulted in that case: a later autopilot pass
+ * legitimately holding a live task claim for the slice would otherwise mask the death of an earlier
+ * run of it, while `recoverStaleClaims` released the stale run claim anyway — losing the only
+ * evidence that the run had died.
+ *
+ * The task claim is consulted only when the run has no HELD claim of its own, which is exactly the
+ * autopilot case: the scheduler covers the run it started with the TASK claim and mints no run claim.
+ */
+function claimsCoveringRun(repo: string, runId: string, taskId: string | null): ClaimRecord[] {
+  const own = claimIfKeyIsSafe(repo, 'run', runId);
+  if (own && own.state === 'HELD') return [own];
+  const task = taskId ? claimIfKeyIsSafe(repo, 'task', taskId) : null;
+  return [own, task].filter((c): c is ClaimRecord => c !== null);
+}
+
+/**
+ * Classifies every persisted run against the claims covering it. A pure read: no claim is taken,
+ * refreshed or released here, and no run state is written.
+ *
+ * Where more than one claim may speak for a run — i.e. the run has no HELD claim of its own — the
+ * bias is deliberate and one-directional: any live claim among them makes the run `LIVE`, because
+ * the cost of misreading a working supervisor as dead is a demoted live run, and the cost of
+ * misreading a dead one as live is only that an operator has to say so explicitly.
+ */
+export function classifyRuns(args: { repo: string; nowMs: number }): RunOwnership[] {
+  const out: RunOwnership[] = [];
+  for (const run of listRunStates(args.repo)) {
+    if (!run.state) {
+      out.push({ runId: run.runId, taskId: null, phase: null, terminal: false, liveness: 'UNREADABLE', heartbeatAgeSeconds: null, claim: null, evidence: 'run state does not parse', error: run.error });
+      continue;
+    }
+    const taskId = run.state.task.id;
+    const covering = claimsCoveringRun(args.repo, run.runId, taskId);
+    const held = covering.filter((c) => c.state === 'HELD');
+    const live = held.find((c) => !isClaimStale(c, args.nowMs)) ?? null;
+    const stale = held.find((c) => isClaimStale(c, args.nowMs)) ?? null;
+    const source = live ?? stale ?? covering[0] ?? null;
+    const age = source ? claimHeartbeatAgeSeconds(source, args.nowMs) : null;
+    const liveness: RunLiveness = live ? 'LIVE' : stale ? 'LOST' : 'UNPROVEN';
+    const evidence = live
+      ? `claim ${live.scope}/${live.key} epoch ${live.epoch} owned by ${live.owner} beat ${age ?? '?'}s ago, inside its ${live.ttlSeconds}s TTL`
+      : stale
+        ? `claim ${stale.scope}/${stale.key} epoch ${stale.epoch} owned by ${stale.owner} last beat ${age ?? '?'}s ago, beyond its ${stale.ttlSeconds}s TTL`
+        : covering.length
+          ? 'every claim covering this run is released; no process holds it'
+          : 'no claim covers this run, so nothing on disk proves it is alive or dead';
+    out.push({
+      runId: run.runId,
+      taskId,
+      phase: run.state.phase,
+      terminal: isTerminalRunPhase(run.state.phase),
+      liveness,
+      heartbeatAgeSeconds: age,
+      claim: source ? { scope: source.scope, key: source.key, owner: source.owner, epoch: source.epoch, state: source.state } : null,
+      evidence,
+      error: null,
+    });
+  }
+  return out;
+}
+
+/** Non-terminal runs: the ones an operator has to be able to tell apart mechanically. */
+export function unfinishedRuns(runs: readonly RunOwnership[]): RunOwnership[] {
+  return runs.filter((r) => !r.terminal);
 }
 
 export type AutopilotStatus = {
@@ -348,30 +480,76 @@ export type AutopilotStatus = {
   evaluations: ItemEvaluation[];
   ledger: Ledger;
   claims: ClaimSummary[];
+  runs: RunOwnership[];
 };
 
 export function autopilotStatus(args: { repo: string; deps: AutopilotDeps; selection: AuthoritySelection; nowMs: number }): AutopilotStatus {
   const { evaluations, ledger } = evaluateNow({ deps: args.deps, selection: args.selection });
   let base: string | null = null;
   try { base = args.deps.originMain(); } catch { base = null; }
-  return { base, evaluations, ledger, claims: listClaims(args.repo, args.nowMs) };
+  return { base, evaluations, ledger, claims: listClaims(args.repo, args.nowMs), runs: classifyRuns({ repo: args.repo, nowMs: args.nowMs }) };
 }
+
+/** Stable prefix of the blocked reason written by process-death recovery. */
+export const SUPERVISOR_LOST_BLOCK_PREFIX = 'supervisor process lost (recovered)';
+
+export function supervisorLostBlockedReason(evidence: string): string {
+  return `${SUPERVISOR_LOST_BLOCK_PREFIX}: ${evidence}; the run was NOT completed, its worktree and candidate are preserved, and continuing it requires the ordinary resume path`;
+}
+
+export type RunRecoveryUpdate = {
+  runId: string;
+  taskId: string | null;
+  from: string;
+  to: 'BLOCKED';
+  reason: string;
+  /** `stale-claim` recovered itself; `operator` was named explicitly on the command line. */
+  trigger: 'stale-claim' | 'operator';
+};
 
 export type AutopilotRecovery = {
   recoveredClaims: ClaimSummary[];
   ledgerUpdates: Array<{ taskId: string; from: LedgerEntry['status']; to: LedgerEntry['status'] | 'CLEARED'; reason: string }>;
+  /** Non-terminal run states demoted to BLOCKED because their supervisor process is provably gone. */
+  runUpdates: RunRecoveryUpdate[];
+  /**
+   * Non-terminal runs left untouched: nothing proved their process is gone (`UNPROVEN`), or their
+   * state does not parse (`UNREADABLE`). They are reported so an operator can act on evidence.
+   */
+  unprovenRuns: RunOwnership[];
 };
 
 /**
  * Operator recovery.
  *
- * Releases only STALE claims, and demotes the RUNNING ledger entries they abandoned to BLOCKED with
- * an explicit reason. Recovery never invents an outcome: an abandoned run is not "done", its
- * worktree and run state are preserved, and re-scheduling it requires the operator to clear the
- * entry deliberately with `--clear <taskId>` after inspecting the run.
+ * Releases only STALE claims, demotes the RUNNING ledger entries they abandoned to BLOCKED, and
+ * demotes the non-terminal RUN STATES whose supervisor process is provably gone. Recovery never
+ * invents an outcome: an abandoned run is not "done", its worktree, branch, candidate commits and
+ * append-only progress history are left exactly as they are, and re-scheduling the SLICE still
+ * requires the operator to clear its ledger entry deliberately with `--clear <taskId>`.
+ *
+ * Runs with no liveness evidence at all — a `claude:run` started before run claims existed, for
+ * instance — are reported as `unprovenRuns` and touched only when the operator names them with
+ * `recoverRunIds`. A named run whose claim is still beating is REFUSED before anything is written.
  */
-export function autopilotRecover(args: { repo: string; nowMs: number; owner?: string; clearTaskIds?: readonly string[] }): AutopilotRecovery {
+export function autopilotRecover(args: { repo: string; nowMs: number; owner?: string; clearTaskIds?: readonly string[]; recoverRunIds?: readonly string[] }): AutopilotRecovery {
   const owner = args.owner ?? ownerToken('recover');
+
+  // Classified BEFORE any claim is released, because releasing a stale claim is itself what erases
+  // the evidence that the run was abandoned.
+  const runs = classifyRuns({ repo: args.repo, nowMs: args.nowMs });
+  const byRunId = new Map(runs.map((r) => [r.runId, r]));
+  const named = [...new Set(args.recoverRunIds ?? [])];
+  // Every explicit id is validated before ANY mutation, so a refusal leaves the whole sweep undone
+  // rather than half applied.
+  for (const runId of named) {
+    const run = byRunId.get(runId);
+    if (!run) throw new Error(`no persisted run state for ${runId}; recovery never invents a run`);
+    if (run.liveness === 'UNREADABLE') throw new Error(`refusing to recover ${runId}: its run state does not parse (${run.error ?? 'unknown parse failure'})`);
+    if (run.liveness === 'LIVE') throw new Error(`refusing to recover ${runId}: ${run.evidence}; a live supervisor is never declared lost`);
+    if (run.terminal) throw new Error(`refusing to recover ${runId}: it is already terminal in phase ${run.phase}; recovery never re-opens a finished run`);
+  }
+
   // Only claims whose HEARTBEAT has expired are recovered. A live run keeps beating, so recovery
   // never touches it and never records the false claim that it was abandoned.
   const recoveredClaims = recoverStaleClaims({ repo: args.repo, nowMs: args.nowMs, owner });
@@ -395,7 +573,121 @@ export function autopilotRecover(args: { repo: string; nowMs: number; owner?: st
     ledgerUpdates.push({ taskId, from: existing.status, to: 'CLEARED', reason: 'explicitly cleared by operator' });
   }
 
-  return { recoveredClaims, ledgerUpdates };
+  /**
+   * PROCESS-DEATH RECOVERY of the run state itself.
+   *
+   * A supervisor killed mid-phase leaves `state.json` in a non-terminal phase forever: nothing else
+   * ever writes it, because the process that would have is gone. The demotion writes exactly two
+   * fields — `phase` and `blockedReason` — on a state re-read from disk, so the append-only
+   * `progressHistory`, the recorded sessions, the candidate SHA, the branch and the worktree all
+   * survive byte-identically and the ordinary resume path can continue the run.
+   */
+  const runUpdates: RunRecoveryUpdate[] = [];
+  /** Runs this call has finished reasoning about: written, or already terminal on re-read. */
+  const settled = new Set<string>();
+  const demote = (run: RunOwnership, trigger: RunRecoveryUpdate['trigger']): void => {
+    // Re-read per run: recovery must never write a state from a snapshot, and a run that reached a
+    // terminal phase between classification and now is left exactly as its own supervisor left it.
+    const fresh = loadState(args.repo, run.runId);
+    settled.add(run.runId);
+    if (isTerminalRunPhase(fresh.phase)) return;
+    const reason = supervisorLostBlockedReason(trigger === 'operator' ? `${run.evidence}; recovered on explicit operator instruction` : run.evidence);
+    saveState(args.repo, { ...fresh, phase: 'BLOCKED', blockedReason: reason });
+    runUpdates.push({ runId: run.runId, taskId: run.taskId, from: fresh.phase, to: 'BLOCKED', reason, trigger });
+  };
+
+  for (const run of runs) {
+    if (run.terminal || run.liveness !== 'LOST') continue;
+    demote(run, 'stale-claim');
+  }
+  for (const runId of named) {
+    if (settled.has(runId)) continue;
+    demote(byRunId.get(runId)!, 'operator');
+  }
+
+  const unprovenRuns = runs.filter((r) => !r.terminal && r.liveness !== 'LIVE' && !settled.has(r.runId));
+
+  return { recoveredClaims, ledgerUpdates, runUpdates, unprovenRuns };
+}
+
+/* ------------------------------------------------------------------------ wakeup primitive */
+
+export type WatchWakeReason = 'READY' | 'RUN_TERMINAL' | 'TIMEOUT';
+
+/** One observation of the canonical backlog plus, optionally, the phase of one watched run. */
+export type WatchPoll = { readyIds: readonly string[]; watchedRunPhase: string | null };
+
+export type WatchResult = {
+  wake: WatchWakeReason;
+  readyIds: string[];
+  watchedRunId: string | null;
+  watchedRunPhase: string | null;
+  polls: number;
+  waitedMs: number;
+};
+
+/**
+ * Blocks until there is something to wake up FOR, then exits. It is not a scheduler.
+ *
+ * The Factory has exactly one scheduler (`runAutopilot`) and exactly one canonical backlog, and this
+ * function adds neither. It takes no claim, writes no state, starts no run, never chooses between
+ * slices and never re-invokes anything: it OBSERVES the canonical evaluation the scheduler already
+ * performs, and returns once a slice is READY (optionally: one named slice, which is the same thing
+ * as "this slice's dependencies are now satisfied") or a watched run reaches a terminal phase. What
+ * happens next is entirely the caller's decision — that is what keeps scheduling authority in one
+ * place while still giving an operator or a later observer surface a single wake instead of a
+ * hand-run poll.
+ *
+ * Every effect is injected, so the wait is deterministic in tests and bounded in production: the
+ * timeout is mandatory, so a wakeup can never become an unattended daemon.
+ */
+export async function watchForReadyWork(args: {
+  poll: () => WatchPoll;
+  now: () => number;
+  sleep: (ms: number) => Promise<void>;
+  intervalMs: number;
+  timeoutMs: number;
+  /** Wake only for this slice; without it, any READY slice wakes the caller. */
+  taskId?: string | null;
+  watchedRunId?: string | null;
+  emit?: (event: string, fields: Record<string, unknown>) => void;
+}): Promise<WatchResult> {
+  if (!Number.isFinite(args.intervalMs) || args.intervalMs <= 0) throw new Error('watch interval must be a positive number of milliseconds');
+  if (!Number.isFinite(args.timeoutMs) || args.timeoutMs <= 0) throw new Error('watch timeout must be a positive number of milliseconds');
+  const start = args.now();
+  let polls = 0;
+  for (;;) {
+    const snapshot = args.poll();
+    polls += 1;
+    const ready = [...snapshot.readyIds].filter((id) => !args.taskId || id === args.taskId);
+    const waitedMs = args.now() - start;
+    if (ready.length) {
+      args.emit?.('watch.ready', { ready, polls, waited_ms: waitedMs, task: args.taskId ?? null });
+      return { wake: 'READY', readyIds: ready, watchedRunId: args.watchedRunId ?? null, watchedRunPhase: snapshot.watchedRunPhase, polls, waitedMs };
+    }
+    if (args.watchedRunId && snapshot.watchedRunPhase && isTerminalRunPhase(snapshot.watchedRunPhase)) {
+      args.emit?.('watch.run_terminal', { run: args.watchedRunId, phase: snapshot.watchedRunPhase, polls, waited_ms: waitedMs });
+      return { wake: 'RUN_TERMINAL', readyIds: ready, watchedRunId: args.watchedRunId, watchedRunPhase: snapshot.watchedRunPhase, polls, waitedMs };
+    }
+    if (waitedMs >= args.timeoutMs) {
+      args.emit?.('watch.timeout', { polls, waited_ms: waitedMs, task: args.taskId ?? null });
+      return { wake: 'TIMEOUT', readyIds: ready, watchedRunId: args.watchedRunId ?? null, watchedRunPhase: snapshot.watchedRunPhase, polls, waitedMs };
+    }
+    await args.sleep(Math.min(args.intervalMs, args.timeoutMs - waitedMs));
+  }
+}
+
+/** The production observation: the canonical backlog evaluation plus one optional run phase. */
+export function watchPoller(args: { repo: string; deps: AutopilotDeps; selection: AuthoritySelection; watchedRunId?: string | null }): () => WatchPoll {
+  return () => {
+    const { evaluations } = evaluateNow({ deps: args.deps, selection: args.selection });
+    let watchedRunPhase: string | null = null;
+    if (args.watchedRunId) {
+      // An unreadable or not-yet-written run state is UNKNOWN, never a terminal verdict.
+      try { watchedRunPhase = loadState(args.repo, args.watchedRunId).phase; } catch { watchedRunPhase = null; }
+    }
+    return { readyIds: evaluations.filter((e) => e.status === 'READY').map((e) => e.id), watchedRunPhase };
+  };
 }
 
 export function defaultAutopilotContext(cliOwnerAuthorTaskIds: readonly string[] = []): { repo: string; config: FactoryConfig; deps: AutopilotDeps; selection: AuthoritySelection } {
