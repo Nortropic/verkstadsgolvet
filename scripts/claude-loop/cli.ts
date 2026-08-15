@@ -116,7 +116,13 @@ async function main(): Promise<void> {
     const ctx = defaultAutopilotContext(collectFlag(args, '--owner-author'));
     const taskId = singleFlag(args, '--task');
     const watchedRunId = singleFlag(args, '--run');
-    const intervalMs = positiveIntFlag(args, '--interval-ms', 15_000);
+    // One poll is a FULL canonical backlog evaluation — the same one the scheduler makes its
+    // decisions on — so it executes the `local_test` prerequisite commands of every slice whose
+    // cheaper prerequisites already pass. In this repository that includes `npm run loop:test`.
+    // The default interval is therefore proportionate to that cost, not to UI responsiveness: a
+    // faster poll would run a full test suite every few seconds in the operator's live checkout,
+    // competing with a supervisor's own gates.
+    const intervalMs = positiveIntFlag(args, '--interval-ms', 60_000);
     const timeoutMs = positiveIntFlag(args, '--timeout-ms', 3_600_000);
     const result = await watchForReadyWork({
       poll: watchPoller({ repo: ctx.repo, deps: ctx.deps, selection: ctx.selection, watchedRunId }),

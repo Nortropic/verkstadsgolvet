@@ -399,30 +399,39 @@ export type RunOwnership = {
   error: string | null;
 };
 
+function claimIfKeyIsSafe(repo: string, scope: ClaimScope, key: string): ClaimRecord | null {
+  return CLAIM_KEY_PATTERN.test(key) ? currentClaim(repo, scope, key) : null;
+}
+
 /**
- * Every claim that can speak for a run: the run's own claim, and the task claim of the slice it
- * belongs to (the autopilot holds THAT one for the whole run it started).
+ * The claims that may speak for one run, in the order of their authority.
+ *
+ * A **HELD run-scope claim is the run's own ownership record and is authoritative for it, alone**.
+ * Nothing in the Factory ever adopts an existing run id — a fresh run mints a new one and a resume
+ * takes over that exact key — so a HELD-but-stale run claim can only belong to a dead process. The
+ * task claim of the same slice must therefore NOT be consulted in that case: a later autopilot pass
+ * legitimately holding a live task claim for the slice would otherwise mask the death of an earlier
+ * run of it, while `recoverStaleClaims` released the stale run claim anyway — losing the only
+ * evidence that the run had died.
+ *
+ * The task claim is consulted only when the run has no HELD claim of its own, which is exactly the
+ * autopilot case: the scheduler covers the run it started with the TASK claim and mints no run claim.
  */
 function claimsCoveringRun(repo: string, runId: string, taskId: string | null): ClaimRecord[] {
-  const found: ClaimRecord[] = [];
-  const keys: Array<{ scope: ClaimScope; key: string }> = [{ scope: 'run', key: runId }];
-  if (taskId) keys.push({ scope: 'task', key: taskId });
-  for (const { scope, key } of keys) {
-    if (!CLAIM_KEY_PATTERN.test(key)) continue;
-    const claim = currentClaim(repo, scope, key);
-    if (claim) found.push(claim);
-  }
-  return found;
+  const own = claimIfKeyIsSafe(repo, 'run', runId);
+  if (own && own.state === 'HELD') return [own];
+  const task = taskId ? claimIfKeyIsSafe(repo, 'task', taskId) : null;
+  return [own, task].filter((c): c is ClaimRecord => c !== null);
 }
 
 /**
  * Classifies every persisted run against the claims covering it. A pure read: no claim is taken,
  * refreshed or released here, and no run state is written.
  *
- * The bias is deliberate and one-directional: ANY live claim covering a run makes it `LIVE`, even
- * when another covering claim went stale, because the cost of misreading a working supervisor as
- * dead is a demoted live run, and the cost of misreading a dead one as live is only that an
- * operator has to say so explicitly.
+ * Where more than one claim may speak for a run — i.e. the run has no HELD claim of its own — the
+ * bias is deliberate and one-directional: any live claim among them makes the run `LIVE`, because
+ * the cost of misreading a working supervisor as dead is a demoted live run, and the cost of
+ * misreading a dead one as live is only that an operator has to say so explicitly.
  */
 export function classifyRuns(args: { repo: string; nowMs: number }): RunOwnership[] {
   const out: RunOwnership[] = [];

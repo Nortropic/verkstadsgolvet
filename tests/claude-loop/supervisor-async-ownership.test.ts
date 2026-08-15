@@ -345,6 +345,42 @@ test('R2: every unfinished run is classified from its claim heartbeat, and statu
   } finally { dispose(repo); }
 });
 
+test('R2: a live task claim can never mask a dead run of the same slice, and still covers a scheduled run', () => {
+  const repo = disposableRepo();
+  try {
+    // The exact G1 collision: a direct run of a canonical slice was killed (its own run claim went
+    // stale, no ledger row), and the autopilot LATER scheduled the same slice and holds a live task
+    // claim for it. The dead run must still be recoverable — the live task claim says nothing about
+    // a run id that nothing ever adopts.
+    persistedRun(repo, { runId: 'killed-run', taskId: 'ASYNC-SHARED', phase: 'REMEDIATE', candidateSha: 'd'.repeat(40) });
+    persistedRun(repo, { runId: 'scheduled-run', taskId: 'ASYNC-SHARED', phase: 'BUILD' });
+    assert.equal(acquireRunClaim({ repo, runId: 'killed-run', owner: 'killed-supervisor', nowMs: NOW - 3_600_000, ttlSeconds: TTL }).ok, true);
+    assert.equal(acquireClaim({ repo, scope: 'task', key: 'ASYNC-SHARED', owner: 'live-scheduler', nowMs: NOW - 10_000, ttlSeconds: TTL }).ok, true);
+
+    const runs = classifyRuns({ repo, nowMs: NOW });
+    const killed = runs.find((r) => r.runId === 'killed-run')!;
+    const scheduled = runs.find((r) => r.runId === 'scheduled-run')!;
+
+    assert.equal(killed.liveness, 'LOST', 'a HELD run claim is authoritative for its OWN run id');
+    assert.equal(killed.claim?.scope, 'run', 'the verdict cites the run own claim, not the slice claim');
+    assert.equal(killed.heartbeatAgeSeconds, 3600);
+    // The autopilot mints no run claim, so the scheduled run is still covered by the task claim.
+    assert.equal(scheduled.liveness, 'LIVE');
+    assert.equal(scheduled.claim?.scope, 'task');
+    assert.equal(scheduled.heartbeatAgeSeconds, 10);
+
+    const recovery = autopilotRecover({ repo, nowMs: NOW });
+
+    assert.deepEqual(recovery.runUpdates.map((u) => u.runId), ['killed-run'], 'the dead run is demoted despite the live slice claim');
+    assert.equal(loadState(repo, 'killed-run').phase, 'BLOCKED');
+    assert.equal(loadState(repo, 'killed-run').candidateSha, 'd'.repeat(40), 'its candidate is retained');
+    assert.deepEqual(recovery.recoveredClaims.map((c) => `${c.scope}:${c.key}`), ['run:killed-run'], 'only the stale claim is released');
+    assert.equal(loadState(repo, 'scheduled-run').phase, 'BUILD', 'the live scheduled run is untouched');
+    assert.equal(currentClaim(repo, 'task', 'ASYNC-SHARED')?.state, 'HELD', 'the live task claim is untouched');
+    assert.deepEqual(recovery.unprovenRuns, [], 'nothing is left in an unexplained state');
+  } finally { dispose(repo); }
+});
+
 test('R2: an unreadable run state is reported, never classified as recoverable and never written over', () => {
   const repo = disposableRepo();
   try {
@@ -657,6 +693,9 @@ test('the production CLI really exposes the recovery, classification and wakeup 
   assert.match(cli, /classifyRuns\(\{ repo, nowMs: Date\.now\(\) \}\)/, 'claude:status must carry the liveness classification');
   assert.match(cli, /WATCH_WAKE=/, 'the wakeup must state what woke it');
   assert.match(cli, /heartbeat_age=/, 'stale-run classification is useless without the age');
+  // One poll is a full canonical evaluation and can execute local_test prerequisite commands, so
+  // the default interval is a deliberate cost decision rather than a UI refresh rate.
+  assert.match(cli, /positiveIntFlag\(args, '--interval-ms', 60_000\)/, 'the poll interval default must be proportionate to a full evaluation');
 
   const supervisor = fs.readFileSync('scripts/claude-loop/supervisor.ts', 'utf8');
   assert.match(supervisor, /startRunFromTask\(\{ repo, config, task, authorityClass, runClaim: true \}\)/, 'a direct claude:run must be claim-covered');
