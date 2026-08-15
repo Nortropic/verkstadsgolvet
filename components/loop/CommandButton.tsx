@@ -132,16 +132,37 @@ export default function CommandButton({
         )}
       </div>
 
-      {explanation !== null && (
-        <p className="mk-hint" data-command-explanation={verb}>
-          {explanation}
-        </p>
-      )}
+      {/*
+        SHREDDER-01B §owner-8 · PRESENTATIONEN KOMPAKTERAS — SEMANTIKEN RÖRS INTE.
 
-      {blockedReason !== null && (
-        <p className="mk-note mk-tone-warning" id={reasonId} data-command-reason="true">
-          {blockedReason}
-        </p>
+        Förklaringen och den ordagranna orsaken låg som två alltid synliga stycken PER KNAPP,
+        alltså sex prosablock i fokusbanan innan operatören nådde något. De står kvar ORDAGRANT,
+        med samma klasser, samma märkning och samma `id`, men bakom rummets egen upplysningsdörr.
+
+        TRE SAKER ÄR MED FLIT OFÖRÄNDRADE, eftersom de är kommandots semantik och inte dess form:
+          · knappens `aria-describedby` pekar fortfarande på `reasonId`, och elementet renderas
+            fortfarande — en direkt referens till en dold nod tas med i beskrivningen, så
+            hjälpmedlet får orsaken oavsett om ytan är öppen;
+          · `data-blocked-on`-raden står kvar SYNLIG vid knappen: den är den korta lägesmarkören,
+            och en avstängd knapp får aldrig sakna sitt skäl i vyn;
+          · orsakssträngen skrivs aldrig om och kortas aldrig.
+      */}
+      {(explanation !== null || blockedReason !== null) && (
+        <details className="rm-details" data-command-detail={verb}>
+          <summary>Vad knappen gör och varför den är låst</summary>
+
+          {explanation !== null && (
+            <p className="mk-hint" data-command-explanation={verb}>
+              {explanation}
+            </p>
+          )}
+
+          {blockedReason !== null && (
+            <p className="mk-note mk-tone-warning" id={reasonId} data-command-reason="true">
+              {blockedReason}
+            </p>
+          )}
+        </details>
       )}
 
       {entry !== null && <CommandResult entry={entry} />}

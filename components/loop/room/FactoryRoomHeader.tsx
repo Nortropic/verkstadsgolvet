@@ -14,9 +14,15 @@
  * VARFÖR HUVUDET ÄR KORT
  * ----------------------
  * Höjden här är höjd som trycker ned rummets arbetsytor. Varje rad måste därför förtjäna sin
- * plats: ingressen är en rad, åldern är en bildtext, uppmärksamhetsposterna är rader och inte
- * kort, och notisen om transportläget står VID strömmen i stället för här. Ingen ärlighetstext
- * är borttagen — de har flyttat dit de hör hemma eller kortats till samma påstående.
+ * plats: uppmärksamhetsposterna är rader och inte kort, och notisen om transportläget står VID
+ * strömmen i stället för här. Ingen ärlighetstext är borttagen — de har flyttat dit de hör hemma
+ * eller kortats till samma påstående.
+ *
+ * SHREDDER-01B · DE TRE TEKNISKA NOTISERNA DELAR EN UPPLYSNINGSYTA (§owner-8). Ingressen om
+ * källan, bildtexten om bekräftelsens ålder och notisen om det saknade ägarbehörighetsfältet
+ * står ordagrant kvar bakom EN växel längst ned i huvudet. Skälet är mätt: de tre styckena sköt
+ * rummets ingång under vikningen vid 390 px. Det som är MÄRKNING och inte prosa — statusradens
+ * DATAKÄLLA, showroom-märket och liveness-märket — står kvar synligt och orört ovanför.
  *
  * BINDANDE REGLER
  * ---------------
@@ -75,8 +81,9 @@ export default function FactoryRoomHeader({
   return (
     <header className="rm-head" data-factory-room-header="true" data-room-mode={mode}>
       {/*
-        Rubrik och källa på SAMMA rad. Rummet öppnar redan under appens egen h1 "Maskinen"; en
-        andra titel med ett eget stycke under sig blir en andra ingress, och varje rad här är
+        Rubrik och källa på SAMMA rad. Rummet öppnar redan under sidans egen h1, som sedan
+        SHREDDER-01C bär produktens namn (Kartongförstöraren, components/loop/MaskinHeader.tsx);
+        en andra titel med ett eget stycke under sig blir en andra ingress, och varje rad här är
         höjd som trycker ned arbetsytorna.
 
         KÄLLAN FÖLJER LÄGET: ingressen får aldrig påstå controllerpublicerad härkomst för data
@@ -85,30 +92,10 @@ export default function FactoryRoomHeader({
       */}
       <div className="rm-head-top">
         <h2 className="rm-head-title">{ROOM_TITLE}</h2>
-        <p className="rm-head-intro" data-room-intro-source={fixture ? "fixture" : "snapshot"}>
-          — {roomIntro(fixture)}.
-        </p>
       </div>
 
       {/* Maskinens egen statusrad — samma värden, samma märkning, en enda ägare. */}
       <RunStatusBar snapshot={snapshot} fixture={fixture} />
-
-      {/*
-        Bildtext till raden ovan, inte ett eget fält: statusraden äger sha och tidsstämpel, och
-        åldern är det enda den inte redan visar. Tidsstämpeln bärs i `title` så att den går att
-        läsa av utan att skrivas ut en andra gång.
-      */}
-      <p className="rm-head-note" data-main-confirmation="true" data-age-is-liveness="false">
-        {AGE_CAPTION_LEAD}{" "}
-        <span
-          className={ageMissing ? "mk-missing" : undefined}
-          data-missing={ageMissing ? "true" : "false"}
-          title={confirmation.confirmed_ts ?? undefined}
-        >
-          {confirmation.age_text ?? MISSING}
-        </span>{" "}
-        · {AGE_NOTE}.
-      </p>
 
       <section
         className="rm-attention"
@@ -143,10 +130,61 @@ export default function FactoryRoomHeader({
           </ul>
         )}
 
+      </section>
+
+      {/*
+        SHREDDER-01B §owner-8 · HUVUDETS TRE TEKNISKA NOTISER, I EN ENDA UPPLYSNINGSYTA.
+
+        Ingressen om källan, bildtexten om bekräftelsens ålder och notisen om att kontraktet
+        saknar ägarbehörighetsfält är alla SANNA och står kvar ORDAGRANT — men de är tre stycken
+        som låg mellan operatören och rummets ingång. Vid 390 px sköt de «Mata maskinen» under
+        vikningen, och den första telefonskärmen av /loop kom då att handla om brasklappar i
+        stället för om IN → ARBETE → UT.
+
+        VARFÖR EN dörr och inte tre: rummets upplysningsyta är 38 px hög (kontrollhöjden, så den
+        går att träffa med en tumme). Att vika in ett tvåradigt stycke bakom en egen sådan växel
+        är ungefär höjdneutralt — tre stycken bakom EN växel är det inte. Notiserna delar därför
+        en dörr, i den ordning de hade i vyn.
+
+        VAD SOM INTE FLYTTADE, EFTERSOM DET INTE ÄR EN BRASKLAPP: statusraden ovanför äger
+        DATAKÄLLA-märket, showroom-märket och liveness-märket, och den är oförändrad. Källan är
+        alltså fortfarande SYNLIG utan att något öppnas — det som vek undan är prosan som
+        upprepade den, aldrig märkningen själv.
+
+        Märkningen på varje stycke (data-room-intro-source, data-main-confirmation,
+        data-age-is-liveness, data-owner-authority-note) är oförändrad, så varje mätare som
+        läser dem läser exakt samma element som förut.
+      */}
+      <details className="rm-details" data-head-notes="true">
+        <summary>
+          <span className="rm-flag">{mode}</span> Om källan, åldern och behörigheten
+        </summary>
+
+        <p className="rm-head-intro" data-room-intro-source={fixture ? "fixture" : "snapshot"}>
+          — {roomIntro(fixture)}.
+        </p>
+
+        {/*
+          Bildtext till statusraden, inte ett eget fält: raden äger sha och tidsstämpel, och
+          åldern är det enda den inte redan visar. Tidsstämpeln bärs i `title` så att den går att
+          läsa av utan att skrivas ut en andra gång.
+        */}
+        <p className="rm-head-note" data-main-confirmation="true" data-age-is-liveness="false">
+          {AGE_CAPTION_LEAD}{" "}
+          <span
+            className={ageMissing ? "mk-missing" : undefined}
+            data-missing={ageMissing ? "true" : "false"}
+            title={confirmation.confirmed_ts ?? undefined}
+          >
+            {confirmation.age_text ?? MISSING}
+          </span>{" "}
+          · {AGE_NOTE}.
+        </p>
+
         <p className="rm-head-note" data-owner-authority-note="true">
           {OWNER_AUTHORITY_NOTE}
         </p>
-      </section>
+      </details>
     </header>
   );
 }

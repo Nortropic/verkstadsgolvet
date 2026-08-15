@@ -93,11 +93,6 @@ export default function CommandDeck({
         <span className="mk-col-count">{channelEnabled ? "kanal öppen" : "kanal stängd"}</span>
       </h2>
 
-      <p className="mk-hint" data-command-scope="true">
-        Ett kommando är en intention. Controllern validerar, claimar och får alltid avvisa —
-        ingenting i den här vyn ändras förrän det syns i controllerns snapshot.
-      </p>
-
       {/*
         Vad intentionerna FAKTISKT bär, ur snapshoten: körningens id och det vattenmärke vyn
         såg. Controllern avvisar kommandot om läget hunnit gå förbi det — därför ska operatören
@@ -112,22 +107,40 @@ export default function CommandDeck({
       <CommandButton intent={resume} onEntry={remember} channelEnabled={channelEnabled} />
       <CommandButton intent={inspect} onEntry={remember} channelEnabled={channelEnabled} />
 
-      <div className="mk-group" data-verbs-without-button="true">
-        {VERBS_WITHOUT_BUTTON_HERE.map((entry) => (
-          <p className="mk-hint" key={entry.verb} data-verb-without-button={entry.verb}>
-            <span className="mk-mono">{entry.verb}</span> {entry.reason}.
-          </p>
-        ))}
-      </div>
-
       <CommandLog entries={entries} now={now} />
 
-      {!channelEnabled && (
-        <p className="mk-hint" data-command-channel-blocked-on={COMMAND_QUEUE_BLOCKED_ON}>
-          Kommandokanalen öppnas när {COMMAND_QUEUE_BLOCKED_ON} är byggd och verifierad. Ytan är
-          byggd, mottagaren finns inte — och Verkstadsgolvet påstår aldrig något annat.
+      {/*
+        SHREDDER-01B §owner-8 · YTANS EGEN PROSA SAMLAS BAKOM EN DÖRR.
+
+        Räckvidden, de två verben utan knapp och kanalens öppningsvillkor är sanna och står kvar
+        ORDAGRANT — men de är bakgrund, och de låg som fyra alltid synliga stycken i den bana som
+        ska visa PÅGÅENDE ARBETE. Det operatören behöver se utan att öppna något står kvar synligt
+        ovanför: vilken körning och vilket vattenmärke intentionerna gäller, att kanalen är stängd
+        (rubrikens egen märkning) och varje knapps korta blockeringsrad.
+      */}
+      <details className="rm-details" data-command-notes="true">
+        <summary>Om kommandoytan och den stängda kanalen</summary>
+
+        <p className="mk-hint" data-command-scope="true">
+          Ett kommando är en intention. Controllern validerar, claimar och får alltid avvisa —
+          ingenting i den här vyn ändras förrän det syns i controllerns snapshot.
         </p>
-      )}
+
+        <div className="mk-group" data-verbs-without-button="true">
+          {VERBS_WITHOUT_BUTTON_HERE.map((entry) => (
+            <p className="mk-hint" key={entry.verb} data-verb-without-button={entry.verb}>
+              <span className="mk-mono">{entry.verb}</span> {entry.reason}.
+            </p>
+          ))}
+        </div>
+
+        {!channelEnabled && (
+          <p className="mk-hint" data-command-channel-blocked-on={COMMAND_QUEUE_BLOCKED_ON}>
+            Kommandokanalen öppnas när {COMMAND_QUEUE_BLOCKED_ON} är byggd och verifierad. Ytan är
+            byggd, mottagaren finns inte — och Verkstadsgolvet påstår aldrig något annat.
+          </p>
+        )}
+      </details>
     </section>
   );
 }

@@ -147,20 +147,86 @@ export const ROOM_CSS = `
 .rm-lane-in .mk-col [data-intake-cta="true"]:hover { color: var(--text-primary); }
 .rm-lane-in .mk-col [data-intake-cta="true"]:focus-visible { box-shadow: var(--focus-ring); }
 
-/* ── Mata maskinen: rummets primära handling ───────────────────────────────── */
-.rm-composer { background: var(--bg-panel); box-shadow: var(--hairline),
-  0 2px 10px -4px rgba(0, 0, 0, 0.45); border-radius: var(--radius-card);
+/* ── Mata maskinen: rummets primära handling ─────────────────────────────────
+   SHREDDER-01B · INGÅNGEN SKA SYNAS SOM INGÅNG.
+   Ytan är den enda i rummet där arbete KOMMER IN, och den ska vara omöjlig att missa i
+   ingångsbanan i varje vy. Vikten kommer ur en tydligare kant och en djupare skugga — samma
+   grepp som fokusbanan redan använder, med husets egna tokens. Ingen ny färg, ingen ny token
+   och ingen rörelse: en yta får väga tyngre utan att röra sig. */
+.rm-composer { background: var(--bg-panel); box-shadow: inset 0 0 0 1px var(--border-strong),
+  0 12px 30px -14px rgba(0, 0, 0, 0.8); border-radius: var(--radius-card);
   padding: var(--pad-card) 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rm-composer-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  min-width: 0; }
 .rm-composer-title { margin: 0; font-size: var(--fs-body); line-height: var(--lh-body);
   font-weight: 600; color: var(--text-primary); }
+.rm-composer-lead { margin: 0; font-size: 12.5px; line-height: 18px; color: var(--text-secondary);
+  max-width: 62ch; overflow-wrap: anywhere; }
+.rm-composer-question { margin: 0; font-size: var(--fs-body); line-height: var(--lh-body);
+  font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; }
+.rm-composer-note { margin: 0; font-size: 11px; line-height: 16px; color: var(--text-muted);
+  max-width: 72ch; overflow-wrap: anywhere; }
 .rm-composer-text { margin: 0; font-size: 12px; line-height: 17px; color: var(--text-secondary);
   max-width: 62ch; overflow-wrap: anywhere; }
+/*
+  PEKAREN TILL SCENARIOVÄLJAREN — RUMMETS EGEN YTA, ALLTSÅ RUMMETS KONTROLLHÖJD.
+
+  Höjden är «.rm-cta»:s 38 px och står som BASREGEL, inte i en brytpunkt: den här skivan lade
+  väljaren under rummet på telefonen, och då är pekaren den enda vägen dit — en väg vars
+  träffbarhet aldrig får bero på fönstrets bredd. Samma disciplin som rådataväxeln och köns
+  genväg redan bär, av samma skäl.
+
+  Formen är nedtonad med flit. Den ska läsas som en genväg till ett demoreglage, aldrig som
+  rummets handling: den primära vägen ur kompositören är «Öppna inlämningen», och en andra yta
+  med knappform hade konkurrerat med den.
+*/
+.rm-composer-scenario { display: inline-flex; align-items: center; align-self: flex-start;
+  min-height: 38px; padding: 0 10px; margin-left: -10px; border-radius: var(--radius-control);
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--text-muted); text-decoration: none; }
+.rm-composer-scenario:hover { color: var(--text-secondary); background: var(--bg-surface-2); }
+.rm-composer-scenario:focus-visible { box-shadow: var(--focus-ring); }
+/*
+  DE TVÅ ARBETSSPÅREN. En spalt i varje vy: valet ska läsas uppifrån och ned även när
+  ingångsbanan är smal, och två halvbreda kort i en 0.95fr-bana hade brutit exempelraderna mitt
+  i meningen. Ytorna är länkar med rummets kontrollhöjd — de går att träffa med en tumme.
+*/
+.rm-intents { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rm-intent { display: flex; flex-direction: column; gap: 3px; min-height: 38px; padding: 9px 11px;
+  background: var(--bg-surface-1); box-shadow: var(--hairline); border-radius: var(--radius-control);
+  color: var(--text-secondary); min-width: 0; }
+.rm-intent:hover { background: var(--bg-surface-2); }
+.rm-intent:focus-visible { box-shadow: var(--focus-ring); }
+.rm-intent-label { font-size: 12.5px; line-height: 17px; font-weight: 600;
+  color: var(--text-primary); overflow-wrap: anywhere; }
+.rm-intent-example { font-size: 11px; line-height: 16px; color: var(--text-muted);
+  overflow-wrap: anywhere; }
+/* Förhandsvisningens tre vägar in — TEXT om en yta som ligger på /loop/mata, aldrig en yta som
+   tar emot något här. Formen är därför en rad märken, inte en ram att släppa i. */
+.rm-affordances { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.rm-affordance { display: inline-flex; align-items: center; min-height: 26px; padding: 0 9px;
+  border-radius: var(--radius-chip); background: var(--bg-surface-1); box-shadow: var(--hairline);
+  font-size: 11.5px; color: var(--text-muted); overflow-wrap: anywhere; }
 .rm-cta { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 18px;
   border-radius: var(--radius-control); background: var(--fill-primary); color: var(--on-primary);
   font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.6px; font-weight: 600;
   text-decoration: none; align-self: flex-start; }
 .rm-cta:hover { background: var(--fill-primary-hover); }
 .rm-cta:focus-visible { box-shadow: var(--focus-ring); }
+
+/* ── SHREDDER-01B · kompakta märken (§owner-8) ────────────────────────────────
+   Ett MÄRKE i stället för ett stycke, på rummets primära ytor: läget, källan eller sorten står
+   som ett kort ord, och den fulla tekniska texten ligger ORDAGRANT kvar i upplysningsytan
+   bredvid. Ingen mening är borttagen någonstans — bara omplacerad, så att den färdiga produkten
+   syns före sina brasklappar. Märket bryts hellre än trycker ut sin rad (ingen «nowrap»). */
+.rm-flag { display: inline-flex; align-items: center; font-family: var(--font-mono);
+  font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted);
+  background: var(--bg-surface-0); box-shadow: var(--hairline); border-radius: var(--radius-chip);
+  padding: 2px 6px; min-width: 0; overflow-wrap: anywhere; }
+/* En upplysningsytas stycken är STYCKEN. Rummets prosa bär «margin: 0» med flit (luften kommer
+   ur layouten), och utan den här regeln rann de omplacerade styckena ihop till ett block i det
+   ögonblick de flyttade in bakom en växel — exakt det fel ROOM-08 löste för kedjans inledning. */
+.rm-details > p + p { margin-top: 9px; }
 
 /* ── Identitetsremsan ─────────────────────────────────────────────────────── */
 .rm-identity { display: flex; flex-direction: column; gap: 9px; background: var(--bg-surface-0);
@@ -177,12 +243,22 @@ export const ROOM_CSS = `
 .rm-identity-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .rm-identity-note { font-size: 11px; line-height: 16px; color: var(--text-muted);
   max-width: 72ch; overflow-wrap: anywhere; }
-.rm-identity-lock { margin: 0; font-size: 11.5px; line-height: 16px; color: var(--text-secondary);
-  background: var(--bg-surface-1); box-shadow: var(--hairline);
-  border-radius: var(--radius-control); padding: 8px 10px; }
+/* SHREDDER-01B §owner-8 · LÅSRADEN ÄR EN RAD, INTE EN RUTA.
+   Meningen om workflowsroll måste stå kvar i förstaläget (den är remsans skäl), men den behöver
+   ingen egen inramning för att göra det. Rutan blev tre gånger så hög som sin enda mening och
+   läste som en varning; formen är därför en dämpad rad i rubrikraden. Ingen text är ändrad, och
+   märkningen «data-identity-lock» är kvar för den som mäter.
+
+   NOT OM SKRIVSÄTTET: kommentaren ligger INUTI stilarkets mall-literal, så ett bakåtfnutt här
+   avslutar strängen och fäller hela bygget. Filen använder därför « » om kod, aldrig bakåtfnuttar. */
+.rm-identity-lock { margin: 0; font-size: 11px; line-height: 16px; color: var(--text-muted);
+  max-width: 72ch; overflow-wrap: anywhere; }
 
 /* ── Tidslinjen ───────────────────────────────────────────────────────────── */
 .rm-timeline { display: flex; flex-direction: column; gap: var(--gap-sm); }
+/* Rubrik och lägesmärke på samma rad — märket är rummets läge, inte en andra rubrik. */
+.rm-timeline-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  min-width: 0; }
 .rm-timeline-note { margin: 0; font-size: 11px; line-height: 16px; color: var(--text-muted);
   max-width: 82ch; overflow-wrap: anywhere; }
 .rm-segment { display: flex; flex-direction: column; gap: 8px; background: var(--bg-surface-0);
@@ -220,7 +296,7 @@ export const ROOM_CSS = `
   kortas — bara träffytan. Skrivbordet blir en aning luftigare av det; den ändringen är avsedd
   och ska granskas på skrivbordets vyklipp.
 */
-.rm-details > summary { display: inline-flex; align-items: center; min-height: 38px; padding: 0 12px;
+.rm-details > summary { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 12px;
   border-radius: var(--radius-control); font-family: var(--font-mono); font-size: 11px;
   letter-spacing: 0.6px; color: var(--text-secondary); background: var(--bg-surface-0);
   box-shadow: inset 0 0 0 1px var(--border-strong); cursor: pointer; list-style: none; }
@@ -274,6 +350,40 @@ export const ROOM_CSS = `
   background: var(--bg-surface-0); box-shadow: var(--hairline); border-radius: var(--radius-control);
   padding: 0 5px; white-space: nowrap; }
 .rm-chain-dash { font-family: var(--font-mono); color: var(--text-muted); }
+
+/* ── SHREDDER-01B · Showroom-scenariot (§owner-11) ────────────────────────────
+   Valet mellan två GENERERADE fixturer, renderat av routen ovanför rummet. Formen är med flit
+   INTE kommandoytans: länkar i en remsa, inte knappar i en panel — en visningsväxel får aldrig
+   se ut som en intention mot controllern. Ytorna har rummets kontrollhöjd, bryter sin text och
+   bär husets fokusring. */
+.rm-scenarios { display: flex; flex-direction: column; gap: 8px;
+  background: var(--bg-surface-0); box-shadow: var(--hairline); border-radius: var(--radius-card);
+  padding: 10px 14px; margin-bottom: var(--gap-md); min-width: 0; }
+/* EN rad: rubriken och chipsen tillsammans, radbrytande när bredden inte räcker. Ytan ligger
+   ovanför produkten, så varje rad den tar är en rad rummets ingång skjuts ned på en telefon. */
+.rm-scenario-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  min-width: 0; }
+.rm-scenario-title { margin: 0; font-size: var(--fs-body); line-height: var(--lh-body);
+  font-weight: 600; color: var(--text-primary); letter-spacing: 0.2px; }
+/* Ett CHIP per val: etiketten i förstaläget, beskrivningen i upplysningsytan under. Höjden är
+   rummets kontrollhöjd, så valet går att träffa med en tumme utan att ta korthöjd i anspråk. */
+.rm-scenario { display: inline-flex; align-items: center; min-height: 38px; padding: 0 12px;
+  background: var(--bg-surface-1); box-shadow: var(--hairline); border-radius: var(--radius-control);
+  color: var(--text-secondary); min-width: 0; overflow-wrap: anywhere; }
+.rm-scenario:hover { background: var(--bg-surface-2); }
+.rm-scenario:focus-visible { box-shadow: var(--focus-ring); }
+.rm-scenario-on { box-shadow: inset 0 0 0 1px var(--border-stronger); color: var(--text-primary); }
+.rm-scenario-label { font-size: 12px; line-height: 17px; font-weight: 600;
+  overflow-wrap: anywhere; }
+/* Det VALDA scenariots rad står synlig under chipsen: en rad, i sekundär ton så att den läses som
+   upplysning och inte som varning. Den finns för att en synlig motsägelse (tom fabrik, full
+   tidslinje) måste ha en synlig förklaring — se ScenarioPicker.tsx. */
+.rm-scenario-scope { margin: 0; font-size: 11.5px; line-height: 16px; color: var(--text-secondary);
+  max-width: 82ch; overflow-wrap: anywhere; }
+/* Beskrivningarna och notisen är stycken i upplysningsytan: margin noll som rummets övriga prosa,
+   luften kommer ur «.rm-details > p + p». */
+.rm-scenario-desc { margin: 0; font-size: 11px; line-height: 16px; color: var(--text-muted);
+  max-width: 82ch; overflow-wrap: anywhere; }
 
 /* Bred teknisk text scrollar i SIN EGEN behållare — aldrig hela sidan. */
 .rm-scroll-x { overflow-x: auto; min-width: 0; }
@@ -478,5 +588,70 @@ export const ROOM_CSS = `
   */
   .rm-room .mk-badge { white-space: normal; overflow-wrap: anywhere; height: auto;
     min-height: 20px; padding: 2px 8px; }
+  /*
+    SHREDDER-01B · STATUSRADENS FÄLT LÄGGER SIG PÅ RADEN I STÄLLET FÖR I EN TRAPPA.
+
+    MÄTT, INTE ANTAGET. Statusraden bär elva fält (liveness, senaste event, kör-id, kör-tillstånd,
+    brytare, kvot, main, main bekräftad, snapshot publicerad, seq-vattenmärke och datakällans
+    märke). Varje fält staplar sin etikett ÖVER sitt värde, alltså två rader per fält. Vid 390 px
+    blir «.mk-bar» då 330 px hög — nästan 40 procentenheter av telefonens första skärm spenderade
+    på fältetiketter innan operatören sett var arbete matas in, och «Mata maskinen» hamnade under
+    vikningen. Vid 900 px är samma rad 174 px, och vid 1440 px 122 px: problemet finns bara i den
+    smalaste vyn, och regeln gäller bara där.
+
+    ÅTGÄRDEN ÄR EN RAD, INTE EN TRAPPA: etikett och värde ställs bredvid varandra i stället för
+    över varandra. Fältet blir då en rad i stället för två, och husets egen flex-radbrytning
+    packar de korta fälten två och två av sig själv. Raden mäter 223 px efter ändringen.
+
+    INGEN MAGISK ETIKETTBREDD. En låst etikettspalt provades först och mättes som SÄMRE och
+    instabil: «.mk-bar» radbryter sina fält, så en bredd som låser etiketten ändrar också hur
+    många fält som får plats per rad — höjden hoppade fram och tillbaka mellan 287 och 382 px för
+    bredder som skilde åtta pixlar. Etiketterna bär därför sin egen innehållsbredd, och
+    packningen sköts av den flex-radbrytning raden redan hade. Det finns inget tal att kalibrera
+    om nästa gång ett fält byter namn.
+
+    INGENTING DÖLJS OCH INGENTING KORTAS: samma elva fält, samma etiketter, samma värden, samma
+    ordning, samma märkning — inklusive SHOWROOM-märket för datakällan, som är själva skälet till
+    att raden aldrig får vika undan bakom en lucka.
+
+    VARFÖR REGELN LIGGER HÄR OCH INTE I LOOP_CSS: «.mk-bar» ägs av V2:s statusrad, och att skriva
+    om en annan skivas provade yta från rummets stilark är precis det den här filens bindande
+    regler förbjuder. Väljaren är därför scopad till «.rm-head» — statusraden INUTI rummets huvud.
+    Samma rad renderad någon annanstans behåller sin egen form, och LOOP_CSS är orört.
+  */
+  .rm-head .mk-bar { gap: 2px var(--gap-lg); padding: 8px 12px; }
+  .rm-head .mk-bar-item { flex-direction: row; align-items: baseline; gap: 8px; }
+  /*
+    SHREDDER-01B (rond 2) · TELEFONENS MELLANRUM ÄR TÄTARE ÄN SKRIVBORDETS.
+
+    FYNDET SOM REGELN SVARAR PÅ: i skärmklippet vid 390 px låg kompositörens kort på ~805 px och
+    rubriken «Mata maskinen» på ~817 px — en remsa på tjugo pixlar längst ned, och varken
+    spårfrågan eller något av de två spårkorten syntes i första vyn. Första telefonskärmen blev
+    huvud + statusrutnät + två uppmärksamhetsrader, alltså en instrumentpanel, inte ett showroom.
+    Att det tomma scenariot klarade gränsen räknas inte: acceptansen får inte hänga på att
+    uppmärksamhetsblocket råkar krympa till en mening.
+
+    VAD REGELN GÖR: den ARRANGERAR tätare i den smalaste vyn. Varje deklaration är ett mellanrum
+    eller en utfyllnad — inget döljs, inget kortas, ingen yta byter plats, och ordningen
+    huvud → status → uppmärksamhet → kompositör står kvar precis som ROOM-MOBIL-ORDNING fryser
+    den. Egenskaperna är de som room-mobile.test.ts räknar som arrangerande (gap, padding).
+
+    VARFÖR MELLANRUM OCH INTE EN LUCKA TILL: uppmärksamheten och identiteten är BEVIS
+    (EVIDENCE_TOKENS), och en brytpunkt får aldrig dölja dem. Skrivbordets luftigare mått är
+    riktiga där det finns höjd att ge bort; på en telefon är samma luft det som trycker ned
+    rummets ingång. Inget värde, ingen etikett och ingen mening är borta ur någon vy.
+
+    MÄTT: rubriken flyttar från 778 px till 705 px i mätställningen, spårkorten från 868 px till
+    795 px — alltså 73 px, och båda ligger då inom telefonens första vy. Inget radmellanrum är
+    nollställt; den tätaste raden behåller två pixlar.
+  */
+  .rm-room { gap: var(--gap-sm); }
+  .rm-head { gap: 6px; }
+  .rm-head-top { gap: 0 8px; }
+  .rm-attention { padding: 8px 10px; gap: 3px; }
+  .rm-attention-list { gap: 3px; }
+  .rm-attention-item { padding: 4px 8px; gap: 2px 8px; }
+  .rm-lane { gap: 6px; }
+  .rm-stage { gap: var(--gap-sm); }
 }
 `;

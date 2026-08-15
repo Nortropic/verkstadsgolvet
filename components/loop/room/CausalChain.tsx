@@ -32,6 +32,7 @@
 import * as React from "react";
 import { shortSha, toneClass } from "../ui";
 import { MISSING } from "@/lib/loop/labels";
+import { SHOWROOM } from "@/lib/loop/room/mode";
 import { fixtureEvents, fixtureIntakeOutcomes, fixtureSnapshot } from "@/lib/loop/fixtures";
 import type { TaskView } from "@/lib/loop/schema";
 import {
@@ -334,13 +335,27 @@ export default function CausalChain({
         </p>
       ) : (
         <div data-chain-source="fixture" data-chain-task={chain.task_id}>
-          <p className="rm-chain-note">{CHAIN_INTRO}</p>
-          <p className="rm-chain-note" data-chain-order-note="true">
-            {CHAIN_ORDER_NOTE}
-          </p>
-          <p className="rm-chain-note" data-chain-evidence-note="true">
-            {EVIDENCE_REFERENCE_NOTE}
-          </p>
+          {/*
+            SHREDDER-01B §owner-8 · KEDJANS TRE INLEDANDE STYCKEN ÄR FLYTTADE, INTE BORTTAGNA.
+
+            De beskriver hur kedjan är monterad, hur den är ordnad och vad en bevisreferens är —
+            alltihop sant, alltihop kvar ordagrant, men det är BAKGRUND. Framför dem låg elva hopp
+            som operatören kom hit för att läsa, och vid smala vyer betydde det ett dussin rader
+            prosa före kedjans första länk. Bakgrunden bärs därför av rummets egen upplysningsdörr,
+            med ett kompakt märke som säger vad ytan är: en fixtursidans projektion.
+          */}
+          <details className="rm-details" data-chain-intro="true">
+            <summary>
+              <span className="rm-flag">{SHOWROOM}</span> Om kedjan och dess ordning
+            </summary>
+            <p className="rm-chain-note">{CHAIN_INTRO}</p>
+            <p className="rm-chain-note" data-chain-order-note="true">
+              {CHAIN_ORDER_NOTE}
+            </p>
+            <p className="rm-chain-note" data-chain-evidence-note="true">
+              {EVIDENCE_REFERENCE_NOTE}
+            </p>
+          </details>
 
           {/*
             En överträdelse i projektionens EGEN validering syns. Att tysta den hade gjort ytan

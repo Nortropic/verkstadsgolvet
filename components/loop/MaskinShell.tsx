@@ -27,15 +27,19 @@
  *   inte alls.
  * · EN ENDA TAIL-ANSLUTNING PER RUM: bara `LiveEventStream` ansluter. Rummet öppnar ingen andra
  *   SSE- eller poll-klient, och huvudet gissar därför aldrig ett transportläge.
- * · ROOM-08 · BANORNAS ORDNING BESKRIVS PER VY, EFTERSOM DEN ÄR OLIKA PER VY:
+ * · ROOM-08 + SHREDDER-01C · BANORNAS ORDNING BESKRIVS PER VY, EFTERSOM BRYTPUNKTERNA SKA GÅ
+ *   ATT HITTA I TEXT — men läsordningen är numera EN och densamma i varje vy:
  *   – vid ≥960 px står ingången och arbetet sida vid sida med hyllan under dem;
- *   – vid ≤959 px är scenen EN spalt, och de två smala intervallen skiljer sig bara i
- *     läsordning, aldrig i antal spalter;
- *   – vid 720–959 px behålls därför ROOM-01:s provade ordning: rummets blick lyfts FÖRST och
- *     ingången faller under den, samma disciplin som Maskinens .mk-col-current sedan V2;
- *   – vid ≤719 px står spalten i planens ordning in → arbete → ut, eftersom läsordningen då är
- *     hela layouten, och då är stegetiketternas ordningstal (1 · in, 2 · arbetet, 3 · ut) sanna
- *     igen och visas.
+ *   – vid ≤959 px är scenen EN spalt, och de två smala intervallen delar samma läsordning:
+ *     ingången (kompositören + kön) läses FÖRE rummets blick;
+ *   – vid 720–959 px gäller därför axeln in → arbete → ut precis som i den bredare vyn.
+ *     ROOM-01 lyfte en gång fokusbanan hit; SHREDDER-01C upphävde det valet, eftersom
+ *     ägarkriteriet — det ska vara uppenbart VAR ARBETE KOMMER IN, vid varje bredd — står över
+ *     det. `order` skrivs ut som noll på fokusbanan i hela intervallet;
+ *   – vid ≤719 px står spalten i samma ordning, eftersom läsordningen då är hela layouten, och
+ *     där visas dessutom stegetiketternas ordningstal (1 · in, 2 · arbetet, 3 · ut). Talen är
+ *     sanna i BÅDA de smala intervallen; att de utelämnas i det bredare av dem är en utelämning
+ *     som ROOM-LAYOUT fryser, aldrig ett påstående om en annan ordning.
  *   Ordningen sätts i ROOM_CSS på scenens egna barn; skalet arrangerar inget per vy och
  *   renderar samma markup i alla tre bredderna.
  */
