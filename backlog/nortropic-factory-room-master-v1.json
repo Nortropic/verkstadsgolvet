@@ -13,10 +13,10 @@
   "note": "Programme data for the Nortropic Factory Room master roadmap. This file is NOT a scheduler input and NOT a second canonical backlog: backlog/control-room-v1.json remains the canonical backlog consumed by scripts/claude-loop/backlog.ts, and scripts/claude-loop/** is untouched by this programme. An operator or session translates a slice below into an ordinary `npm run claude:run --task` file. Statuses use the roadmap's ledger vocabulary (NOT_STARTED, IN_PROGRESS, PROVEN, BLOCKED, DEFERRED_BY_OWNER, REJECTED_WITH_REASON) and never a percentage. allowedWrite is a best current estimate at freeze and is finalised in the task file for each slice. Gates listed for slices with a Nortropic/verkstadsgolvet half are this repository's real gate commands; slices whose target is the control plane or Nortropic/nortropic-system carry an empty gates array here because their gates are owned by that target's own operating model (nortropic-system AGENTS.md: $nortropic-test-author writes the spec row and the RED frozen gate in specs/** and verify/**, which are builder-denied).",
   "measuredAt": "2026-08-15",
   "measuredMain": {
-    "Nortropic/verkstadsgolvet": "ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08",
+    "Nortropic/verkstadsgolvet": "c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e",
     "Nortropic/nortropic-system": "e56edc08e5f069f16b5bdb853302a0f39c1f7075"
   },
-  "measuredMainNote": "Nortropic/verkstadsgolvet re-measured with git rev-parse origin/main in the ERRATUM-02_PRODUCT_V2 run worktree, 2026-08-15; the value is the SHREDDER-01A merge commit (PR #34) and supersedes the previously recorded 851c0b25b7463d616d5c95d94d55245687bf0a8b (SUPERVISOR-01). Nortropic/nortropic-system moved to e56edc08e5f069f16b5bdb853302a0f39c1f7075 (h-032 host-builder-r2, PR #79) as reported by the supervising session outside this worktree; this repository cannot and does not measure that repository. Measured-at-date facts, not live truth.",
+  "measuredMainNote": "Nortropic/verkstadsgolvet re-measured with git rev-parse origin/main in the STATUS-03_SHREDDER_DONE run worktree, 2026-08-15; the value is the SHREDDER-01B merge commit (PR #38) and supersedes the previously recorded ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08 (SHREDDER-01A). Main moved forward through four merges, measured with git log --oneline --first-parent origin/main (oldest first): 69e3a6be… ERRATUM-02 V2+V3 PR #35, e851b49b… ERRATUM-03 lanes PR #36, 330457cf… SHREDDER-01C PR #37, c86cf2aa… SHREDDER-01B PR #38. This same SHA is the one Railway reports as deployed (deployment e5246608 SUCCESS, 2026-08-15T21:10:16Z), so the deployed SHA and origin/main are equal at this measurement. Nortropic/nortropic-system is unchanged at e56edc08e5f069f16b5bdb853302a0f39c1f7075 (h-032 host-builder-r2, PR #79) as reported by the supervising session outside this worktree; this repository cannot and does not measure that repository, and this run did not re-measure it. Measured-at-date facts, not live truth.",
   "currentBootstrapWorkDomain": "SYSTEM_IMPROVEMENT",
   "customerProductionLoopStatus": "separate future production capability using the shared Nortropic trust kernel; the Codex bootstrap autopilot is not this loop",
   "lanesNote": "Owner two-lane clarification recorded verbatim in docs/nortropic-factory-room-lanes-clarification.md. Locks (§1): FACTORY_LANE_SYSTEM=SYSTEM_IMPROVEMENT · FACTORY_LANE_CUSTOMER=CUSTOMER_PRODUCTION · BOOTSTRAP_AUTOPILOT_PRIMARY_LANE=SYSTEM_IMPROVEMENT · SYSTEM_IMPROVEMENT_LOOP_IS_CUSTOMER_WEBSITE_FACTORY=NO · SHARED_TRUST_KERNEL_BETWEEN_LANES=YES. The lane slices LANE-01..LANE-09 (§11) are additive: no existing slice status was changed by this recording. Dependency-id mapping: every id referenced by the lane dependencies already exists in this ledger under the same name — SHREDDER-01B, SEARCH-HISTORY-01, NOTIFICATION-01, REMOTE-01 and ROOM-05 — so no renaming or aliasing was required.",
@@ -1184,12 +1184,80 @@
       "visualReview": true,
       "empiricalReview": "Visual review of actual screenshots at desktop, tablet and mobile shows the product entry, the composer dominance and the compact badge-plus-disclosure model; the showroom scenario picker is observed selecting only generated fixtures and never looking like or behaving as a controller command.",
       "remotePrerequisites": [],
-      "status": "NOT_STARTED",
+      "status": "PROVEN",
       "evidence": [
-        "measured 2026-08-15 in the ERRATUM-02_PRODUCT_V2 run worktree: the task file exists outside this repository (tasks/verkstadsgolvet/shredder-01b-showroom-exposure-r1.json) but no branch, no worktree and no merge commit for it exists — git branch -a and git worktree list show none. Status is therefore NOT_STARTED, not IN_PROGRESS."
+        "run: shredder-01b_showroom_exposure-20260815174428 (the run that published; run id derived from the merge commit's branch name Nortropic/claude/shredder-01b_showroom_exposure-shredder-01b_showroom_exposure-20260815174428, the same convention already confirmed against the recorded run ids of ROOM-08, ERRATUM-01 and SHREDDER-01A)",
+        "measured 2026-08-15 in the STATUS-03_SHREDDER_DONE run worktree with git log -1 --format=%P c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e = parents 330457cfa56646d5f56b7746c0e0064009505eb5 (base) and 92d318b37d939753a955286619d626f39cdb87df (candidate, 'candidate round 6')",
+        "changed files = 17, +2735 / -145, measured with git diff --name-only and --stat 330457cf… c86cf2aa…: app/(app)/loop/page.tsx, app/(app)/page.tsx, components/Sidebar.tsx, components/loop/CommandButton.tsx, CommandDeck.tsx, MaskinHeader.tsx, MaskinShell.tsx, components/loop/room/CausalChain.tsx, FactoryRoomHeader.tsx, IdentityStrip.tsx, RoomStep.tsx, RoomTimeline.tsx, ScenarioPicker.tsx (new), WorkComposer.tsx, ui.ts, lib/loop/room/scenarios.ts (new), tests/loop/showroom-navigation.test.ts (new, 1386 lines)",
+        "visual review PASS on the final compact run, including the 390-wide fold acceptance at approximately y730 of 844",
+        "PRODUCTION: this merge commit is the deployed SHA — Railway deployment e5246608 SUCCESS at c86cf2aa… (2026-08-15T21:10:16Z), anonymous probes / and /loop and /loop/mata → 307 to /login and /login → 200. That is the ANONYMOUS half of the production observation; the AUTHENTICATED production surface is still an open owner ceremony (see productRequirements P1 and P4).",
+        "superseded evidence runs, preserved and not silently dropped: r1 stopped on the tablet judge conflict (reference candidate 89655e13dc60d853f050fca9caedb698298a94f9, 'candidate round 14'); r2 stopped blind-stalled with no candidate commit; r3 stopped on the fold/scope conflict (reference candidate fecc5643670c751ab6bce0e89e6193cd3feb75c8, 'candidate round 3'); r4 stopped on architect max-turns",
+        "measured non-ancestry: git log 330457cf…..92d318b3… lists exactly six commits (candidate rounds 0, 1, 2, 4, 5, 6) and contains NEITHER 89655e13… NOR fecc5643…, so those two are genuinely superseded branches rather than earlier rounds of the run that published",
+        "NOT MEASURED by this run: the run ids of r1–r4, and the gate exit codes and reviewer verdicts of the published run. They live under .git/claude-factory/runs/ in the shared git directory, outside this run worktree's allowed read scope; they were not guessed."
       ],
-      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "published": {
+        "baseSha": "330457cfa56646d5f56b7746c0e0064009505eb5",
+        "candidateSha": "92d318b37d939753a955286619d626f39cdb87df",
+        "mergeSha": "c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e",
+        "pr": "https://github.com/Nortropic/verkstadsgolvet/pull/38"
+      },
       "blocker": null
+    },
+    {
+      "id": "SHREDDER-01C",
+      "title": "Tablet reading order and the page h1 is the product name",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_1",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Close two independently-reviewed showroom discontinuities that SHREDDER-01B's own write scope could not reach. (1) The /loop h1 must be the PRODUCT's name, Kartongförstöraren, not 'Maskinen' — the house word for the machine concept — so an operator arriving on the page is never left to guess that the two words denote the same thing; the word 'maskinen' survives in running text where it means the machine, never as the page's name. (2) The entry must LEAD AT EVERY WIDTH: the focus lane must stop lifting above the composer at 720-959 px, so the whole single-column range has ONE reading order, head -> attention -> mata maskinen -> queue -> work -> shelf -> timeline -> stream.",
+      "dependencies": [
+        "SHREDDER-01A"
+      ],
+      "authorityPrerequisites": [],
+      "allowedWrite": [
+        "components/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**",
+        "lib/loop/room/mode.ts",
+        "tests/loop/showroom-contract.test.ts",
+        "tests/loop/room-shell.test.ts"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Visual review of actual screenshots shows the page h1 carrying the product's own name, and shows the composer preceding the focus lane at tablet width as well as at mobile width.",
+      "remotePrerequisites": [],
+      "status": "PROVEN",
+      "evidence": [
+        "ROW ADDED BY STATUS-03_SHREDDER_DONE after measuring that no SHREDDER-01C row existed: the erratum tasks did not add one. Measured by parsing this file before the edit — 55 slices, ids SHREDDER-01A and SHREDDER-01B present, SHREDDER-01C absent.",
+        "run: shredder-01c_tablet_contract-20260815133707 (run id derived from the merge commit's branch name Nortropic/claude/shredder-01c_tablet_contract-shredder-01c_tablet_contract-20260815133707)",
+        "measured 2026-08-15 in the STATUS-03_SHREDDER_DONE run worktree with git log -1 --format=%P 330457cfa56646d5f56b7746c0e0064009505eb5 = parents e851b49b27020693ff4c4387092a89e01d38fb17 (base) and 1c153eebe9114b8082b46a67289f06a8c16019c1 (candidate, 'candidate round 2')",
+        "changed files = 3, measured with git diff --name-only e851b49b… 330457cf…: components/loop/MaskinHeader.tsx, components/loop/room/ui.ts, tests/loop/room-mobile.test.ts",
+        "verified by reading the diff at those commits: PageHeader title changes from 'Maskinen' to 'Kartongförstöraren', and .rm-lane-focus changes from order:-1 to order:0 inside the max-width:959px block, written out rather than omitted so an inherited order cannot silently move the lane back",
+        "the goal/allowedWrite/deniedWrite recorded here are RECONSTRUCTED from the merged diff and the in-code rationale, not copied from the original task file, which lies outside this repository",
+        "gate exit codes and reviewer verdicts live in that run's own evidence directory under .git/claude-factory/runs/ and were NOT read by this documentation run"
+      ],
+      "published": {
+        "baseSha": "e851b49b27020693ff4c4387092a89e01d38fb17",
+        "candidateSha": "1c153eebe9114b8082b46a67289f06a8c16019c1",
+        "mergeSha": "330457cfa56646d5f56b7746c0e0064009505eb5",
+        "pr": "https://github.com/Nortropic/verkstadsgolvet/pull/37"
+      },
+      "blocker": "the step ordinal .rm-step-n stays hidden at 720-959 px because ROOM-LAYOUT in tests/loop/room-shell.test.ts freezes that rule and the measurement lies outside this slice's write scope. Omitting a TRUE ordinal is an omission, never an untruth; restoring it belongs to the slice that owns that measurement."
     },
     {
       "id": "CONVERSATION-01",
@@ -2184,8 +2252,13 @@
       "visualReview": true,
       "empiricalReview": "Negative controls, each observed FAILING: a live submission whose work domain was decided silently by natural-language classification without explicit operator selection; an intake path that reaches submission with no work domain at all; an overview count not backed by the current source; a completion percentage rendered anywhere in the lane overview.",
       "remotePrerequisites": [],
-      "status": "NOT_STARTED",
-      "evidence": [],
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "PRESENTATION HALF ONLY, landed incidentally by SHREDDER-01B (merge c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e, PR #38). Measured by reading components/loop/room/WorkComposer.tsx at that commit: COMPOSER_INTENT_QUESTION = 'Vad vill du göra?' and COMPOSER_LANES renders 'Bygg / ändra kundprojekt' and 'Förbättra Nortropic', each with a domain-appropriate example.",
+        "the same file states, and the code confirms, that this is a DISPLAY choice and not a typed model: both affordances are next/link to the same built /loop/mata surface, no classification runs, no model is consulted and no state is stored. The ids kundproduktion and systemforbattringar are the surface's own hooks — no snapshot, schema or fixture knows them.",
+        "status is IN_PROGRESS and NOT PROVEN: the typed work domain, the explicit operator selection that actually reaches a submission, and the §7 navigation/overview are all still missing. The typed contract is LANE-01's to define; a display surface must never invent it.",
+        "no negative control from empiricalReview has been observed failing yet, because there is no submission path to observe."
+      ],
       "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
       "blocker": null
     },
@@ -2427,19 +2500,19 @@
       "id": "P1",
       "title": "production-visible Kartongförstöraren",
       "status": "IN_PROGRESS",
-      "showroomEvidence": "SHREDDER-01A (merge ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08, PR #34) removed the LOOP_ENABLED 404 product gate from app/(app)/loop/page.tsx and app/(app)/loop/mata/page.tsx; lib/loop/room/mode.ts resolves SHOWROOM fail-closed. Measured by reading both files and mode.ts at that commit.",
-      "liveEvidence": "NONE at this measurement: the last CLI-verified deployed SHA is cb133c53e189a14255faefceaeb459cd21165d2c (erratum-01), which PREDATES ac2ba4ea…; no production observation of /loop was made by this documentation run.",
-      "blocker": "no technical blocker — an unperformed production measurement",
-      "nextAction": "P4: re-verify with the Railway CLI (deployed SHA at or after ac2ba4ea…) and observe /loop in production"
+      "showroomEvidence": "SHREDDER-01A (merge ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08, PR #34) removed the LOOP_ENABLED 404 product gate from app/(app)/loop/page.tsx and app/(app)/loop/mata/page.tsx; lib/loop/room/mode.ts resolves SHOWROOM fail-closed. Measured by reading both files and mode.ts at that commit. The DISCOVERY surfaces then merged with SHREDDER-01B (merge c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e, PR #38): the sidebar entry in components/Sidebar.tsx, the homepage product entry in app/(app)/page.tsx and the room itself at /loop, plus SHREDDER-01C (PR #37) making the page h1 the product's own name. Measured with git diff --name-only 330457cf… c86cf2aa… (17 files) and by reading the merged tree.",
+      "liveEvidence": "SPLIT — ANONYMOUS HALF PROVEN, AUTHENTICATED HALF OPEN. Railway deployment e5246608 SUCCESS at commit c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e (2026-08-15T21:10:16Z), equal to origin/main and therefore covering SHREDDER-01A, SHREDDER-01C and SHREDDER-01B; single deploy path = GitHub main auto-deploy; domain verkstadsgolvet-production.up.railway.app. Anonymous probes PASS: /, /loop and /loop/mata → 307 to /login, /login → 200 — the routes are reachable-and-protected in production rather than 404-gated, which is the SHREDDER-01A contract observed in production. Anonymous screenshots (desktop + mobile of the auth wall) at /Users/elinhaggstrom/nortropic/evidence/factory-room/production-20260815/. Measured by the supervisor/operator outside the model sandbox; this documentation run could not reach Railway and could not list that directory.",
+      "blocker": "AUTHENTICATED production screenshots are still pending an owner ceremony. Exact single owner action, either one closes it: (a) complete the Claude-in-Chrome extension install and run /chrome in a Claude Code session; or (b) log in at https://verkstadsgolvet-production.up.railway.app/loop and visually confirm the Kartongförstöraren sidebar entry, the home product entry and the showroom render. HONESTY RULE: the deployed commit's AUTHENTICATED rendering WAS captured at 1440/900/390 across four capture states by the factory's visual harness on the byte-identical tree — that is SUPPORTING EVIDENCE, NOT a substitute for production screenshots, because it proves what the code renders and never what the production deployment serves to a logged-in operator.",
+      "nextAction": "owner performs (a) or (b) above and records the authenticated production observation. This does NOT block LANE-01 or any other eligible slice."
     },
     {
       "id": "P2",
       "title": "showroom-first final UX",
-      "status": "IN_PROGRESS",
-      "showroomEvidence": "SHREDDER-01A landed the FactoryRoomMode contract, the showroom label constants and the revised product-acceptance tests tests/loop/showroom-contract.test.ts.",
+      "status": "PROVEN",
+      "showroomEvidence": "PROVEN for the showroom UX SHAPE, via the merged chain ROOM-01 (PR #24, the Factory Room shell) → ROOM-03 (PR #26, the causal timeline and evidence projection) → ROOM-08 (PR #29, the responsive/mobile room) → SHREDDER-01B (PR #38, merge c86cf2aa…, discoverability and polish: sidebar entry, homepage product entry, the WorkComposer unmistakable as the entry at every breakpoint, the prose diet relocating defensive paragraphs verbatim behind disclosures, and the labelled showroom scenario picker over generated schema-validated fixtures), with SHREDDER-01A (PR #34) supplying the FactoryRoomMode contract and the single showroom label vocabulary and SHREDDER-01C (PR #37) making the page h1 the product's own name and the entry lead at tablet width too. Each of those merges carried an independent visual review of actual screenshots; SHREDDER-01B's final compact run passed including the 390-wide fold acceptance at approximately y730 of 844.",
       "liveEvidence": "n/a by design — SHOWROOM is a labelling mode, never a live claim",
       "blocker": null,
-      "nextAction": "SHREDDER-01B, then CONVERSATION-01, WEBSITE-FACTORY-01 and SHOWROOM-SCENARIOS-01"
+      "nextAction": "PROVEN as a SHAPE only. It is not a claim that every showroom surface required by erratum-02 exists: CONVERSATION-01, WEBSITE-FACTORY-01 and SHOWROOM-SCENARIOS-01 remain NOT_STARTED and each will extend this surface."
     },
     {
       "id": "P3",
@@ -2453,11 +2526,11 @@
     {
       "id": "P4",
       "title": "production Railway deployment proof",
-      "status": "NOT_STARTED",
+      "status": "PROVEN",
       "showroomEvidence": "n/a",
-      "liveEvidence": "erratum-01 recorded project, environment, service, domain and deployment f328ebee-f9f6-4bf0-9e76-281032735ddf at SHA cb133c53…; that SHA predates the showroom product, so no proof exists for the current product.",
-      "blocker": "the measurement is outside this model sandbox (no network route to Railway); it is not blocked by any missing capability",
-      "nextAction": "supervisor or owner runs the Railway CLI outside the sandbox and records deployed SHA, observed production URL and observed behaviour"
+      "liveEvidence": "PROVEN for DEPLOYMENT-SHA VERIFICATION, the thing this requirement names. Railway deployment e5246608 SUCCESS at commit c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e, deployed 2026-08-15T21:10:16Z, on the single deploy path (GitHub main auto-deploy — railway up must not be used in parallel), domain verkstadsgolvet-production.up.railway.app. The deployed SHA EQUALS origin/main as measured in this run worktree with git rev-parse origin/main, so the erratum-02 CORRECTED_DECISION_6 gap — a deployed SHA lagging behind the product — is closed: the previously recorded deployed SHA cb133c53… is superseded. Observed production behaviour: anonymous probes of /, /loop and /loop/mata return 307 to /login and /login returns 200, with desktop and mobile screenshots of the auth wall captured at /Users/elinhaggstrom/nortropic/evidence/factory-room/production-20260815/. Measured by the supervisor/operator outside the model sandbox.",
+      "blocker": "SUB-ITEM STILL OPEN, recorded so PROVEN is not read as more than it is: the AUTHENTICATED production visual has not been captured. PROVEN here covers the deployed SHA, the deploy path, the domain and the ANONYMOUS observed behaviour — it does not cover what a logged-in operator sees in production. Closing the sub-item is one owner action: (a) complete the Claude-in-Chrome extension install and run /chrome in a Claude Code session; or (b) log in at https://verkstadsgolvet-production.up.railway.app/loop and visually confirm the Kartongförstöraren sidebar entry, the home product entry and the showroom render. The factory visual harness's 1440/900/390 four-state capture of the byte-identical tree is supporting evidence only and never a substitute.",
+      "nextAction": "owner performs (a) or (b) to close the authenticated sub-item; re-measure the deployed SHA after any future merge, because this PROVEN value is a measured-at-date fact and goes stale the moment main moves."
     },
     {
       "id": "P5",
