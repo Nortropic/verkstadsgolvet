@@ -223,6 +223,27 @@ export const ROOM_CSS = `
   font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted);
   background: var(--bg-surface-0); box-shadow: var(--hairline); border-radius: var(--radius-chip);
   padding: 2px 6px; min-width: 0; overflow-wrap: anywhere; }
+/*
+  LÄGESMÄRKET I EN UPPLYSNINGSYTAS RUBRIK KRYMPER INTE — FYNDET SOM REGELN SVARAR PÅ.
+
+  «.rm-details > summary» är «inline-flex», så dess barn är flexbarn med förvalet «flex-shrink: 1».
+  Vid 390 px, när summaryns egen text är lång, är märket det enda barn som KAN krympa: det pressas
+  under sin egen ordbredd och «.rm-flag»:s «overflow-wrap: anywhere» delar då ordet mitt itu —
+  SHOWROOM målades som «SHOWRO» över «OM» i granskningens telefonklipp. Ett lägesmärke som läses
+  som två fragment är precis det som urholkar lägesordförrådet, alltså samma sak som formregeln
+  längre upp finns för att skydda.
+
+  ÅTGÄRDEN ÄR ATT MÄRKET INTE KRYMPS — INTE ATT DET FÖRBJUDS BRYTAS. «flex: none» tar bort
+  krympningen; «overflow-wrap: anywhere» står kvar, så en framtida lång etikett bryts fortfarande
+  hellre än trycker ut sin rad. Ingen «nowrap» införs: den vägen är låst till «.rm-id-origin» i
+  tests/loop/room-mobile.test.ts, och den låsningen är riktig — ett märke som varken får krympa
+  eller brytas kan trycka ut sidan i sidled.
+
+  MÅTTET SPRÄNGER INGEN SMAL VY: märket är ett kort versalt ord i 9.5 px mono med 6 px utfyllnad,
+  alltså några tiotal pixlar av en 390 px-rad. Regeln är dessutom scopad till summary-raden —
+  märken i rummets övriga rader behåller sitt beteende oförändrat.
+*/
+.rm-details > summary > .rm-flag { flex: none; }
 /* ── LANE-01 · arbetsdomänens rad ─────────────────────────────────────────────
    Nortropics två fabriksspår (KUNDPRODUKTION / SYSTEMFÖRBÄTTRINGAR) visas som EN dämpad rad:
    etikett och värde bredvid varandra, i mono som rummets övriga märkning.
@@ -233,11 +254,19 @@ export const ROOM_CSS = `
    aldrig bli sidans bredd vid 390 px.
 
    INGEN EGEN BRYTPUNKT: raden ser likadan ut i alla tre vyerna. Den bär inget mått som kan spränga
-   en smal vy, och ingenting i den döljs någonstans. */
+   en smal vy, och ingenting i den döljs någonstans.
+
+   ETIKETTEN BÄR «--text-muted», INTE «--text-disabled» — OCH SKILLNADEN ÄR INTE SMAK.
+   Den dämpade tokenen hör hemma där en nyckel står INUTI en yta som redan namngett sig, som
+   «.rm-id-key» djupt nere i identitetsremsan. Den här etiketten står i stället på rummets
+   titelrad bredvid en h2, och i väljarens rubrikrad — där är den det ENDA som säger vad värdet
+   bredvid betyder. Granskningen mätte den som märkbart svagare än varje annan nyckel på samma
+   rad. Storleken och spärrningen är oförändrade, så radhöjden och «det här är inget
+   tillståndsmärke»-formen står kvar; det som ändras är att etiketten går att läsa. */
 .rm-domain { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px;
   min-width: 0; }
 .rm-domain-key { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1px;
-  text-transform: uppercase; color: var(--text-disabled); overflow-wrap: anywhere; }
+  text-transform: uppercase; color: var(--text-muted); overflow-wrap: anywhere; }
 .rm-domain-value { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.8px;
   text-transform: uppercase; color: var(--text-secondary); overflow-wrap: anywhere; }
 
