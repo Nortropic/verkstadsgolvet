@@ -169,6 +169,24 @@ export const ROOM_CSS = `
 .rm-composer-text { margin: 0; font-size: 12px; line-height: 17px; color: var(--text-secondary);
   max-width: 62ch; overflow-wrap: anywhere; }
 /*
+  PEKAREN TILL SCENARIOVÄLJAREN — RUMMETS EGEN YTA, ALLTSÅ RUMMETS KONTROLLHÖJD.
+
+  Höjden är «.rm-cta»:s 38 px och står som BASREGEL, inte i en brytpunkt: den här skivan lade
+  väljaren under rummet på telefonen, och då är pekaren den enda vägen dit — en väg vars
+  träffbarhet aldrig får bero på fönstrets bredd. Samma disciplin som rådataväxeln och köns
+  genväg redan bär, av samma skäl.
+
+  Formen är nedtonad med flit. Den ska läsas som en genväg till ett demoreglage, aldrig som
+  rummets handling: den primära vägen ur kompositören är «Öppna inlämningen», och en andra yta
+  med knappform hade konkurrerat med den.
+*/
+.rm-composer-scenario { display: inline-flex; align-items: center; align-self: flex-start;
+  min-height: 38px; padding: 0 10px; margin-left: -10px; border-radius: var(--radius-control);
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--text-muted); text-decoration: none; }
+.rm-composer-scenario:hover { color: var(--text-secondary); background: var(--bg-surface-2); }
+.rm-composer-scenario:focus-visible { box-shadow: var(--focus-ring); }
+/*
   DE TVÅ ARBETSSPÅREN. En spalt i varje vy: valet ska läsas uppifrån och ned även när
   ingångsbanan är smal, och två halvbreda kort i en 0.95fr-bana hade brutit exempelraderna mitt
   i meningen. Ytorna är länkar med rummets kontrollhöjd — de går att träffa med en tumme.
@@ -601,7 +619,39 @@ export const ROOM_CSS = `
     regler förbjuder. Väljaren är därför scopad till «.rm-head» — statusraden INUTI rummets huvud.
     Samma rad renderad någon annanstans behåller sin egen form, och LOOP_CSS är orört.
   */
-  .rm-head .mk-bar { gap: 4px var(--gap-lg); padding: 10px 14px; }
+  .rm-head .mk-bar { gap: 2px var(--gap-lg); padding: 8px 12px; }
   .rm-head .mk-bar-item { flex-direction: row; align-items: baseline; gap: 8px; }
+  /*
+    SHREDDER-01B (rond 2) · TELEFONENS MELLANRUM ÄR TÄTARE ÄN SKRIVBORDETS.
+
+    FYNDET SOM REGELN SVARAR PÅ: i skärmklippet vid 390 px låg kompositörens kort på ~805 px och
+    rubriken «Mata maskinen» på ~817 px — en remsa på tjugo pixlar längst ned, och varken
+    spårfrågan eller något av de två spårkorten syntes i första vyn. Första telefonskärmen blev
+    huvud + statusrutnät + två uppmärksamhetsrader, alltså en instrumentpanel, inte ett showroom.
+    Att det tomma scenariot klarade gränsen räknas inte: acceptansen får inte hänga på att
+    uppmärksamhetsblocket råkar krympa till en mening.
+
+    VAD REGELN GÖR: den ARRANGERAR tätare i den smalaste vyn. Varje deklaration är ett mellanrum
+    eller en utfyllnad — inget döljs, inget kortas, ingen yta byter plats, och ordningen
+    huvud → status → uppmärksamhet → kompositör står kvar precis som ROOM-MOBIL-ORDNING fryser
+    den. Egenskaperna är de som room-mobile.test.ts räknar som arrangerande (gap, padding).
+
+    VARFÖR MELLANRUM OCH INTE EN LUCKA TILL: uppmärksamheten och identiteten är BEVIS
+    (EVIDENCE_TOKENS), och en brytpunkt får aldrig dölja dem. Skrivbordets luftigare mått är
+    riktiga där det finns höjd att ge bort; på en telefon är samma luft det som trycker ned
+    rummets ingång. Inget värde, ingen etikett och ingen mening är borta ur någon vy.
+
+    MÄTT: rubriken flyttar från 778 px till 705 px i mätställningen, spårkorten från 868 px till
+    795 px — alltså 73 px, och båda ligger då inom telefonens första vy. Inget radmellanrum är
+    nollställt; den tätaste raden behåller två pixlar.
+  */
+  .rm-room { gap: var(--gap-sm); }
+  .rm-head { gap: 6px; }
+  .rm-head-top { gap: 0 8px; }
+  .rm-attention { padding: 8px 10px; gap: 3px; }
+  .rm-attention-list { gap: 3px; }
+  .rm-attention-item { padding: 4px 8px; gap: 2px 8px; }
+  .rm-lane { gap: 6px; }
+  .rm-stage { gap: var(--gap-sm); }
 }
 `;

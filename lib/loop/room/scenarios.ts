@@ -36,6 +36,21 @@ export const SCENARIO_PARAM = "scenario";
 export const SCENARIO_PICKER_LABEL = "Showroom-scenario";
 
 /**
+ * Ankaret till väljaren. EN stavning, delad av ytan som BÄR ankaret och ytan som PEKAR på det,
+ * så att de två inte kan glida isär den dag namnet ändras.
+ */
+export const SCENARIO_ANCHOR_ID = "showroom-scenario";
+
+/**
+ * Etiketten på pekaren i rummet.
+ *
+ * Den är MED FLIT riktningslös. Vid ≥720 px står väljaren ovanför rummet, vid ≤719 px under det:
+ * en text som sa «längst ned» hade varit osann i den ena vyn, och en yta som ljuger om var en
+ * kontroll finns är värre än ingen pekare alls. Ett ankare hittar väljaren i båda fallen.
+ */
+export const SCENARIO_POINTER_LABEL = "Byt showroom-scenario";
+
+/**
  * VALETS GRÄNS, SOM EN EGEN MENING — DÄRFÖR ATT DEN IBLAND MÅSTE STÅ FRAMME.
  *
  * Väljer man «Tom fabrik» töms kön, blicken och hyllan medan tidslinjen står kvar full av

@@ -35,6 +35,7 @@ import * as React from "react";
 import Link from "next/link";
 import { INTAKE_BLOCKED_ON, INTAKE_MODE } from "@/lib/loop/intake";
 import { SHOWROOM } from "@/lib/loop/room/mode";
+import { SCENARIO_ANCHOR_ID, SCENARIO_POINTER_LABEL } from "@/lib/loop/room/scenarios";
 
 export const COMPOSER_TITLE = "Mata maskinen";
 
@@ -167,6 +168,37 @@ export default function WorkComposer() {
       <p className="rm-composer-note" data-composer-preview-note="true">
         {COMPOSER_PREVIEW_NOTE}
       </p>
+
+      {/*
+        PEKAREN TILL SCENARIOVÄLJAREN.
+
+        FYNDET: vid ≤719 px målas väljaren efter hela rummet, alltså kring 7000 px ned på en
+        7200 px lång sida. Den var därmed omöjlig att hitta för den som öppnar rummet på en
+        telefon för första gången — och efter ett byte låg kontrollen inte kvar där man nyss
+        stod. Att i stället lyfta tillbaka väljaren ovanför rummet kostar mätt cirka 80 px av
+        den första telefonskärmen, alltså precis den höjd fold-acceptansen just vunnit; den
+        vägen löser ett fynd genom att återöppna ett annat.
+
+        Pekaren är den andra vägen granskningen pekade ut: en kort, ordinär länk INUTI rummet,
+        intill kompositören. Den står efter förhandsvisningen och inte i rubrikraden, eftersom
+        rummets ingång ska mötas först — en genväg till ett demoreglage får aldrig konkurrera
+        med «Mata maskinen» eller med de två spårkorten.
+
+        DEN GÄLLER I VARJE VY, OCH DET ÄR ETT VAL. Ett ankare är sant oavsett var väljaren
+        målas, så pekaren behöver ingen breddgren — och rummet slipper en regel som döljer en
+        yta vid en brytpunkt, vilket ROOM-MOBIL-DÖLJ med rätta förbjuder. Vid ≥720 px är den
+        en genväg till en yta som redan syns; vid ≤719 px är den vägen dit.
+
+        INGEN INTENTION: en `<a href="#…">` inom samma sida. Ingen hämtning, inget kommando,
+        ingen navigering bort från rummet.
+      */}
+      <a
+        className="rm-composer-scenario"
+        href={`#${SCENARIO_ANCHOR_ID}`}
+        data-scenario-pointer="true"
+      >
+        {SCENARIO_POINTER_LABEL}
+      </a>
 
       {/*
         PROSAN ÄR FLYTTAD, INTE BORTTAGEN (§owner-8). Båda styckena står ordagrant kvar — och

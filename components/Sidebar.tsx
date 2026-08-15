@@ -106,6 +106,37 @@ const LEADS = [
  */
 const NAV_ITEM_ROW_FIT = { flex: "none", width: "auto" } as const;
 
+/**
+ * FOKUSRINGEN PÅ DE POSTER SOM BÄR EN EGEN SKUGGA.
+ *
+ * MÄTT, INTE ANTAGET. app/globals.css bär en global regel — «:focus-visible { box-shadow:
+ * var(--focus-ring) }» — och för en vanlig navigeringspost fungerar den. Men två poster har en
+ * EGEN box-shadow i viloläge, och deras väljare är mer specifika än den globala regeln:
+ *
+ *   · «.nav-item.active» (0,2,0) sätter «box-shadow: var(--hairline)»
+ *   · «.nav-cta»         (0,1,0 plus egen skuggdeklaration i basregeln)
+ *
+ * En mer specifik skugga vinner över en mindre specifik, så fokusringen målas ALDRIG på dem.
+ * Mätningen: fokus parkerat på posten ger samma beräknade box-shadow som viloläget, medan en
+ * inaktiv post byter till fokusringen som väntat.
+ *
+ * DET TRÄFFAR PRECIS DEN POST DEN HÄR SKIVAN LADE TILL. Kartongförstöraren är AKTIV på /loop —
+ * alltså är produktens egen ingång den enda navigeringsposten som inte kan visa var
+ * tangentbordsfokus står, på exakt den sida skivan handlar om. Samma sak gäller «Ny kund».
+ *
+ * Regeln nedan höjer specificiteten till (0,2,1) med husets EGET fokusringstoken. Ingen ny
+ * token, ingen ny färg, ingen ändrad viloform: posterna ser likadana ut tills de får fokus.
+ *
+ * DEN RIKTIGA FIXEN LIGGER I STILARKET, som den här skivan inte äger — precis som för måttet
+ * ovan. Tills en skiva som äger app/globals.css tar bort specificitetskrocket bär sidomenyn
+ * sin fokusring själv, och den bär den för ALLA poster, inte bara för den nya: en post som blir
+ * synlig i tangentbordet medan de andra lämnas kvar är ingen tillgänglighetsfix.
+ */
+const SIDEBAR_FOCUS_CSS = `
+.sidebar .nav-item:focus-visible,
+.sidebar .nav-cta:focus-visible { box-shadow: var(--focus-ring); }
+`;
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -137,6 +168,7 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
+      <style dangerouslySetInnerHTML={{ __html: SIDEBAR_FOCUS_CSS }} />
       <div className="sidebar-logo">
         <Link href="/" aria-label="Nortropic — översikt">
           <NortropicLogo src="/nortropic-mark.png" />

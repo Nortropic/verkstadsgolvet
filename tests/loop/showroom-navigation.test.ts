@@ -56,8 +56,10 @@ import { MISSING } from "../../lib/loop/labels";
 import { SHOWROOM } from "../../lib/loop/room/mode";
 import {
   DEFAULT_SCENARIO,
+  SCENARIO_ANCHOR_ID,
   SCENARIO_PARAM,
   SCENARIO_PICKER_LABEL,
+  SCENARIO_POINTER_LABEL,
   SCENARIO_PICKER_NOTE,
   SCENARIO_TIMELINE_SCOPE_NOTE,
   SHOWROOM_SCENARIOS,
@@ -978,6 +980,65 @@ test("NAV-F: båda arbetsspåren syns — kundproduktion OCH systemförbättring
     !/CUSTOMER_PRODUCTION|SYSTEM_IMPROVEMENT/.test(composer),
     "kompositören stavar ett kontraktsvärde som inte finns",
   );
+});
+
+test("NAV-F: scenariovaljaren är nåbar från kompositören — ankaret finns i BÅDA ändar", () => {
+  /*
+    FYNDET SOM MÄTAREN FRYSER: vid ≤719 px målas väljaren efter hela rummet, alltså tusentals
+    pixlar under kompositören. Utan en väg dit fanns «Full fabrik / Tom fabrik» i praktiken inte
+    för den som öppnar rummet på en telefon.
+
+    Mätaren äger BÅDA ändarna av ankaret, eftersom ett ankare med bara en ände är en trasig länk
+    som inget prov märker: väljaren måste BÄRA id:t, och kompositören måste PEKA på samma id —
+    och båda ska läsa strängen ur samma konstant i stället för att stava den var för sig.
+  */
+  const composerHtml = renderToStaticMarkup(createElement(WorkComposer, {}));
+  const pickerHtml = withoutStyles(
+    renderToStaticMarkup(createElement(ScenarioPicker, { current: DEFAULT_SCENARIO })),
+  );
+
+  // Ände 1: väljaren bär ankaret.
+  assert.ok(
+    pickerHtml.includes(`id="${SCENARIO_ANCHOR_ID}"`),
+    "väljaren bär inget ankare — pekaren i rummet skulle peka på ingenting",
+  );
+
+  // Ände 2: kompositören pekar på exakt samma ankare, som en ordinär länk inom sidan.
+  const pointer = tagsWith(composerHtml, 'data-scenario-pointer="true"')[0];
+  assert.ok(pointer, "kompositören saknar vägen till scenariovaljaren");
+  assert.ok(pointer.startsWith("<a "), `pekaren är inte en vanlig länk: ${pointer}`);
+  assert.equal(attr(pointer, "href"), `#${SCENARIO_ANCHOR_ID}`, "pekaren pekar inte på väljaren");
+  assert.ok(composerHtml.includes(SCENARIO_POINTER_LABEL), "pekarens etikett renderas inte");
+
+  /*
+    PEKAREN ÄR INGEN INTENTION och ingen väg ut ur rummet: ingen kommandomärkning, ingen
+    hämtning, ingen extern adress. Den flyttar blicken inom samma sida.
+  */
+  assert.ok(!/data-command|onclick|onClick|aria-disabled/i.test(pointer), `pekaren bär en kommandoväg: ${pointer}`);
+  assert.ok(!/https?:/.test(pointer), "pekaren lämnar sidan");
+
+  /*
+    OCH DEN LJUGER INTE OM RIKTNINGEN. Väljaren står ovanför rummet vid ≥720 px och under det vid
+    ≤719 px; en etikett med «ned» eller «upp» hade varit osann i den ena vyn. Ankaret hittar rätt
+    i båda, så etiketten ska vara riktningslös.
+  */
+  assert.ok(
+    !/\b(ned|nedan|upp|ovan|längst)\b/i.test(SCENARIO_POINTER_LABEL),
+    `pekarens etikett påstår en riktning som bara stämmer i en vy: «${SCENARIO_POINTER_LABEL}»`,
+  );
+
+  // Båda ändarna läser samma konstant — ingen yta stavar ankaret för hand.
+  for (const path of [
+    "components/loop/room/WorkComposer.tsx",
+    "components/loop/room/ScenarioPicker.tsx",
+  ]) {
+    const code = stripComments(read(path));
+    assert.match(code, /SCENARIO_ANCHOR_ID/, `${path} stavar ankaret för hand`);
+    assert.ok(
+      !new RegExp(`["'\`]#?${SCENARIO_ANCHOR_ID}`).test(code),
+      `${path} bär ankaret som avskriven sträng i stället för som konstant`,
+    );
+  }
 });
 
 /* ────────────────────────────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ import * as React from "react";
 import Link from "next/link";
 import {
   DEFAULT_SCENARIO,
+  SCENARIO_ANCHOR_ID,
   SCENARIO_PICKER_LABEL,
   SCENARIO_PICKER_NOTE,
   SCENARIO_TIMELINE_SCOPE_NOTE,
@@ -73,6 +74,7 @@ export default function ScenarioPicker({
   return (
     <section
       className="rm-scenarios"
+      id={SCENARIO_ANCHOR_ID}
       data-showroom-scenarios="true"
       data-scenario-current={current}
       data-room-mode={mode}
