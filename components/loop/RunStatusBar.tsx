@@ -15,10 +15,13 @@
  *   origin/main själv — det vore en andra sanning.
  * · `run.state`, `run.breaker` och `run.budget` är OLÖSTA kontrakt (S5). De renderas som "—"
  *   respektive som opakt värde; inga namngivna fält läses ur dem.
- * · Fixturläget märks ut. En fixtur är aldrig livedata och får aldrig se ut som livedata.
+ * · Fixturläget märks ut med SHOWROOM-märket (lib/loop/room/mode.ts). Simulerad fabriksdata är
+ *   aldrig livedata och får aldrig se ut som livedata. Etiketten följer datakällan: bär raden en
+ *   fixtur bär den också märket, och strängen har EN källa så att den inte kan glida isär.
  */
 import * as React from "react";
 import { MISSING, orMissing } from "@/lib/loop/labels";
+import { SHOWROOM, SHOWROOM_BADGE } from "@/lib/loop/room/mode";
 import type { LoopSnapshot } from "@/lib/loop/schema";
 import { shortSha } from "./ui";
 
@@ -87,8 +90,8 @@ export default function RunStatusBar({
       {fixture && (
         <div className="mk-bar-item">
           <span className="mk-label">Datakälla</span>
-          <span className="mk-badge mk-tone-warning" data-fixture-mode="true">
-            FIXTUR · INTE LIVEDATA
+          <span className="mk-badge mk-tone-warning" data-room-mode={SHOWROOM}>
+            {SHOWROOM_BADGE}
           </span>
         </div>
       )}

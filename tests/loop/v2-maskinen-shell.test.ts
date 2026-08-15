@@ -1,8 +1,19 @@
 /**
  * V2 · MASKINEN-SHELL (fixturbaserad).
  *
+ * SYNLIGHETSREGELN ÄR UPPHÄVD (SHREDDER-01A)
+ * ------------------------------------------
+ * §V2 skrevs med ROUTE_PLAN:s regel "LOOP_ENABLED av → routen finns inte". Ägarbeslutet i
+ * docs/nortropic-factory-room-roadmap-erratum-01.md upphäver den som PRODUKTREGEL:
+ * SHOWROOM_BEFORE_BACKEND_COMPLETE=YES · HIDE_LOOP_ROUTE_UNTIL_BACKEND=NO ·
+ * FIXTURE_DATA_MUST_BE_EXPLICITLY_LABELLED=YES. Den INLOGGADE routen renderar därför alltid, och
+ * kravet som ersätter 404-grinden är att data märks: `data-room-mode="SHOWROOM"` plus SHOWROOM-
+ * märket ur lib/loop/room/mode.ts. Grinden `LOOP_ENABLED` lever kvar OFÖRÄNDRAD som transportgrind
+ * för app/api/loop/** (mätt av V4/V9/V10), och ingen autentiserings- eller trust-invariant rörs.
+ * Den fullständiga showroom-kontrakts-mätningen bor i tests/loop/showroom-contract.test.ts.
+ *
  * Provar exit-kriterierna i docs/nortropic-control-room-plan-v1.md §V2:
- *   (1) /loop renderar tre kolumner ur fixtur, BAKOM LOOP_ENABLED (fail-closed när den är av).
+ *   (1) /loop renderar tre kolumner ur fixtur, MÄRKTA SOM SHOWROOM (inte bakom en 404-grind).
  *   (2) Alla elva TASK_LIFECYCLE-tillstånd — inklusive STOPPED — har distinkt rendering.
  *   (3) Ett fixturfält satt till null renderar exakt "—", aldrig 0 och aldrig tomt.
  *   (4) Negativa kontroller: NEEDS_SPEC som fel · fallet/ej avslutat arbete som ser klart ut ·
@@ -33,6 +44,12 @@ import { isLoopEnabled } from "../../components/loop/flag";
 import { LOOP_CSS, shortSha } from "../../components/loop/ui";
 import MaskinenPage from "../../app/(app)/loop/page";
 import { FIXTURE_MODE, RAW_FIXTURES, fixtureSnapshot } from "../../lib/loop/fixtures";
+import {
+  SHOWROOM,
+  SHOWROOM_BADGE,
+  factoryRoomMode,
+  type FactoryRoomMode,
+} from "../../lib/loop/room/mode";
 import {
   MISSING,
   NEEDS_SPEC_EXPLANATION,
@@ -134,8 +151,12 @@ function snapshotWithEveryState(): { snapshot: LoopSnapshot; idOf: (s: TaskLifec
   return { snapshot: (validated as { ok: true; data: LoopSnapshot }).data, idOf };
 }
 
-/* ── 1 · LOOP_ENABLED — grinden ───────────────────────────────────────────── */
+/* ── 1 · Grindarna: transportflaggan och produktläget ─────────────────────── */
 
+/**
+ * Flaggans SEMANTIK är oförändrad och mäts fortfarande här: den gatar app/api/loop/** och är
+ * exakt-matchning mot "true". Det som är upphävt är att den skulle dölja PRODUKTEN.
+ */
 test("V2-GATE: LOOP_ENABLED är exakt-matchning mot 'true' och fail-closed för allt annat", () => {
   assert.equal(isLoopEnabled({ LOOP_ENABLED: "true" }), true);
   for (const value of ["false", "TRUE", "True", "1", "yes", "on", " true", "", undefined]) {
@@ -148,65 +169,70 @@ test("V2-GATE: LOOP_ENABLED är exakt-matchning mot 'true' och fail-closed för 
   assert.equal(isLoopEnabled({}), false);
 });
 
-test("V2-GATE: /loop finns inte när flaggan är av — routen faller stängd, inte till en stubbe", () => {
+test("V2-SHOWROOM: /loop renderar UTAN LOOP_ENABLED och är märkt som showroom, inte gömd", () => {
+  /*
+    ERSÄTTER den upphävda 404-mätningen ("sidan renderade trots att LOOP_ENABLED var av").
+    Kravet är inte längre att sidan saknas utan flagga — det är att den syns OCH att dess data
+    märks som simulerad. En dold route var aldrig en säkerhetsgräns; en omärkt fixtur vore
+    däremot en lögn. Grinden mäts fortfarande i provet ovanför, för den yta den faktiskt gatar.
+  */
   const before = process.env.LOOP_ENABLED;
   try {
     delete process.env.LOOP_ENABLED;
-    assert.throws(
-      () => MaskinenPage(),
-      (error: Error & { digest?: string }) => {
-        // Next signalerar 404 med exakt den här digesten.
-        assert.match(String(error.digest ?? error.message), /NEXT_HTTP_ERROR_FALLBACK;404/);
-        return true;
-      },
-      "sidan renderade trots att LOOP_ENABLED var av",
+    const html = renderToStaticMarkup(MaskinenPage() as ReactElement);
+    assert.ok(html.includes('data-maskin-shell="true"'), "sidan renderade inget kontrollrum");
+    assert.ok(
+      html.includes(`data-room-mode="${SHOWROOM}"`),
+      "sidan bär inget maskinläsbart produktläge",
     );
+    assert.ok(html.includes(SHOWROOM_BADGE), "showroom-märket saknas i den renderade sidan");
 
+    // Även med flaggan uttryckligen AV är produkten synlig — och lika märkt.
     process.env.LOOP_ENABLED = "false";
-    assert.throws(() => MaskinenPage(), /NEXT_HTTP_ERROR_FALLBACK;404/);
+    const withFlagOff = renderToStaticMarkup(MaskinenPage() as ReactElement);
+    assert.ok(withFlagOff.includes(`data-room-mode="${SHOWROOM}"`));
+    assert.ok(withFlagOff.includes(SHOWROOM_BADGE));
   } finally {
     if (before === undefined) delete process.env.LOOP_ENABLED;
     else process.env.LOOP_ENABLED = before;
   }
 });
 
-test("V2-GATE: /loop renderar först när flaggan är på, och läser flaggan vid varje request", () => {
-  const before = process.env.LOOP_ENABLED;
-  try {
-    process.env.LOOP_ENABLED = "true";
-    const page = MaskinenPage() as ReactElement;
-    assert.ok(page, "sidan returnerade inget träd med LOOP_ENABLED=true");
-    // force-dynamic: flaggan får aldrig bakas in vid build.
-    const route = readFileSync(join(REPO_ROOT, "app/(app)/loop/page.tsx"), "utf8");
-    assert.match(route, /export const dynamic = "force-dynamic"/);
-  } finally {
-    if (before === undefined) delete process.env.LOOP_ENABLED;
-    else process.env.LOOP_ENABLED = before;
-  }
+test("V2-SHOWROOM: läget läses vid varje request och kan inte bakas in vid build", () => {
+  const page = MaskinenPage() as ReactElement;
+  assert.ok(page, "sidan returnerade inget träd");
+  // force-dynamic: läget får aldrig bakas in vid build.
+  const route = readFileSync(join(REPO_ROOT, "app/(app)/loop/page.tsx"), "utf8");
+  assert.match(route, /export const dynamic = "force-dynamic"/);
+  // Och routen 404:ar inte längre på en produktflagga.
+  assert.ok(!/notFound\(\)/.test(route), "routen döljer fortfarande produkten bakom en 404");
 });
 
 /* ── 2 · V1-fixturen och V1-kontrakten är datakällan ──────────────────────── */
 
 test("V2-DATA: routen matar skalet med EXAKT V1:s genererade fixtur — ingen egen modell", () => {
-  const before = process.env.LOOP_ENABLED;
-  try {
-    process.env.LOOP_ENABLED = "true";
-    const page = MaskinenPage() as ReactElement;
-    const children = React.Children.toArray(
-      (page.props as { children: React.ReactNode }).children,
-    ) as ReactElement[];
-    const shell = children.find((child) => child.type === MaskinShell);
-    assert.ok(shell, "routen renderar inte MaskinShell");
-    const props = shell.props as { snapshot: LoopSnapshot | null; fixture: boolean };
-    assert.deepEqual(props.snapshot, fixtureSnapshot());
-    assert.deepEqual(props.snapshot, validateSnapshot(RAW_FIXTURES.snapshot).ok
-      ? snapshotOrThrow()
-      : null);
-    assert.equal(props.fixture, FIXTURE_MODE, "fixturläget märks inte ut för skalet");
-  } finally {
-    if (before === undefined) delete process.env.LOOP_ENABLED;
-    else process.env.LOOP_ENABLED = before;
-  }
+  const page = MaskinenPage() as ReactElement;
+  const children = React.Children.toArray(
+    (page.props as { children: React.ReactNode }).children,
+  ) as ReactElement[];
+  const shell = children.find((child) => child.type === MaskinShell);
+  assert.ok(shell, "routen renderar inte MaskinShell");
+  const props = shell.props as {
+    snapshot: LoopSnapshot | null;
+    fixture: boolean;
+    mode: FactoryRoomMode;
+  };
+  assert.deepEqual(props.snapshot, fixtureSnapshot());
+  assert.deepEqual(props.snapshot, validateSnapshot(RAW_FIXTURES.snapshot).ok
+    ? snapshotOrThrow()
+    : null);
+  assert.equal(props.fixture, FIXTURE_MODE, "fixturläget märks inte ut för skalet");
+  /*
+    SHREDDER-01A · propsen växte ADDITIVT med produktläget. Skalet får läget av routen i stället
+    för att gissa det, och läget är showroom — routen kan inte skicka in något annat.
+  */
+  assert.equal(props.mode, SHOWROOM, "routen skickar inte in produktläget");
+  assert.equal(factoryRoomMode(), SHOWROOM);
 });
 
 test("V2-DATA: skalet renderar tre kolumner och snapshotens egna värden, inte påhittade", () => {
@@ -223,7 +249,8 @@ test("V2-DATA: skalet renderar tre kolumner och snapshotens egna värden, inte p
     html.includes(shortSha(snapshot.current_main.sha)),
     "controllerns bekräftade main-SHA saknas",
   );
-  assert.ok(html.includes("FIXTUR"), "fixturläget märks inte ut i UI:t");
+  assert.ok(html.includes(SHOWROOM_BADGE), "showroom-märket saknas — fixturen står omärkt");
+  assert.ok(html.includes(`data-room-mode="${SHOWROOM}"`), "läget är inte maskinläsbart");
   // Ingen liveness-signal finns i den här skivan → aldrig AUTONOM.
   assert.ok(html.includes('data-liveness="unknown"'));
   assert.ok(

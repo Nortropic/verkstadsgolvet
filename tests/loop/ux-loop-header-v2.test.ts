@@ -30,11 +30,13 @@ import MaskinHeader from "../../components/loop/MaskinHeader";
 import BacklogColumn from "../../components/loop/BacklogColumn";
 import {
   MASKIN_HEADER_CSS,
+  MASKIN_HEADER_SHOWROOM_LABEL,
   MASKIN_HEADER_SUB,
   MASKIN_HEADER_TRANSPORT_NOTE,
   maskinHeaderTruth,
   type HeaderTruthSegment,
 } from "../../components/loop/ui";
+import { SHOWROOM, SHOWROOM_MODE_LINE } from "../../lib/loop/room/mode";
 import MaskinenPage from "../../app/(app)/loop/page";
 import { COMMAND_QUEUE_BLOCKED_ON, commandChannelEnabled } from "../../lib/loop/commands";
 import { FIXTURE_MODE } from "../../lib/loop/fixtures";
@@ -75,16 +77,14 @@ function textNodes(html: string): string[] {
     .filter((chunk) => chunk.length > 0);
 }
 
-/** Sidan renderad som markup, med grinden öppen. */
+/**
+ * Sidan renderad som markup.
+ *
+ * SHREDDER-01A · ingen env-ställning: den inloggade routen renderar utan produktflagga
+ * (erratum-01, HIDE_LOOP_ROUTE_UNTIL_BACKEND=NO).
+ */
 function pageHtml(): string {
-  const before = process.env.LOOP_ENABLED;
-  try {
-    process.env.LOOP_ENABLED = "true";
-    return renderToStaticMarkup(MaskinenPage() as React.ReactElement);
-  } finally {
-    if (before === undefined) delete process.env.LOOP_ENABLED;
-    else process.env.LOOP_ENABLED = before;
-  }
+  return renderToStaticMarkup(MaskinenPage() as React.ReactElement);
 }
 
 /**
@@ -174,10 +174,22 @@ test("H1: texten skiljer LIVE, KONTRAKTSLÄGE och FIXTUR åt — en yta i taget"
     "kommandokanalen beskrevs som en fungerande väg",
   );
 
-  // Fixturen: märkt som fixtur, aldrig som livedata.
+  // Fixturen: märkt som showroom, namngiven som fixtur, aldrig som livedata.
   const snapshot = segmentFor(segments, "snapshot");
   assert.match(snapshot.text, /fixtur/i, "fixturkällan märks inte ut som fixtur");
   assert.ok(!/\blive\b/i.test(snapshot.text), "fixturen beskrevs som live");
+  assert.equal(snapshot.label, MASKIN_HEADER_SHOWROOM_LABEL, "källan bär inte showroom-etiketten");
+
+  /*
+    SHREDDER-01A · ANTI-PROSADRIFT. Segmenten är kortade till produktton, och EXAKT den text som
+    landade mäts här. Skulle någon skriva om dem till en ny försvarsvägg faller raderna nedan —
+    det är hela poängen med att frysa strängarna i stället för att bara mäta mönster.
+  */
+  assert.equal(
+    segmentFor(segments, "stream").text,
+    "Eventströmmen läser kontrollplanet — tom tills backend publicerar.",
+  );
+  assert.equal(snapshot.text, "Statusrad, kolumner och kort ur en genererad fixtur.");
 
   // Distinktionen bärs i markupen, inte bara i prosan.
   for (const mode of ["live", "contract", "fixture"]) {
@@ -208,6 +220,35 @@ test("H1: påståendena stämmer med vad sidan FAKTISKT monterar", () => {
   assert.ok(page.includes('data-command-deck="true"'), "kommandoytan renderas inte på /loop");
   assert.ok(page.includes('data-truth-mode="contract"'), "kontraktsläget syns inte på /loop");
   assert.ok(page.includes('data-truth-mode="fixture"'), "fixturmärkningen syns inte på /loop");
+});
+
+test("H1-LÄGE: sidhuvudet bär EN kompakt lägesrad — produkt, inte försvarsvägg", () => {
+  /*
+    SHREDDER-01A · showroom-läget ska gå att LÄSA överst, en gång, på en rad. Måtten är
+    mekaniska: exakt strängen ur lib/loop/room/mode.ts, exakt en lägesrad, och läget också
+    maskinläsbart på huvudets rot så att en granskare inte behöver läsa prosa för att se det.
+  */
+  const markup = withoutStyles(headerHtml());
+
+  assert.ok(markup.includes(`data-room-mode="${SHOWROOM}"`), "huvudet bär inget maskinläsbart läge");
+  assert.equal(
+    (markup.match(/data-room-mode-line="true"/g) ?? []).length,
+    1,
+    "lägesraden står inte exakt en gång",
+  );
+  assert.ok(markup.includes(SHOWROOM_MODE_LINE), "lägesradens exakta text saknas");
+  assert.equal(SHOWROOM_MODE_LINE, "SHOWROOM · simulerad fabriksdata");
+  assert.ok(SHOWROOM_MODE_LINE.length <= 40, "lägesraden är inte längre en rad");
+
+  // Raden är EN mening utan punktlista av friskrivningar.
+  const line = markup.match(/<p[^>]*data-room-mode-line="true"[^>]*>([\s\S]*?)<\/p>/)?.[1];
+  assert.ok(line, "lägesraden renderas inte");
+  assert.equal(line.replace(/<[^>]+>/g, "").trim(), SHOWROOM_MODE_LINE);
+
+  // Och den syns på den faktiska sidan, inte bara i komponenten.
+  const page = pageHtml();
+  assert.ok(page.includes(SHOWROOM_MODE_LINE), "lägesraden når inte /loop");
+  assert.ok(page.includes(`data-room-mode="${SHOWROOM}"`), "sidan bär inget maskinläsbart läge");
 });
 
 test("H1: texten följer läget — inget påstående skrivs för hand", () => {

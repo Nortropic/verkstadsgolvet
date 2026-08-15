@@ -55,6 +55,7 @@ import {
   deriveAttention,
 } from "../../lib/loop/room/attention";
 import { ROOM_FACTS, ageText, mainConfirmation, roomIntro } from "../../lib/loop/room/header";
+import { ROOM_MODE_ATTRIBUTE, SHOWROOM, SHOWROOM_BADGE } from "../../lib/loop/room/mode";
 import {
   IDENTITY_DISCLAIMER,
   IDENTITY_FIELDS_WITHOUT_SOURCE,
@@ -356,7 +357,15 @@ test("ROOM-KÄLLA: rummets egen prosa påstår ALDRIG controllerpublicerad härk
   /*
     Två motstridiga påståenden om samma data är värre än ett tyst. Renderas rummet med fixturen
     får ingen mening i rummet säga att värdena kommer ur controllerns publicerade snapshot —
-    statusraden bär redan "FIXTUR · INTE LIVEDATA" och sidhuvudets sanningsrad säger fixtur.
+    statusraden bär redan SHOWROOM-märket (lib/loop/room/mode.ts) och sidhuvudets sanningsrad
+    säger fixtur.
+
+    MÄRKET MÄTS PÅ SIN EGEN KONSTANT (SHREDDER-01A). Raden här läste tidigare efter delsträngen
+    "FIXTUR". När statusradens märke bytte ord — "FIXTUR · INTE LIVEDATA" → SHOWROOM-märket —
+    fortsatte den träffa, men på orsakskedjans prosa ("monterad ur FIXTURENS validerade poster")
+    i stället för på märket den heter efter. Märket hade alltså kunnat försvinna ur rummet med
+    grönt prov. Nu läses konstanten själv, och de två påståendena mäts var för sig: MÄRKET ska
+    finnas, och prosan ska NAMNGE fixturen i klartext.
   */
   const snapshot = snapshotOrThrow();
   const text = withoutStyles(renderRoom(snapshot, true)).replace(/<[^>]+>/g, " ");
@@ -370,7 +379,12 @@ test("ROOM-KÄLLA: rummets egen prosa påstår ALDRIG controllerpublicerad härk
 
   // Fixturlägets ingress NAMNGER fixturen — den är inte bara tystare, den är ärlig.
   assert.match(roomIntro(true), /fixtur/i);
-  assert.ok(text.includes("FIXTUR"), "fixturmärket saknas i samma vy");
+  // … och märket för samma sanning står i SAMMA vy, mätt på sin egen konstant.
+  assert.ok(text.includes(SHOWROOM_BADGE), "showroom-märket saknas i samma vy");
+  assert.ok(
+    !SHOWROOM_BADGE.includes("FIXTUR"),
+    "märket bär ordet igen — då mäter raden ovan inte längre två skilda påståenden",
+  );
 
   // Och lägena är FAKTISKT olika texter — annars vore växlingen kosmetik.
   assert.notEqual(roomIntro(true), roomIntro(false));
@@ -626,9 +640,15 @@ test("ROOM-NEG: varken källan eller markupen bär procent, framstegselement ell
   assert.equal(ROOM_CSS_PREFIX, "rm-");
 
   /*
-    LOOP_CSS är Maskinens provade stilark och ligger UTANFÖR den här skivan. Jämförelsen görs mot
-    körningens frusna bas — inte mot HEAD, som efter en commit är kandidaten själv och därför
-    hade jämfört filen med sig själv.
+    LOOP_CSS är Maskinens provade stilark och ligger UTANFÖR rummets skivor. Låset mätte tidigare
+    HELA components/loop/ui.ts byte för byte. Det var en PROXY för det verkliga kravet, och
+    proxyn dog när SHREDDER-01A (ägarbeslutet i docs/nortropic-factory-room-roadmap-erratum-01.md)
+    bytte sidhuvudets ETIKETTER i samma fil: en textkonstant hade fällt en mätare som finns för
+    ett stilark.
+
+    Kravet som faktiskt skyddades är därför mätt DIREKT och lika hårt: STILARKET är byte-identiskt
+    med basens. Jämförelsen görs mot körningens frusna bas — inte mot HEAD, som efter en commit är
+    kandidaten själv och därför hade jämfört filen med sig själv.
   */
   const base = frozenBaseSha();
   const loopUi = base === null ? null : gitShow(base, "components/loop/ui.ts");
@@ -643,10 +663,32 @@ test("ROOM-NEG: varken källan eller markupen bär procent, framstegselement ell
     }
     return;
   }
+
+  /** Stilarket som det STÅR I KÄLLAN, från deklarationen till dess avslutande backtick. */
+  const loopCssBlock = (source: string): string | null => {
+    const start = source.indexOf("export const LOOP_CSS = `");
+    if (start < 0) return null;
+    const end = source.indexOf("`;", start + "export const LOOP_CSS = `".length);
+    return end < 0 ? null : source.slice(start, end + 2);
+  };
+
+  const current = loopCssBlock(readFileSync(join(REPO_ROOT, "components/loop/ui.ts"), "utf8"));
+  const frozen = loopCssBlock(loopUi);
+  assert.ok(current !== null, "kunde inte läsa LOOP_CSS ur källan — mätaren mäter ingenting");
+  assert.ok(frozen !== null, `kunde inte läsa LOOP_CSS ur basen ${base}`);
   assert.equal(
-    readFileSync(join(REPO_ROOT, "components/loop/ui.ts"), "utf8"),
-    loopUi,
-    `components/loop/ui.ts (LOOP_CSS) ändrades sedan basen ${base} — den ligger utanför den här skivan`,
+    current,
+    frozen,
+    `LOOP_CSS i components/loop/ui.ts ändrades sedan basen ${base} — stilarket ligger utanför skivan`,
+  );
+
+  // MÄTAREN SKA VARA VERKLIG: uttaget bär faktiskt stilarket, och en enda ändrad regel fälls.
+  assert.ok(current.includes(".mk-shell"), "uttaget innehåller inte stilarkets egna regler");
+  assert.ok(current.includes(LOOP_CSS), "uttaget matchar inte den exporterade konstanten");
+  assert.notEqual(
+    current.replace(".mk-shell {", ".mk-shell { display: none;"),
+    frozen,
+    "jämförelsen skulle inte se ens en ändrad regel",
   );
 });
 
@@ -929,7 +971,16 @@ test("ROOM-HUVUD: controllerns bekräftade main och dess ålder visas — ålder
   assert.ok(html.includes('data-liveness="unknown"'));
   assert.ok(!/AUTONOM/.test(markup), "rummet påstod AUTONOM utan liveness-signal");
   assert.ok(html.includes('data-age-is-liveness="false"'), "åldern märks inte som ren visning");
-  assert.ok(html.includes("FIXTUR"), "fixturmärkningen syns inte på rumsnivå");
+  /*
+    Samma korrigering som i ROOM-KÄLLA: märket mäts på SIN EGEN konstant, inte på en delsträng
+    som numera bärs av orsakskedjans prosa. Rumsnivån ska bära både märket i klartext och läget
+    maskinläsbart — försvinner statusradens märke faller raden nedan, vilket är hela poängen.
+  */
+  assert.ok(html.includes(SHOWROOM_BADGE), "showroom-märkningen syns inte på rumsnivå");
+  assert.ok(
+    html.includes(`${ROOM_MODE_ATTRIBUTE}="${SHOWROOM}"`),
+    "rumsnivån bär inget maskinläsbart produktläge",
+  );
   assert.ok(html.includes('data-room-transport-state="unknown"'), "rummet gissade ett transportläge");
 
   /*
@@ -1059,7 +1110,22 @@ test("ROOM-A11Y: rubriknivåerna syns — h2 lånar aldrig h3-rubrikernas form",
  * 8 · INGEN ANNAN YTA ÄNDRAS
  * ──────────────────────────────────────────────────────────────────────────── */
 
-test("ROOM-ISOLERING: rummet rör ingen annan yta, och startsidan är byte-identisk", () => {
+test("ROOM-ISOLERING: rummet rör ingen annan yta, och startsidans egen översikt överlever", () => {
+  /*
+    LÅSET ÄR OMFORMULERAT, INTE FÖRSVAGAT (SHREDDER-01A).
+
+    Tidigare mättes startsidan BYTE-IDENTISKT mot körningens frusna bas. Den mätaren kodade den
+    upphävda regeln "startsidan ändras aldrig" (ROUTE_PLAN:s dolda /loop-träd), och ägarbeslutet i
+    docs/nortropic-factory-room-roadmap-erratum-01.md gör en ingång från startsidan till
+    showroomet till en TILLÅTEN produktändring. En byte-jämförelse hade fällt den ändringen som om
+    den vore en regression — alltså hade mätaren mätt fel sak, inte för hårt.
+
+    Det byte-låset SKYDDADE är kvar och mäts direkt:
+      1 · den gamla översikten finns kvar på / — ProcessGuide, PipelinePanel och MetricsPanel
+          importeras OCH renderas där. Rummet får läggas TILL, aldrig ersätta;
+      2 · beroendet går bara åt ett håll: ingen rumsmodul importerar från startsidan, och ingen
+          rumsmodul drar in startsidans paneler.
+  */
   for (const { path, source } of roomSourceFiles()) {
     assert.ok(
       !/PipelinePanel|ProcessGuide|MetricsPanel/.test(source),
@@ -1068,47 +1134,37 @@ test("ROOM-ISOLERING: rummet rör ingen annan yta, och startsidan är byte-ident
     assert.ok(!/app\/\(app\)\/page|components\/Sidebar/.test(source), `${path} rör en annan route`);
   }
 
-  /*
-    Startsidan jämförs mot KÖRNINGENS FRUSNA BAS, inte mot HEAD: efter en commit är HEAD
-    kandidaten, och en jämförelse mot HEAD hade jämfört filen med sig själv — en committad
-    regression på / hade då passerat. Basen mäts med merge-base mot origin/main.
-  */
-  const relative = "app/(app)/page.tsx";
-  const baseSha = frozenBaseSha();
-  const baseSource = baseSha === null ? null : gitShow(baseSha, relative);
-  if (baseSource === null) {
-    // Git-objektet kan saknas i en grund klon. Då bärs kravet av den statiska kontrollen ovan,
-    // och det ska SYNAS att jämförelsen inte kunde göras.
-    assert.ok(
-      roomSourceFiles().every(({ source }) => !source.includes("(app)/page")),
-      "NOT_MEASURED mot basen OCH rummet refererar startsidan",
+  const homeSource = readFileSync(join(REPO_ROOT, "app/(app)/page.tsx"), "utf8");
+  const homeCode = stripComments(homeSource);
+  for (const panel of ["ProcessGuide", "PipelinePanel", "MetricsPanel"]) {
+    assert.match(
+      homeCode,
+      new RegExp(`import\\s+${panel}\\s+from`),
+      `startsidan importerar inte längre ${panel} — den gamla översikten togs bort`,
     );
-    return;
+    assert.match(
+      homeCode,
+      new RegExp(`<${panel}[\\s/>]`),
+      `startsidan renderar inte längre ${panel}`,
+    );
   }
-  assert.equal(
-    readFileSync(join(REPO_ROOT, relative), "utf8"),
-    baseSource,
-    `startsidan ändrades sedan basen ${baseSha} — den ligger utanför den här skivan`,
+
+  // LÖGNSTUB: en startsida utan panelen fälls verkligen av samma uppslag.
+  const withoutPanel = homeCode.replace(/<MetricsPanel[\s/>]/, "<Borttagen ");
+  assert.ok(
+    !/<MetricsPanel[\s/>]/.test(withoutPanel),
+    "uppslaget skulle inte se att panelen togs bort",
   );
 
-  /*
-    MÄTNINGEN SKA VARA VERKLIG. Två kontroller på själva mätaren:
-      · basen är en FÖRFADER till HEAD — den pekar alltså på grenens utgångspunkt, och ligger
-        kandidatcommits ovanpå jämförs de mot basen, inte mot sig själva;
-      · en enda tillagd rad i innehållet fälls av samma jämförelse (lögnstub).
-  */
-  assert.notEqual(
-    git(["merge-base", "--is-ancestor", baseSha as string, "HEAD"]),
-    null,
-    `basen ${baseSha} är inte en förfader till HEAD — jämförelsen mäter fel commit`,
-  );
-  assert.notEqual(
-    `${baseSource}\n// regression`,
-    baseSource,
-    "jämförelsen skulle inte se ens en tillagd rad",
-  );
+  // Beroenderiktningen: startsidan är ingen modul som rummet läser ur.
+  for (const { path, source } of roomSourceFiles()) {
+    assert.ok(
+      !/from\s+["'][^"']*\(app\)\/page/.test(source),
+      `${path} importerar från startsidan — beroendet går åt fel håll`,
+    );
+  }
 
-  // Routen matar fortfarande skalet med fixturen, och flaggan läses vid request.
+  // Routen matar fortfarande skalet med fixturen, och läget läses vid request.
   const route = readFileSync(join(REPO_ROOT, "app/(app)/loop/page.tsx"), "utf8");
   assert.match(route, /export const dynamic = "force-dynamic"/);
   assert.equal(FIXTURE_MODE, true);
