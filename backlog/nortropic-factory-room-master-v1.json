@@ -3,14 +3,19 @@
   "programme": "nortropic-factory-room-master-v1",
   "roadmap": "docs/nortropic-factory-room-master-roadmap-v1.md",
   "handoff": "docs/nortropic-factory-room-handoff-v1.md",
-  "errata": ["docs/nortropic-factory-room-roadmap-erratum-01.md"],
-  "errataNote": "The roadmap is frozen and is corrected only through errata documents, never by editing it. erratum-01 corrects two programme misclassifications: (1) the Anthropic Claude Tag entitlement is NOT a core blocker — the required Slack interface is a Nortropic-owned Slack app (REMOTE-01), and the Claude Tag adapter is a new OPTIONAL slice (REMOTE-02), which renumbers the previous REMOTE-02/03/04 to REMOTE-03/04/05; (2) the connected Railway CLI is the required production discovery and empirical verification path, so deploy state is not recorded as unverified while CLI access exists.",
+  "errata": [
+    "docs/nortropic-factory-room-roadmap-erratum-01.md",
+    "docs/nortropic-factory-room-product-erratum-v2.md",
+    "docs/nortropic-factory-room-requirement-addendum-v3.md"
+  ],
+  "errataNote": "The roadmap is frozen and is corrected only through errata documents, never by editing it. erratum-01 corrects two programme misclassifications: (1) the Anthropic Claude Tag entitlement is NOT a core blocker — the required Slack interface is a Nortropic-owned Slack app (REMOTE-01), and the Claude Tag adapter is a new OPTIONAL slice (REMOTE-02), which renumbers the previous REMOTE-02/03/04 to REMOTE-03/04/05; (2) the connected Railway CLI is the required production discovery and empirical verification path, so deploy state is not recorded as unverified while CLI access exists. product-erratum-v2 (V2) records six further owner corrections — showroom-first visibility, the Nortropic Tag binding, conversation/context not deferred behind REMOTE-00, a vendor-neutral standing-work contract, the website-factory output model, and 'merged is not shipped' (production SHA plus visible production behaviour are required evidence) — plus the P1..P34 product requirements ledger, the region-level source honesty model and the required showroom scenario coverage. requirement-addendum-v3 is the owner-authored requirement-completeness addendum recorded verbatim; it is authoritative over any conflicting omission in erratum-v2 and adds eleven further slices (SESSION-01, PARTICIPANT-01, OPERATOR-PROTOCOL-01, SLACK-INBOX-01, NOTIFICATION-01, STANDING-MANAGEMENT-01, RELEASE-RECOVERY-01, DATA-GOVERNANCE-01, OWNER-ACTION-01, PRODUCT-OPS-01, SEARCH-HISTORY-01). Errata are cumulative: erratum-01 remains valid in full.",
   "note": "Programme data for the Nortropic Factory Room master roadmap. This file is NOT a scheduler input and NOT a second canonical backlog: backlog/control-room-v1.json remains the canonical backlog consumed by scripts/claude-loop/backlog.ts, and scripts/claude-loop/** is untouched by this programme. An operator or session translates a slice below into an ordinary `npm run claude:run --task` file. Statuses use the roadmap's ledger vocabulary (NOT_STARTED, IN_PROGRESS, PROVEN, BLOCKED, DEFERRED_BY_OWNER, REJECTED_WITH_REASON) and never a percentage. allowedWrite is a best current estimate at freeze and is finalised in the task file for each slice. Gates listed for slices with a Nortropic/verkstadsgolvet half are this repository's real gate commands; slices whose target is the control plane or Nortropic/nortropic-system carry an empty gates array here because their gates are owned by that target's own operating model (nortropic-system AGENTS.md: $nortropic-test-author writes the spec row and the RED frozen gate in specs/** and verify/**, which are builder-denied).",
   "measuredAt": "2026-08-15",
   "measuredMain": {
-    "Nortropic/verkstadsgolvet": "851c0b25b7463d616d5c95d94d55245687bf0a8b",
-    "Nortropic/nortropic-system": "32b6e076f96d095d32bb7bf9e6c2519632af80a1"
+    "Nortropic/verkstadsgolvet": "ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08",
+    "Nortropic/nortropic-system": "e56edc08e5f069f16b5bdb853302a0f39c1f7075"
   },
+  "measuredMainNote": "Nortropic/verkstadsgolvet re-measured with git rev-parse origin/main in the ERRATUM-02_PRODUCT_V2 run worktree, 2026-08-15; the value is the SHREDDER-01A merge commit (PR #34) and supersedes the previously recorded 851c0b25b7463d616d5c95d94d55245687bf0a8b (SUPERVISOR-01). Nortropic/nortropic-system moved to e56edc08e5f069f16b5bdb853302a0f39c1f7075 (h-032 host-builder-r2, PR #79) as reported by the supervising session outside this worktree; this repository cannot and does not measure that repository. Measured-at-date facts, not live truth.",
   "slices": [
     {
       "id": "MASTER-00",
@@ -449,6 +454,7 @@
         "run: supervisor-01_async_ownership-20260815011935",
         "inventory-first gap closure: measured-gap closures in recover and stale-run classification, per that run's summary; each closed gap cites the measurement that showed it open",
         "no second scheduler and no second canonical backlog introduced",
+        "landed surface also includes the WAKEUP PRIMITIVE watchForReadyWork in scripts/claude-loop/autopilot.ts (recorded by erratum-02 after re-reading the file at ac2ba4ea…, because the P14/P15 rows first understated it): a bounded poll-based observation returning READY / RUN_TERMINAL / TIMEOUT, optionally scoped to one taskId — which its own docstring calls the same thing as 'this slice's dependencies are now satisfied'. It takes no claim, writes no state, starts no run and has a mandatory timeout, so it is a wake primitive and NOT a scheduler. SUPERVISOR-02 must inventory and extend it rather than build a second wake path.",
         "changed files = 7, measured with git diff --name-only d2ea9d59f7724242b095116a3fd30d59f698aa2c 851c0b25b7463d616d5c95d94d55245687bf0a8b: scripts/claude-loop/autopilot.ts, scripts/claude-loop/claims.ts, scripts/claude-loop/cli.ts, scripts/claude-loop/state.ts, scripts/claude-loop/supervisor.ts, tests/claude-loop/supervisor-async-ownership.test.ts, docs/claude-loop-runbook.md",
         "operational consequence: a merge touching scripts/claude-loop/** is not live until the operator supervisor worktree is fast-forwarded to origin/main; see the OPERATIONS NOTE in docs/nortropic-factory-room-handoff-v1.md"
       ],
@@ -457,7 +463,10 @@
     },
     {
       "id": "CONTEXT-01",
+      "title": "Durable room context (LIVE-half slice, superseded in ordering by CONTEXT-01A)",
       "targetRepository": "Operator/context service plus its clients (Nortropic/verkstadsgolvet and the remote adapter)",
+      "supersededBy": "CONTEXT-01A",
+      "supersededByNote": "Per docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_3, this slice is NOT deleted and NOT cancelled: its REMOTE-00-dependent live half stands unchanged. The non-authoritative foundation it was blocking — preferences, summaries, decisions, corrections, edit/delete/audit/versioning, room+principal scope, stale-memory-loses-to-snapshot — is pulled forward into CONTEXT-01A, which depends on ROOM-IDENTITY-01 and not on REMOTE-00. CONTEXT-01 is the completion of the same requirement once live transport exists; the chain is ROOM-IDENTITY-01 → CONTEXT-01A → CONTEXT-01.",
       "goal": "Provide durable room context that is never authority: persistent operator preferences, room summaries, UI state, decisions and rationale, links to canonical evidence and previous interaction context. Context is editable, auditable, versioned, deletable and scope-bound. Every canonical claim shown from memory resolves to a current snapshot or an evidence reference before it is displayed as fact, and a memory conflict never overrides controller truth.",
       "dependencies": ["ROOM-01", "REMOTE-00"],
       "authorityPrerequisites": [
@@ -515,7 +524,9 @@
         "GitHub App \"Nortropic Promoter\" (organisation-level app creation and installation)"
       ],
       "status": "NOT_STARTED",
-      "evidence": [],
+      "evidence": [
+        "re-affirmed REQUIRED by docs/nortropic-factory-room-requirement-addendum-v3.md §3: not superseded by showroom or Slack work. Mechanical principals at least factory-builder, factory-reviewer, factory-owner-author, nortropic-promoter, remote-operator-adapter, observer, retrospective-agent; every asserted service identity is backed by a mechanically authenticated platform identity (UID/account, GitHub App, Slack app/bot identity, certificate, token subject, process identity or equivalent). Role-name prose is never identity evidence."
+      ],
       "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
       "blocker": {
         "class": "EXTERNAL_ACCOUNT_OR_ENTITLEMENT",
@@ -524,8 +535,9 @@
     },
     {
       "id": "IDENTITY-02",
+      "title": "Versioned capability bundles with ROOM-SCOPED binding",
       "targetRepository": "Control-plane policy",
-      "goal": "Bind each principal to an explicit versioned capability and access bundle naming repositories, read paths, write paths, tools, network destinations, external API operations, credential classes, task classes and expiry or revocation, with default deny throughout. Reuse the existing enforced bundles as precedent and implementation where applicable: config/managed-settings.json in nortropic-system (34 permission denies, 13 sandbox write denies, network allowlist api.anthropic.com only), specs/owner-production-paths.v1.json as a versioned authority registry, and per-task allowedWrite and deniedWrite enforcement via scripts/claude-loop/scope.ts. No broad personal operator credential and no capability inferred from role prose.",
+      "goal": "Bind each principal to an explicit versioned capability and access bundle naming repositories, read paths, write paths, tools, network destinations, external API operations, credential classes, task classes and expiry or revocation, with default deny throughout. EXTENDED by docs/nortropic-factory-room-requirement-addendum-v3.md §4 (room-scoped capability binding): a capability bundle binds principal_id, bundle_id, bundle_version, room_id or an explicit global scope, task_id/run_id where applicable, repository scope, operation scope, network destination scope, credential class, issued_at, expires_at, revoked_at and evidence_ref. The same principal may therefore hold different capabilities in different rooms, and default deny applies throughout. Negative controls from §4: a bundle issued for room A used in room B fails; an expired or revoked bundle is refused; a role name never grants a capability without a bundle; a bundle never permits an unlisted repository; a capability never survives revocation through a cached success. Reuse the existing enforced bundles as precedent and implementation where applicable: config/managed-settings.json in nortropic-system (34 permission denies, 13 sandbox write denies, network allowlist api.anthropic.com only), specs/owner-production-paths.v1.json as a versioned authority registry, and per-task allowedWrite and deniedWrite enforcement via scripts/claude-loop/scope.ts. No broad personal operator credential and no capability inferred from role prose.",
       "dependencies": ["IDENTITY-01"],
       "authorityPrerequisites": [
         "owner approval of each bundle's contents",
@@ -540,17 +552,21 @@
       ],
       "gates": [],
       "visualReview": false,
-      "empiricalReview": "For one principal, an operation inside its bundle succeeds and the same operation against an unlisted destination is denied, both with audit evidence; a stale bundle version is observed being rejected.",
+      "empiricalReview": "For one principal, an operation inside its bundle succeeds and the same operation against an unlisted destination is denied, both with audit evidence; a stale bundle version is observed being rejected. Per addendum-v3 §4 the same principal is additionally observed holding different capabilities in two rooms, and a bundle issued for room A is observed being refused in room B.",
       "remotePrerequisites": [],
       "status": "NOT_STARTED",
-      "evidence": [],
+      "evidence": [
+        "re-affirmed REQUIRED by docs/nortropic-factory-room-requirement-addendum-v3.md §3; goal extended with the room-scoped capability binding of §4 (id unchanged — renaming or renumbering a frozen id is forbidden)"
+      ],
       "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
       "blocker": null
     },
     {
       "id": "IDENTITY-03",
+      "title": "CREDENTIAL-PROXY-01 (Nortropic Credential Proxy)",
+      "titleNote": "retitled by docs/nortropic-factory-room-requirement-addendum-v3.md §5; the id IDENTITY-03 is unchanged because renaming or renumbering a frozen id is forbidden. References to CREDENTIAL-PROXY-01 in the addendum and in the merged implementation order mean this slice.",
       "targetRepository": "Control-plane credential proxy (separately threat-modelled component)",
-      "goal": "Build the Nortropic Credential Proxy with the exact request path: agent request, authenticate execution principal, bind current task, run and candidate, validate destination, validate operation, validate capability bundle, inject or broker the minimum credential, execute or request, emit auditable evidence. Requirements are default-deny destinations, secret redaction, rotation, revocation, short-lived grants, no secret in model context, browser, repository or generic logs, replay protection and task and run binding. The threat model and its adversarial gates are frozen before production implementation begins.",
+      "goal": "Build the Nortropic Credential Proxy with the exact required effect chain (addendum-v3 §5): authenticated execution principal → current room/run/task/candidate binding → versioned capability bundle → allowed destination → allowed method/operation → minimal short-lived credential or brokered request → result → audit event. The model or client NEVER receives broad reusable raw secrets. The proxy supports default-deny destinations, short-lived grants, rotation, revocation, replay resistance, task/run binding, destination-plus-operation binding, secret redaction, network-event audit, credential-class audit and fail-closed outage behaviour. No credential value ever appears in model context, the browser, a Slack message, the repository, room memory, generic logs or evidence payloads. The threat model and its adversarial gates are frozen before production implementation begins.",
       "dependencies": ["IDENTITY-01", "IDENTITY-02"],
       "authorityPrerequisites": [
         "threat model authored and owner-frozen before implementation",
@@ -566,10 +582,12 @@
       ],
       "gates": [],
       "visualReview": false,
-      "empiricalReview": "The frozen adversarial gates run against the real component: proxy bypass, secret appearing in model context, browser, repository or generic log, replayed grant, grant used outside its bound task or run, revoked credential and expired grant are each observed failing the attack; any control that could not be executed is reported NOT_RUN with its exact blocker.",
+      "empiricalReview": "The frozen adversarial gates run against the real component: proxy bypass, secret appearing in model context, browser, Slack message, repository, room memory, generic log or evidence payload, replayed grant, grant used outside its bound room/task/run, revoked credential and expired grant are each observed failing the attack; the fail-closed outage behaviour is observed; any control that could not be executed is reported NOT_RUN with its exact blocker.",
       "remotePrerequisites": [],
       "status": "NOT_STARTED",
-      "evidence": [],
+      "evidence": [
+        "re-affirmed REQUIRED by docs/nortropic-factory-room-requirement-addendum-v3.md §3; retitled CREDENTIAL-PROXY-01 and goal updated per §5 (id unchanged)"
+      ],
       "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
       "blocker": null
     },
@@ -731,6 +749,8 @@
     },
     {
       "id": "REMOTE-01",
+      "title": "Nortropic Tag — own Slack app",
+      "titleNote": "retitled by docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_2; the id REMOTE-01 is unchanged. NORTROPIC-TAG-01 in the erratum-v2 and addendum-v3 implementation orders is an alias for this slice, not a second slice. The fail-closed shell half has NO dependency; REMOTE-00 binds LIVE dispatch only.",
       "targetRepository": "Nortropic-owned Slack app/bot ('Nortropic Tag') plus the remote operator interface",
       "goal": "REQUIRED core deliverable, corrected by docs/nortropic-factory-room-roadmap-erratum-01.md: Nortropic builds its OWN Slack app/bot above the Remote Operator API. It does NOT depend on any Anthropic Claude Tag entitlement (ANTHROPIC_CLAUDE_TAG_REQUIRED=NO; CLAUDE_TAG_TEAM_ENTERPRISE_ENTITLEMENT_IS_CORE_BLOCKER=NO; NORTROPIC_SLACK_APP_REQUIRED=YES; REMOTE_OPERATION_FROM_PHONE_REQUIRED=YES). Conversational verbs @nortropic status / what needs attention / submit <text-source> / start / pause after current task / resume / inspect <run-or-task> / evidence <run-or-task>, offered as mentions, slash-commands or Block Kit equivalents. ALL input resolves ONLY to the five canonical typed intentions intake.submit, run.start, run.pause_at_safe_boundary, run.resume, inspect; no Slack input may become a shell command, a generic Git operation, a file edit, a verdict, an attestation, a promotion, a mutation of authoritative main or lease-breaker manipulation. The controller may always reject, and Slack reports only actual command state (queued, claimed, applied, rejected, expired), never optimistic success. Identity and security: own bot identity, never the owner's personal credential as execution identity; ASKED_BY_SLACK_USER, SLACK_TEAM_ID, SLACK_CHANNEL_ID, SLACK_THREAD_TS, SLACK_EVENT_ID, REMOTE_COMMAND_ID, CONTROLLER_RUN_ID, CONTROLLER_TASK_ID, EXECUTION_PRINCIPAL, CAPABILITY_BUNDLE and PROMOTION_AUTHORITY are recorded separately; request signatures and timestamp freshness are verified (or authenticated Socket Mode is used); explicit workspace, user and channel allowlists apply; Slack event ids are deduplicated; every write intention is bound to command_id plus expected_watermark plus an expiry; credentials stay server-side only; no token, secret or message content is logged beyond the approved audit fields; revocation and rotation exist; unknown sender, workspace, channel or signature fails closed; and the causal link Slack thread/event to command to run to task to evidence is preserved. Timing: before backend S13 exists the Slack client shell, app identity, request authentication, allowlists, UX and message design and the typed-intent adapter contract MAY be built and tested against a fail-closed fake transport; a missing S13 blocks LIVE command execution ONLY and never the architecture, provisioning, verification, dedup, UX, translation tests, rejection UX or notification-design work. This slice does not replace or absorb backend h-014's controller-alarm channel and respects owner decision LOOP-AGARHAND-37.",
       "dependencies": ["REMOTE-00"],
@@ -768,7 +788,9 @@
       ],
       "status": "NOT_STARTED",
       "evidence": [
-        "corrected per erratum-01: the Anthropic Claude Tag Team/Enterprise entitlement is no longer a prerequisite or a core blocker for this slice; scope is the Nortropic-owned Slack app — docs/nortropic-factory-room-roadmap-erratum-01.md"
+        "corrected per erratum-01: the Anthropic Claude Tag Team/Enterprise entitlement is no longer a prerequisite or a core blocker for this slice; scope is the Nortropic-owned Slack app — docs/nortropic-factory-room-roadmap-erratum-01.md",
+        "bound per erratum-v2 CORRECTED_DECISION_2 and retitled 'Nortropic Tag — own Slack app'; DIRECT_SLACK_TO_MAIN=NO; the slice is the referent of NORTROPIC-TAG-01 in the merged V2+V3 implementation order — docs/nortropic-factory-room-product-erratum-v2.md",
+        "extended by addendum-v3: §7 SLACK-INBOX-01 owns real remote source intake above this app, §6 OPERATOR-PROTOCOL-01 owns the single versioned protocol it speaks, and §13 PRODUCT-OPS-01 owns operating it; none of them may invent a sixth intention verb"
       ],
       "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
       "blocker": {
@@ -1067,6 +1089,1233 @@
       ],
       "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
       "blocker": null
+    },
+    {
+      "id": "SHREDDER-01A",
+      "title": "Showroom visibility contract and FACTORY_ROOM_MODE",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_1",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Supersede the hidden-until-live product-visibility contract and introduce the explicit Factory Room product mode. Revise the frozen product-acceptance tests and implement exactly the minimal mode and label plumbing those tests judge: lib/loop/room/mode.ts with FactoryRoomMode SHOWROOM|LIVE|DEGRADED, LIVE_MODE_IMPLEMENTED=false and a fail-closed factoryRoomMode() that resolves SHOWROOM for every value of FACTORY_ROOM_MODE while live mode is unimplemented; the authenticated /loop and /loop/mata routes stop 404-gating on LOOP_ENABLED; the showroom label vocabulary lives in one place. components/loop/flag.ts survives as the app/api/loop/** transport gate. This changes a PRODUCT rule only: authentication, middleware, API transport gating and every trust invariant are untouched.",
+      "dependencies": [
+        "ROOM-01"
+      ],
+      "authorityPrerequisites": [],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "The authenticated route renders without any env flag, the rendered data carries the showroom label, and an env var claiming LIVE is observed being refused while LIVE_MODE_IMPLEMENTED is false.",
+      "remotePrerequisites": [],
+      "status": "PROVEN",
+      "evidence": [
+        "run: shredder-01a_showroom_contract-20260815080309 (three candidate rounds, 94ac6f58…, 23b79fcd…, 59269e67…)",
+        "measured in the ERRATUM-02_PRODUCT_V2 run worktree 2026-08-15 with git rev-list --parents -n1 ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08 = parents 5accd9e533e9280de52c17e91b31a1c1aea2e5e3 (base) and 59269e6735c718f9e7a3fb1db0f322c3cd3226ee (candidate)",
+        "changed files = 15, measured with git diff --name-only 5accd9e5… ac2ba4ea…: app/(app)/loop/page.tsx, app/(app)/loop/mata/page.tsx, components/loop/IntakeShell.tsx, MaskinHeader.tsx, MaskinShell.tsx, RunStatusBar.tsx, flag.ts, ui.ts, components/loop/room/FactoryRoomHeader.tsx, lib/loop/room/mode.ts, tests/loop/room-shell.test.ts, showroom-contract.test.ts, ux-loop-header-v2.test.ts, v2-maskinen-shell.test.ts, v8-intake-fixture.test.ts",
+        "fail-closed mode verified by reading lib/loop/room/mode.ts at ac2ba4ea…: factoryRoomMode() returns SHOWROOM before any env value is interpreted while LIVE_MODE_IMPLEMENTED is false",
+        "showroom-side product visibility ONLY: this slice is not evidence that the change is visible in production — the last CLI-verified deployed SHA cb133c53… predates it (see productRequirements P1 and P4)",
+        "gate exit codes and reviewer verdicts live in that run's own evidence directory and were NOT re-verified by this documentation run"
+      ],
+      "published": { "baseSha": "5accd9e533e9280de52c17e91b31a1c1aea2e5e3", "candidateSha": "59269e6735c718f9e7a3fb1db0f322c3cd3226ee", "mergeSha": "ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08", "pr": "https://github.com/Nortropic/verkstadsgolvet/pull/34" },
+      "blocker": null
+    },
+    {
+      "id": "SHREDDER-01B",
+      "title": "Kartongförstöraren discoverable and polished (showroom exposure)",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_1",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Make Kartongförstöraren a first-class, discoverable, polished showroom product above the landed SHREDDER-01A contract: a sidebar entry and a homepage product entry to /loop; the WorkComposer visually unmistakable as where work enters, at every breakpoint, routing to /loop/mata with honest static affordance copy and no fake submission; the prose diet that replaces defensive paragraphs on primary surfaces with compact badges plus disclosures carrying the full technical text (nothing deleted, relocated); and a clearly-labelled showroom scenario picker selected server-side from a closed allowlist over generated, schema-validated fixtures only. The SHREDDER-01A contract tests are outside this slice's write scope by design: they judge it.",
+      "dependencies": [
+        "SHREDDER-01A"
+      ],
+      "authorityPrerequisites": [],
+      "allowedWrite": [
+        "components/Sidebar.tsx",
+        "app/(app)/page.tsx",
+        "app/(app)/loop/**",
+        "components/loop/room/**",
+        "lib/loop/room/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**",
+        "lib/loop/room/mode.ts",
+        "tests/loop/showroom-contract.test.ts"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Visual review of actual screenshots at desktop, tablet and mobile shows the product entry, the composer dominance and the compact badge-plus-disclosure model; the showroom scenario picker is observed selecting only generated fixtures and never looking like or behaving as a controller command.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [
+        "measured 2026-08-15 in the ERRATUM-02_PRODUCT_V2 run worktree: the task file exists outside this repository (tasks/verkstadsgolvet/shredder-01b-showroom-exposure-r1.json) but no branch, no worktree and no merge commit for it exists — git branch -a and git worktree list show none. Status is therefore NOT_STARTED, not IN_PROGRESS."
+      ],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "CONVERSATION-01",
+      "title": "Conversational showroom room-timeline interaction",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_3",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Build the complete conversational room UX in showroom mode: the room timeline as a conversation the operator can address, typed-intention PREVIEW cards that show exactly which of the five canonical intentions a composed message would become and with which arguments, and the rejection/ambiguity UX for messages that resolve to no intention. No dispatch occurs in showroom mode: a previewed intention is never sent, never optimistically queued and never shown a command status the controller has not issued. No LLM is required — resolution is deterministic and testable, and a natural-language layer, if ever added, may only propose, never execute. No sixth verb, no generic command string, no free-text execution path.",
+      "dependencies": [
+        "SHREDDER-01B"
+      ],
+      "authorityPrerequisites": [
+        "locked invariants OPTIMISTIC_AUTHORITATIVE_STATE=NO, GENERIC_COMMAND_STRING=NO and SHOWROOM_FIXTURE_IS_AUTHORITY=NO enforced mechanically, not by prose"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "A composed message is observed producing a typed-intention preview card and NO dispatch; a message that resolves to nothing is observed being refused rather than guessed; and no surface is observed reporting a command status that no controller issued.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "ROOM-IDENTITY-01",
+      "title": "Non-authoritative room, conversation, thread and participant identity model",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_3",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Introduce the non-authoritative identity model that every later room, remote and context slice binds to: room_id, room_kind, conversation_id, thread_id, message_id, participant_id, asked_by, client_kind, issued_at, plus the correlation fields that link a message to command_id, run_id, task_id and evidence references where they exist. client_kind is a closed enum: web, slack, claude_tag_optional, claude_code_channel, routine, system_observer. The model is presentation and correlation only — ROOM_CONTEXT_IS_AUTHORITY=NO — and never becomes authorization: a participant label grants nothing, and any capability claim requires the mechanically enforced bundles of IDENTITY-01/02. Web and Slack share ONE room without a second truth store, and identifiers are never collapsed into one another.",
+      "dependencies": [
+        "CONVERSATION-01"
+      ],
+      "authorityPrerequisites": [
+        "ROOM_CONTEXT_IS_AUTHORITY=NO and REMOTE_CLIENT_IS_AUTHORITY=NO enforced mechanically",
+        "no display label is ever treated as an authenticated identity"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Every message and previewed intention is observed carrying room_id, conversation_id, thread_id, message_id, participant_id, asked_by, client_kind and issued_at as separate fields; an attempt to derive a capability from a participant label is observed failing; and a cross-room identifier leak is observed failing.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "CONTEXT-01A",
+      "title": "Durable non-authoritative context foundation",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_3",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Build the durable but non-authoritative context foundation that CONTEXT-01 was blocking behind REMOTE-00: operator preferences, room summaries, decisions and rationale, and operator CORRECTIONS as a first-class class; edit, delete, audit and versioning for every stored item; scope binding to room plus principal; and the binding stale-memory-loses-to-snapshot rule — every canonical claim shown from context resolves to a current snapshot or an evidence reference before it is displayed as fact. Storage architecture (existing store, new table, service boundary, retention mechanism) is decided by an inventory-first architect against what this repository and the control plane actually run today, never guessed by a builder. Deletion is real deletion, not a hidden flag.",
+      "dependencies": [
+        "ROOM-IDENTITY-01"
+      ],
+      "authorityPrerequisites": [
+        "MEMORY_IS_AUTHORITY=NO and ROOM_CONTEXT_IS_AUTHORITY=NO enforced mechanically, not by prose",
+        "inventory-first architect decision on storage recorded before implementation"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "A deliberately stale memory claim is observed being corrected by the current snapshot at render time, the correction is auditable, a deletion is observed being real, a version history is observed being intact, and a cross-room context read attempt is observed failing.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [
+        "pulled forward from CONTEXT-01 per erratum-v2 CORRECTED_DECISION_3: the non-authoritative foundation does not depend on REMOTE-00. CONTEXT-01 remains in the ledger as the live completion of the same requirement (chain: ROOM-IDENTITY-01 → CONTEXT-01A → CONTEXT-01)."
+      ],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "WEBSITE-FACTORY-01",
+      "title": "Showroom website-factory output surfaces",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_5",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Make the website-factory output first class in showroom mode: project/customer, build, quality (responsive/visual, accessibility, SEO, business and contact data, client-secret/leak, domain and config), preview (URL, screenshots, age) and release (promotion, PR, merge, main, production SHA, production URL) and after-release (smoke, health, monitoring) surfaces. These states have no representation in the frozen loop snapshot contract, so they are carried by clearly-non-authoritative showroom view-model schemas kept separate from lib/loop/schema.ts, which is not edited. Unknown live fields render an em dash. Showroom preview URLs are visibly synthetic and can never be mistaken for a real deployment, and a preview is never presented as production. All showroom data is synthetic and clearly non-customer per addendum-v3 §11.",
+      "dependencies": [
+        "SHREDDER-01B"
+      ],
+      "authorityPrerequisites": [
+        "the frozen loop contract lib/loop/schema.ts is not extended by this slice",
+        "no showroom view-model may reach a live render path"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "The quality, preview, release and after-release surfaces are observed rendering from showroom view models that are visibly labelled non-authoritative; an unknown field is observed rendering an em dash rather than a zero; a showroom preview URL is observed being visibly synthetic; and an attempt to render a showroom view model as live data is observed failing.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "TELEMETRY-01",
+      "title": "Complete operator read-model surface with honest placeholders",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_5",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Complete the operator read-model surface and the region-level source honesty model: per REGION exactly one of SHOWROOM, LIVE, DEGRADED or UNAVAILABLE, rendered as a compact badge with the technical detail (source, watermark, age, reason, contract id) in disclosures; and the operator telemetry fields — lease, generation, heartbeat age, duration, usage, tokens, cost, blockers, failures and history — present as named placeholders rendered em dash until a real controller contract exists. A page never averages its regions into one global claim. No number is synthesised, no percentage is invented, and no placeholder is allowed to read as data.",
+      "dependencies": [
+        "WEBSITE-FACTORY-01"
+      ],
+      "authorityPrerequisites": [
+        "no lease, generation, heartbeat or usage value may be displayed without a real controller-side contract; absent contract renders an em dash"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Two regions with different source states are observed carrying different badges on one page; an unavailable region is observed rendering an em dash and inventing nothing; and every telemetry placeholder is observed as em dash rather than as a zero or a guess.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "SHOWROOM-SCENARIOS-01",
+      "title": "Required showroom scenario coverage",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md §REQUIRED SHOWROOM SCENARIO COVERAGE",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Provide the full required scenario coverage: EMPTY_FACTORY, INTAKE_SELECTED, PLANNING, NEEDS_SPEC, READY_QUEUE, WORKING, VERIFYING, REVIEWING, MERGE_CONFLICT, RESOLUTION_WORKING, PROMOTING, DONE, STOPPED, PREVIEW_READY, DEPLOYING, POST_DEPLOY_SMOKE_FAILED and PRODUCTION_HEALTHY. Measured at ac2ba4ea…, the first eight plus DONE and STOPPED are reachable from the existing generated, schema-validated fixtures; MERGE_CONFLICT, RESOLUTION_WORKING (TaskView.merge is an opaque nullable map owned by backend S8+B7 and null in every fixture), PROMOTING (the canonical lifecycle has MERGING, and promotion authority is controller-side) and the four website-factory release states are IMPOSSIBLE under the frozen loop contracts and are therefore carried by clearly-non-authoritative showroom view-model schemas — never by editing lib/loop/schema.ts and never by hand-authored data posing as a snapshot. Scenarios are selected server-side from a closed allowlist, must not fetch and must not look like a controller command.",
+      "dependencies": [
+        "SHREDDER-01B"
+      ],
+      "authorityPrerequisites": [
+        "lib/loop/schema.ts and lib/loop/fixtures/** generation remain unedited by this slice; only additive showroom view-model schemas are introduced"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Every scenario in the list is reachable and visibly labelled as showroom; each impossible-under-contract scenario is observed rendering from a view model that is explicitly marked non-authoritative; an invalid scenario parameter is observed falling back to the default rather than erroring into an invented state.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "STANDING-01",
+      "title": "Vendor-neutral Nortropic standing-work and trigger contract",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_4",
+      "targetRepository": "Nortropic/verkstadsgolvet (contract, projection and gates) plus Nortropic/nortropic-system where that repository owns the execution side",
+      "goal": "Own the standing-work and trigger contract as a Nortropic contract, not a vendor feature. Closed trigger-class set: schedule, controller_event, dependency_satisfied, github_event, operator_request, observer_condition, external_webhook. Claude Code Routines, Slack scheduling, the web UI and GitHub events are ADAPTERS to this contract and never the contract itself; an adapter's absence blocks that adapter only. Standing work creates proposals, typed intake sources or ordinary pipeline tasks — never candidates, verdicts, attestations, promotions or mutations of authoritative main. The five canonical intention verbs are never overloaded with schedule payloads. Execution is separated from administration: the narrow management contract is STANDING-MANAGEMENT-01 and is frozen before any live standing-work write path exists.",
+      "dependencies": [],
+      "authorityPrerequisites": [
+        "STANDING_WORK_WRITES_MAIN=NO enforced mechanically",
+        "the five intention verbs remain a closed set; a schedule is never an intake.submit with a timestamp field"
+      ],
+      "allowedWrite": [
+        "lib/loop/**",
+        "components/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Each trigger class is observed producing only a proposal, a typed intake source or an ordinary task; an attempt to produce a candidate, verdict, attestation, promotion or main mutation from standing work is observed failing; and an attempt to smuggle a schedule payload into one of the five verbs is observed being rejected.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null,
+      "dependenciesNote": "no dependency for the contract, the design and the gates. Live standing-work EXECUTION additionally requires the controller-side chain (REMOTE-00/S13) and STANDING-MANAGEMENT-01 frozen; neither blocks this slice."
+    },
+    {
+      "id": "SUPERVISOR-02",
+      "title": "Event-driven and dependency-satisfied wakeups (measured gaps only)",
+      "source": "docs/nortropic-factory-room-product-erratum-v2.md CORRECTED_DECISION_4",
+      "targetRepository": "Nortropic/verkstadsgolvet (scripts/claude-loop/**)",
+      "goal": "Inventory the supervisor as it actually runs today, then close only measured gaps in event-driven wakeups and dependency-satisfied wakeups: a supervisor that reacts to a controller event or a satisfied dependency instead of only to a poll, with each closed gap citing the measurement that showed it open. THE INVENTORY STARTING POINT IS NAMED, because it already exists and must not be rebuilt: watchForReadyWork in scripts/claude-loop/autopilot.ts, landed by SUPERVISOR-01, is a bounded poll-based wakeup primitive returning READY (optionally scoped to one taskId, which is the existing dependency-satisfied observation) or RUN_TERMINAL or TIMEOUT, taking no claim, writing no state and starting no run. This slice EXTENDS that primitive toward an event-pushed wake and must not introduce a second, parallel wake path beside it. NO second scheduler and NO second canonical backlog may be introduced: backlog/control-room-v1.json remains the scheduler input. Wakeups are triggers, never authority: a wakeup never decides a verdict, never promotes and never mutates authoritative state.",
+      "dependencies": [
+        "SUPERVISOR-01"
+      ],
+      "authorityPrerequisites": [
+        "owner acknowledgement that scripts/claude-loop/** is edited by a supervisor-scoped task, not by a product slice",
+        "a merged supervisor capability is not an operating capability: the running checkout must be fast-forwarded before the feature is relied on (see the OPERATIONS NOTE in the handoff)"
+      ],
+      "allowedWrite": [
+        "scripts/claude-loop/**",
+        "tests/claude-loop/**"
+      ],
+      "deniedWrite": [
+        "backlog/control-room-v1.json",
+        "backlog/nortropic-factory-room-master-v1.json",
+        "app/**",
+        "components/**",
+        "lib/**",
+        "middleware.ts",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "A controller event and a satisfied dependency are each observed waking the supervisor without a poll interval elapsing, each closed gap cites its measurement, and the absence of a second scheduler and of a second canonical backlog is shown by inspection.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "SESSION-01",
+      "title": "Persistent agent session and ephemeral workspace lifecycle",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §1",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Distinguish PERSISTENT_ROOM, PERSISTENT_AGENT_SESSION, CONTROLLER_RUN, CONTROLLER_TASK, ATTEMPT, EPHEMERAL_WORKSPACE and PROVIDER_THREAD_OR_SESSION — never interchangeable — and project room_id, agent_session_id, provider_session_id, run_id, task_id, attempt_id, workspace_id, workspace_generation, workspace_base_sha, candidate_sha, session_started_at, session_last_active_at, session_state, resume_status, last_persisted_evidence_ref and termination_reason. Semantics: a room survives ordinary client and model sessions; an agent session may survive attempt-workspace teardown; an attempt workspace is ephemeral and never canonical authority; bytes existing only in an ephemeral workspace are not durable product state; a candidate becomes durable only through the established exact-candidate path; session reconstruction begins from controller, task and evidence authority and never from unverifiable model memory; a restart must not duplicate the attempt; an unresumable provider session produces an explicit classified result; fresh-session fallback retains task, run and candidate provenance; and a stale session cannot issue new effects.",
+      "dependencies": [
+        "ROOM-IDENTITY-01"
+      ],
+      "authorityPrerequisites": [
+        "model prose is never task state; controller/task/evidence authority is the only reconstruction source"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Negative controls per §1, each observed FAILING the attack: a reconstructed session trusting model prose as task state; a deleted workspace treated as publication evidence; two sessions resuming one exclusive attempt; a stale provider thread executing after a successor exists; an uncommitted sandbox file shown as durable website output.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "PARTICIPANT-01",
+      "title": "Shared room, multi-participant steering and concurrency",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §2",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Model participant_id, participant_principal, participant_role, client_kind, room_membership_id, membership_state, joined_at, revoked_at, allowed_read_scope and allowed_intention_scope, with roles at minimum OWNER, OPERATOR, OBSERVER and SYSTEM_AGENT. Product authorization exists only where mechanically enforced and is never inferred from a display label. Every message and intention is attributable to room_id, conversation_id, thread_id, message_id, participant_id, asked_by, client_kind and issued_at. Concurrency: the same command from two clients produces ONE effect via command_id and dedup; expected_watermark guards stale steering; a conversational message cannot mutate a frozen current TaskContract — new scope becomes a new intake source, an amendment proposal or a future task; unauthorized users cannot read private room context; revoked participants lose read and write; Slack display names never impersonate; and web and Slack share one room without two truth stores.",
+      "dependencies": [
+        "ROOM-IDENTITY-01"
+      ],
+      "authorityPrerequisites": [
+        "authorization claims require IDENTITY-01/02 mechanical enforcement; a role label is never a capability"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Negative controls per §2, each observed FAILING: a Slack display name used as authenticated identity; a revoked member still reading; concurrent starts creating two runs; steering silently rewriting a frozen TaskContract; cross-room participant leakage.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "OPERATOR-PROTOCOL-01",
+      "title": "One versioned Nortropic operator protocol",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §6",
+      "targetRepository": "Nortropic-owned operator protocol plus its clients (Nortropic/verkstadsgolvet, Nortropic Tag and the later adapters)",
+      "goal": "Define and implement ONE Nortropic-owned versioned operator protocol used by the web, Nortropic Slack, the optional Claude Tag adapter, Channels and Routines, covering snapshot reads, event and backfill reads, task inspection, evidence reference reads, context reads and writes, typed intention proposal, typed intention submission, command status, notifications and standing-work management. Properties: schema_version, request_id, idempotency_key, authenticated_client_id, room_id, expected_watermark where relevant, issued_at, expires_at, pagination/backfill cursor, result status, typed rejection reason and a trace or evidence reference. Behaviour: reconnect loses and duplicates nothing; clients upgrade independently within a documented compatibility window; an unknown major fails closed; unknown future events are inspectable but non-authoritative; rate limiting is explicit; client caches never become truth; no adapter invents a sixth intention; and no client invents an alternative command-status vocabulary. The protocol may be built and tested against a fail-closed fixture implementation before REMOTE-00 exists.",
+      "dependencies": [
+        "CONTEXT-01A"
+      ],
+      "authorityPrerequisites": [
+        "the five canonical intention verbs and the five command statuses remain closed sets",
+        "unknown major version fails closed"
+      ],
+      "allowedWrite": [
+        "lib/loop/**",
+        "app/api/loop/**",
+        "components/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "A reconnect is observed losing and duplicating nothing; an unknown major version is observed failing closed; an unknown future event is observed being inspectable and non-authoritative; a client cache is observed never overriding a snapshot; and an adapter attempting a sixth intention or a novel command status is observed being rejected.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null,
+      "dependenciesNote": "the contract plus its fixture implementation have no live dependency. Live transport binds REMOTE-00 (backend S13) only."
+    },
+    {
+      "id": "SLACK-INBOX-01",
+      "title": "Real remote source intake from Slack",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §7",
+      "targetRepository": "Nortropic Tag (Slack app) plus the intake path",
+      "goal": "Accept real work from Slack as typed intake SOURCES: plain text, Markdown code blocks, Markdown file attachments, supported Slack file attachments and thread replies referencing a prior source. Preserve per source slack_team_id, slack_channel_id, slack_thread_ts, slack_message_ts, slack_event_id, slack_file_id where present, room_id, participant_id, source_ref, source_sha256 claim, content_type, filename and size_bytes. Slack request and event identity is verified; files are downloaded server-side with the app's scoped credential; type and size limits apply; NO semantic compilation happens in Slack; the controller rereads and rehashes per the canonical intake contract; deleted, expired or inaccessible Slack files produce an explicit rejection; duplicate deliveries produce one source and one command; an edit never silently mutates a stored source (an edit is a new source version or an amendment proposal); and message or file content never reaches generic logs. Before live S10/S13 the complete Slack intake UX and security boundary are still built and tested against fixtures or a fake transport, and no live acceptance is claimed.",
+      "dependencies": [
+        "REMOTE-01"
+      ],
+      "authorityPrerequisites": [
+        "the controller rereads and rehashes the exact bytes; a frontend or Slack-side hash claim is never accepted as authority"
+      ],
+      "allowedWrite": [
+        "app/api/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Each source type is observed producing exactly one typed source with all identifiers preserved; a duplicate delivery is observed producing one source; a deleted or inaccessible file is observed producing an explicit rejection; an edited message is observed producing a new version rather than a silent mutation; and no message or file content is observed in generic logs.",
+      "remotePrerequisites": [
+        "a Slack workspace plus the Nortropic-owned Slack app provisioned by the owner (same ceremony as REMOTE-01)"
+      ],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null,
+      "dependenciesNote": "REMOTE-01 is the Nortropic Tag slice ('Nortropic Tag — own Slack app'); its fail-closed shell is enough for this slice's non-live half. LIVE acceptance additionally requires backend S10 + S13."
+    },
+    {
+      "id": "NOTIFICATION-01",
+      "title": "Notification delivery, acknowledgement and resolution",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §8",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Record notification_id, signal_type, severity, room_id, run_id, task_id, dedup_key, created_at, delivery_channel, delivery_status, delivered_at, acknowledged_by, acknowledged_at, snoozed_until, resolved_at, superseded_by and evidence_refs, with statuses at least PENDING, DELIVERED, ACKNOWLEDGED, SNOOZED, RESOLVED, DELIVERY_FAILED and SUPERSEDED. One condition never produces duplicate spam; a resolved condition is never presented as active; an acknowledgement never changes controller truth; payloads carry references, never secrets; model-independent controller alarms work with no model session alive; the conversational Slack client never replaces backend h-014 alarm semantics; and a delivery failure is visible in Verkstadsgolvet. Quiet hours and escalation are explicit policy, never implicit model judgement.",
+      "dependencies": [
+        "SUPERVISOR-02"
+      ],
+      "authorityPrerequisites": [
+        "acknowledgement is never authority: it changes no controller state and satisfies no owner ceremony",
+        "h-014 controller-alarm semantics are owned by the backend and are not replaced by any client"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "One condition is observed producing one notification across retries; a resolved notification is observed never appearing active; a delivery failure is observed being visible rather than silent; and an acknowledgement is observed changing no controller truth.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "STANDING-MANAGEMENT-01",
+      "title": "Narrow standing-work management contract",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §9",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Separate execution from administration with a SEPARATE versioned management contract — standing_work.create, inspect, update, enable, disable, delete — distinct from the five run/task intentions. Every mutation carries management_command_id, standing_work_id, room_id, authenticated_principal, expected_version, issued_at, expires_at, a typed payload, a status and a rejection reason plus evidence_ref. A stale expected_version is rejected; duplicates produce one effect; disabled standing work never fires; deleted standing work cannot resurrect via stale events; an update never changes historical runs; and standing work only ever creates proposals, sources or ordinary tasks — never candidate, verdict, attestation, promotion or main writes. This contract is FROZEN before any live standing-work write path exists.",
+      "dependencies": [
+        "STANDING-01"
+      ],
+      "authorityPrerequisites": [
+        "the contract is frozen before live standing-work writes are enabled",
+        "the five intention verbs are not extended or overloaded by this contract"
+      ],
+      "allowedWrite": [
+        "lib/loop/**",
+        "app/api/loop/**",
+        "components/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "A stale expected_version is observed being rejected; a duplicate management command is observed producing one effect; disabled standing work is observed never firing; a deleted item is observed not resurrecting from a stale event; and an update is observed leaving historical runs unchanged.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "RELEASE-RECOVERY-01",
+      "title": "Website release, incident and rollback projection",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §10",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Project release_id, preview_deployment_id, production_deployment_id, deployed_commit_sha, production_url, last_known_good_release_id, health_state, smoke_state, incident_id, incident_state, rollback_eligible, rollback_requested_at, rollback_authority, rollback_target_release_id, rollback_completed_at and evidence_refs, with UI states PREVIEW_READY, DEPLOYING, PRODUCTION_HEALTHY, POST_DEPLOY_SMOKE_FAILED, INCIDENT_OPEN, ROLLBACK_ELIGIBLE, ROLLBACK_REQUESTED, ROLLING_BACK, ROLLED_BACK and INCIDENT_RESOLVED. NO automatic rollback is authorized by this requirement alone: a rollback EXECUTION path requires a separately frozen typed contract, authority model, negative controls and exact deployment identity binding. This slice is projection and operator presentation only.",
+      "dependencies": [
+        "WEBSITE-FACTORY-01"
+      ],
+      "authorityPrerequisites": [
+        "no rollback execution path is built by this slice; execution requires a separately frozen contract and authority model",
+        "production health is read from a real deployment source, never inferred from a Git merge"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Negative controls per §10, each observed FAILING: a preview presented as production; a rollback targeting an unverified release; model prose initiating a rollback; a stale rollback acting after a newer healthy deployment; production health guessed from a Git merge alone.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "DATA-GOVERNANCE-01",
+      "title": "Showroom, context and audit data governance",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §11",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "All showroom data is synthetic and clearly non-customer — no real names, domains, contacts, credentials or proprietary content in generated fixtures — and fixture generation stays schema-derived. Context retention is explicit; deletion is effective; participant revocation is enforced; audit retention is explicit and may differ from conversational-context retention; secrets are redacted before persistence; personal Slack content is stored only per the approved source and context contract; context and audit are exportable in a readable evidence format; cross-customer, cross-room and cross-channel queries fail closed; and production backups respect deletion and retention. Showroom data and production data are never silently joined.",
+      "dependencies": [
+        "CONTEXT-01A"
+      ],
+      "authorityPrerequisites": [
+        "retention and deletion policy recorded and owner-approved before production data exists"
+      ],
+      "allowedWrite": [
+        "lib/loop/**",
+        "app/api/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Generated showroom data is observed containing no real customer artifact; a deletion is observed being effective including in the export path; a cross-room and a cross-customer query are each observed failing closed; and a secret is observed being redacted before persistence.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "OWNER-ACTION-01",
+      "title": "Remote attention is not remote authority",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §12",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "The room and Slack MAY display owner-attention, owner-authority, external-provisioning and legal-human-only conditions and allow acknowledge, open evidence, copy the exact required action, request a fresh inspection and snooze per policy. They may NOT treat a Slack emoji, a button click, an ordinary web session, a model confirmation or a notification acknowledgement as owner authority. Remote owner-action support is a SEPARATE FUTURE AUTHORITY SLICE: until such a protocol has been threat-modelled, test-authored, frozen, mechanically authenticated, replay-protected and candidate/run/task-bound, and independently reviewed, owner-only ceremonies remain FAIL-CLOSED and are clearly explained rather than silently unavailable.",
+      "dependencies": [],
+      "authorityPrerequisites": [
+        "a separate owner-action protocol threat-modelled, test-authored, frozen, mechanically authenticated, replay-protected, candidate/run/task-bound and independently reviewed BEFORE any remote owner-authority path exists"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "An owner-only ceremony is observed being presented as fail-closed with its exact required action; a Slack emoji, a button click, a model confirmation and a notification acknowledgement are each observed NOT satisfying owner authority.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null,
+      "dependenciesNote": "no implementation dependencies are listed by design. The display half rides on the room surfaces; the remote owner-ACTION write path is fail-closed until separately threat-modelled and frozen as its own authority slice, and this ledger row must never be read as authorization to build it."
+    },
+    {
+      "id": "PRODUCT-OPS-01",
+      "title": "Operate Verkstadsgolvet and Nortropic Tag",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §13",
+      "targetRepository": "Nortropic/verkstadsgolvet plus the Nortropic Tag service and their Railway deployment configuration",
+      "goal": "Record per service: service identity, Railway project/environment/service, deployed commit or version, health endpoint, startup status, dependency status, operator API reachability, last successful event or command, credential rotation date and reference, audit sink status and notification delivery status. The Slack app may be a separately scoped Railway service if architect review shows least privilege; no signing secret or bot token ever reaches the browser; no duplicate Railway project is created without evidence; the health endpoint exposes no secret; logs redact content and credentials; startup with a missing required secret fails closed; a controller outage never makes Slack claim success; a Slack outage never stops the controller; a Verkstadsgolvet outage never changes controller truth; and runbooks cover install, linking, deploy, rotation, revocation and recovery.",
+      "dependencies": [
+        "REMOTE-01"
+      ],
+      "authorityPrerequisites": [
+        "GitHub main auto-deploy remains the single deploy path; railway up must not be used in parallel (erratum-01)",
+        "runbook documents are written by a documentation-authority task, not by a product builder"
+      ],
+      "allowedWrite": [
+        "app/api/**",
+        "lib/**",
+        "tests/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/nortropic-factory-room-master-roadmap-v1.md"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "A CLI-verified deployed SHA and an observed production URL are recorded for each service; a startup with a missing required secret is observed failing closed; the health endpoint is observed exposing no secret; and a simulated controller outage is observed producing no Slack success claim.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null,
+      "dependenciesNote": "binds the REMOTE-01 (Nortropic Tag) SHELL only — operating the service does not require live dispatch."
+    },
+    {
+      "id": "SEARCH-HISTORY-01",
+      "title": "Operable long-lived room: search and history",
+      "source": "docs/nortropic-factory-room-requirement-addendum-v3.md §14",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Provide read-only search and history across rooms, conversations, sources, runs, tasks, attempts, candidates, commands, notifications, website releases, incidents and evidence references. Results retain their source mode (SHOWROOM/LIVE/DEGRADED/UNAVAILABLE) and their canonical identifiers. Search NEVER reconstructs authority: an index is a convenience projection, never a truth store.",
+      "dependencies": [
+        "CONTEXT-01A"
+      ],
+      "authorityPrerequisites": [
+        "an index is never authority; SNAPSHOT_WINS applies to every search result that carries a canonical claim"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Negative controls per §14, each observed FAILING: index state overriding the current snapshot; deleted context remaining searchable; a participant searching an inaccessible room; a candidate shown under the wrong task or run.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    }
+  ],
+  "productRequirementsNote": "Owner product requirements P1..P34 from docs/nortropic-factory-room-product-erratum-v2.md, recorded machine-readably here. Statuses use the same ledger vocabulary as slices (NOT_STARTED, IN_PROGRESS, PROVEN, BLOCKED, DEFERRED_BY_OWNER, REJECTED_WITH_REASON) and never a percentage; each requirement carries exactly one status. Where a requirement has a display half and a live half the split is carried by showroomEvidence and liveEvidence and is never collapsed into one false PROVEN. A showroom or fixture observation is never live evidence, and a merged commit is never production evidence (CORRECTED_DECISION_6). Measured 2026-08-15 against Nortropic/verkstadsgolvet origin/main = ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08.",
+  "productRequirements": [
+    {
+      "id": "P1",
+      "title": "production-visible Kartongförstöraren",
+      "status": "IN_PROGRESS",
+      "showroomEvidence": "SHREDDER-01A (merge ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08, PR #34) removed the LOOP_ENABLED 404 product gate from app/(app)/loop/page.tsx and app/(app)/loop/mata/page.tsx; lib/loop/room/mode.ts resolves SHOWROOM fail-closed. Measured by reading both files and mode.ts at that commit.",
+      "liveEvidence": "NONE at this measurement: the last CLI-verified deployed SHA is cb133c53e189a14255faefceaeb459cd21165d2c (erratum-01), which PREDATES ac2ba4ea…; no production observation of /loop was made by this documentation run.",
+      "blocker": "no technical blocker — an unperformed production measurement",
+      "nextAction": "P4: re-verify with the Railway CLI (deployed SHA at or after ac2ba4ea…) and observe /loop in production"
+    },
+    {
+      "id": "P2",
+      "title": "showroom-first final UX",
+      "status": "IN_PROGRESS",
+      "showroomEvidence": "SHREDDER-01A landed the FactoryRoomMode contract, the showroom label constants and the revised product-acceptance tests tests/loop/showroom-contract.test.ts.",
+      "liveEvidence": "n/a by design — SHOWROOM is a labelling mode, never a live claim",
+      "blocker": null,
+      "nextAction": "SHREDDER-01B, then CONVERSATION-01, WEBSITE-FACTORY-01 and SHOWROOM-SCENARIOS-01"
+    },
+    {
+      "id": "P3",
+      "title": "showroom-to-live source substitution map",
+      "status": "IN_PROGRESS",
+      "showroomEvidence": "one fail-closed resolver factoryRoomMode() with LIVE_MODE_IMPLEMENTED=false and one machine-readable data-room-mode attribute: a single substitution point rather than many.",
+      "liveEvidence": "NONE — LIVE and DEGRADED become reachable only with the ROOM-05 live snapshot cutover (backend S5 + S13).",
+      "blocker": "the per-REGION source model (SHOWROOM/LIVE/DEGRADED/UNAVAILABLE) does not exist yet",
+      "nextAction": "TELEMETRY-01 region model; ROOM-05 for the live half"
+    },
+    {
+      "id": "P4",
+      "title": "production Railway deployment proof",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "n/a",
+      "liveEvidence": "erratum-01 recorded project, environment, service, domain and deployment f328ebee-f9f6-4bf0-9e76-281032735ddf at SHA cb133c53…; that SHA predates the showroom product, so no proof exists for the current product.",
+      "blocker": "the measurement is outside this model sandbox (no network route to Railway); it is not blocked by any missing capability",
+      "nextAction": "supervisor or owner runs the Railway CLI outside the sandbox and records deployed SHA, observed production URL and observed behaviour"
+    },
+    {
+      "id": "P5",
+      "title": "own Nortropic Slack app",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "live install needs the owner ceremony (create the app, hold signing secret and bot token server-side, install, set workspace/user/channel allowlists); the fail-closed shell is NOT blocked",
+      "nextAction": "NORTROPIC-TAG-01 (ledger id REMOTE-01) fail-closed shell"
+    },
+    {
+      "id": "P6",
+      "title": "optional Anthropic Claude Tag adapter",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "OPTIONAL: Claude Tag public beta, Team/Enterprise plans only, org-Owner pairing, Routines enabled. Blocks no required deliverable (erratum-01).",
+      "nextAction": "REMOTE-02 only if later desired; deliberately last"
+    },
+    {
+      "id": "P7",
+      "title": "shared room identity",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "ROOM-IDENTITY-01"
+    },
+    {
+      "id": "P8",
+      "title": "shared thread/conversation identity",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "none for the model; Slack thread mapping additionally needs the Nortropic Tag shell",
+      "nextAction": "ROOM-IDENTITY-01, then SLACK-INBOX-01 for slack_thread_ts mapping"
+    },
+    {
+      "id": "P9",
+      "title": "participant and asked-by identity",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "authorization may only be claimed where mechanically enforced (IDENTITY-01/02); a display label is never identity evidence",
+      "nextAction": "ROOM-IDENTITY-01 → PARTICIPANT-01"
+    },
+    {
+      "id": "P10",
+      "title": "operator correction memory",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "CONTEXT-01A — corrections are a first-class context class"
+    },
+    {
+      "id": "P11",
+      "title": "durable context across sessions",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "storage architecture is an inventory-first architect decision, not a builder guess",
+      "nextAction": "CONTEXT-01A; SESSION-01 for the session and workspace lifecycle it must survive"
+    },
+    {
+      "id": "P12",
+      "title": "context edit/delete/audit",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "CONTEXT-01A (edit/delete/audit/versioning) with DATA-GOVERNANCE-01 retention"
+    },
+    {
+      "id": "P13",
+      "title": "Nortropic standing-work contract",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "none for the contract, the design and the gates",
+      "nextAction": "STANDING-01; STANDING-MANAGEMENT-01 frozen before any live standing-work write"
+    },
+    {
+      "id": "P14",
+      "title": "event-driven wakeups",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "PARTIAL, measured by reading scripts/claude-loop/autopilot.ts at ac2ba4ea…: SUPERVISOR-01 landed watchForReadyWork (git log -S watchForReadyWork = 4967ba2, merged in 851c0b25… which is an ancestor of this run's base), a bounded POLL-based wakeup primitive. It blocks until there is something to wake up for and then exits, returning wake='READY' (any ready slice, or one named slice) or wake='RUN_TERMINAL' (a watched run reached a terminal phase) or wake='TIMEOUT'. It explicitly takes no claim, writes no state, starts no run, chooses between no slices and re-invokes nothing; its timeout is mandatory so it can never become an unattended daemon. Covered by tests/claude-loop/supervisor-async-ownership.test.ts. The measured REMAINING gap is therefore narrow and specific: a wake driven by a CONTROLLER EVENT rather than by an elapsed poll interval. It is not 'no wakeup exists'.",
+      "blocker": null,
+      "nextAction": "SUPERVISOR-02 — inventory watchForReadyWork FIRST and extend it; measured gaps only, no second scheduler, no second canonical backlog, no parallel wake path beside the existing primitive"
+    },
+    {
+      "id": "P15",
+      "title": "dependency-satisfied wakeups",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "PARTIAL, same primitive as P14: the taskId-scoped form of watchForReadyWork in scripts/claude-loop/autopilot.ts already IS a dependency-satisfied OBSERVATION — its own docstring records that waking for one named slice 'is the same thing as \"this slice's dependencies are now satisfied\"', because the ready evaluation it observes is the canonical one the scheduler performs. Exercised with taskId in tests/claude-loop/supervisor-async-ownership.test.ts. The measured REMAINING gap is the same one as P14: the observation is poll-driven, and it observes rather than acts — no controller event pushes it and it starts nothing.",
+      "blocker": null,
+      "nextAction": "SUPERVISOR-02 (dependency_satisfied trigger class against the STANDING-01 contract), extending the existing taskId-scoped watchForReadyWork rather than duplicating it"
+    },
+    {
+      "id": "P16",
+      "title": "scheduled work",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "none for the schedule trigger class; the Claude Code Routines adapter is entitlement-blocked and that blocks the ADAPTER only",
+      "nextAction": "STANDING-01 schedule trigger class, then adapters"
+    },
+    {
+      "id": "P17",
+      "title": "GitHub/event-triggered work",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "credential path: product code under app/api/loop/** and lib/loop/** may never use GITHUB_TOKEN_WRITE or any generic GitHub write credential (CLAUDE.md hard rule); github_event intake is read and webhook-verification only",
+      "nextAction": "STANDING-01 github_event trigger class"
+    },
+    {
+      "id": "P18",
+      "title": "website project output",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none — measured: SHREDDER-01A changed mode, label and route plumbing only; no project or customer surface exists anywhere in components/loop/** at ac2ba4ea….",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "WEBSITE-FACTORY-01"
+    },
+    {
+      "id": "P19",
+      "title": "preview URL and screenshots",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none; when built, showroom preview URLs must be visibly synthetic",
+      "liveEvidence": "none",
+      "blocker": "none for the showroom shape; live preview identity needs the release read model",
+      "nextAction": "WEBSITE-FACTORY-01 + SHOWROOM-SCENARIOS-01, then RELEASE-RECOVERY-01"
+    },
+    {
+      "id": "P20",
+      "title": "responsive/visual QA",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none — this is QA of the websites the factory ships, distinct from this repository's own visual review of its own UI",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "WEBSITE-FACTORY-01 quality surface"
+    },
+    {
+      "id": "P21",
+      "title": "accessibility QA",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "WEBSITE-FACTORY-01 quality surface"
+    },
+    {
+      "id": "P22",
+      "title": "SEO QA",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "WEBSITE-FACTORY-01 quality surface"
+    },
+    {
+      "id": "P23",
+      "title": "business/contact-data QA",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none; showroom business data must be synthetic and clearly non-customer (addendum-v3 §11)",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "WEBSITE-FACTORY-01 quality surface"
+    },
+    {
+      "id": "P24",
+      "title": "client-secret/leak QA",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "WEBSITE-FACTORY-01 quality surface; adversarial coverage in HARDEN-01"
+    },
+    {
+      "id": "P25",
+      "title": "domain/config QA",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "WEBSITE-FACTORY-01 quality surface"
+    },
+    {
+      "id": "P26",
+      "title": "deployment state",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "none for the projection; a rollback EXECUTION path is a separately frozen contract (addendum-v3 §10)",
+      "nextAction": "WEBSITE-FACTORY-01, then RELEASE-RECOVERY-01"
+    },
+    {
+      "id": "P27",
+      "title": "post-deploy smoke",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "RELEASE-RECOVERY-01 — POST_DEPLOY_SMOKE_FAILED is a first-class UI state"
+    },
+    {
+      "id": "P28",
+      "title": "monitoring/maintenance state",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": null,
+      "nextAction": "RELEASE-RECOVERY-01 health and incident projection plus PRODUCT-OPS-01 service health"
+    },
+    {
+      "id": "P29",
+      "title": "lease/generation/liveness operator projection",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none — no controller-side lease, generation or heartbeat contract is readable from this repository",
+      "blocker": "controller-side contract absent (backend chain); the fields render an em dash until a real contract exists and are never synthesised",
+      "nextAction": "TELEMETRY-01 placeholders"
+    },
+    {
+      "id": "P30",
+      "title": "usage/tokens/cost/duration projection",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "no usage or budget READ MODEL is readable here; budget is an event family, not a projection contract",
+      "nextAction": "TELEMETRY-01 placeholders rendered em dash"
+    },
+    {
+      "id": "P31",
+      "title": "blockers/failures/history projection",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "none for the projection shape",
+      "nextAction": "TELEMETRY-01, then SEARCH-HISTORY-01 for the long-lived room"
+    },
+    {
+      "id": "P32",
+      "title": "production mobile operation",
+      "status": "IN_PROGRESS",
+      "showroomEvidence": "ROOM-08 (merge d2ea9d59f7724242b095116a3fd30d59f698aa2c, PR #29) landed the responsive room browser-half with captured screenshots at 390x844.",
+      "liveEvidence": "NONE — live submit/command mobile proof stays blocked on backend S13, and no production observation on a real device has been recorded.",
+      "blocker": "backend S13 for the live half; P4 for the production observation",
+      "nextAction": "P4 production observation; ROOM-06 and REMOTE-00 for live mobile commands"
+    },
+    {
+      "id": "P33",
+      "title": "Slack mobile operation",
+      "status": "NOT_STARTED",
+      "showroomEvidence": "none",
+      "liveEvidence": "none",
+      "blocker": "owner Slack app ceremony (P5) for install; REMOTE-00 and backend S13 for live dispatch",
+      "nextAction": "NORTROPIC-TAG-01 shell, then the live half after REMOTE-00"
+    },
+    {
+      "id": "P34",
+      "title": "operator-to-command-to-run causal attribution",
+      "status": "IN_PROGRESS",
+      "showroomEvidence": "ROOM-03 (merge 087ca6604b34f77ac78058f76f72fba1c5a1ac8b, PR #26) landed the fixture-side causal chain command → run → task → evidence in lib/loop/room/causality.ts.",
+      "liveEvidence": "NONE — the live event and evidence half is blocked on backend S5 + S13.",
+      "blocker": "the operator leg is missing entirely: asked_by, participant_id and client_kind do not exist yet, and no remote command id exists",
+      "nextAction": "ROOM-IDENTITY-01 + PARTICIPANT-01 for the operator leg, NORTROPIC-TAG-01 for remote command ids, then the live half"
     }
   ]
 }

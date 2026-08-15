@@ -20,32 +20,82 @@ ERRATUM_01_PATH       = docs/nortropic-factory-room-roadmap-erratum-01.md
                         renumbers REMOTE-02/03/04 to REMOTE-03/04/05 and adds an optional REMOTE-02;
                         and the connected Railway CLI is the required production discovery and
                         empirical verification path. Where this erratum and the frozen roadmap could
-                        be read as disagreeing on those two subjects, the erratum wins.)
+                        be read as disagreeing on those two subjects, the erratum wins.
+                        STILL VALID IN FULL — extended by erratum 02, never replaced.)
+ERRATUM_02_PATH       = docs/nortropic-factory-room-product-erratum-v2.md
+                        (REQUIRED READING. Owner product erratum V2, six corrections:
+                        (1) the product is VISIBLE in SHOWROOM mode now — backend availability
+                        determines the source label, not route visibility;
+                        (2) "Nortropic Tag" is Nortropic's OWN Slack app above a Nortropic-owned
+                        remote operator interface, Anthropic Claude Tag is an optional adapter;
+                        (3) the room/conversation UX and a non-authoritative context foundation are
+                        NOT deferred behind REMOTE-00/S13 — only live dispatch is;
+                        (4) standing work is a vendor-neutral NORTROPIC contract with seven trigger
+                        classes; Routines/Slack/web/GitHub are adapters to it;
+                        (5) the operator product is a WEBSITE FACTORY — project, build, quality,
+                        preview, release and after-release are first-class output surfaces;
+                        (6) merged is not shipped: production deployment SHA plus visible production
+                        behaviour are required evidence for product activation slices.
+                        It also carries the P1..P34 product requirements ledger, the region-level
+                        source honesty model and the required showroom scenario coverage.)
+ADDENDUM_V3_PATH      = docs/nortropic-factory-room-requirement-addendum-v3.md
+                        (REQUIRED READING. Owner-authored requirement-completeness addendum V3,
+                        recorded VERBATIM and byte-identical to its source. Authoritative over any
+                        conflicting omission in erratum 02, the frozen roadmap, prior SHREDDER
+                        prompts, prior final reports and prior handoffs. It adds SESSION-01,
+                        PARTICIPANT-01, OPERATOR-PROTOCOL-01, SLACK-INBOX-01, NOTIFICATION-01,
+                        STANDING-MANAGEMENT-01, RELEASE-RECOVERY-01, DATA-GOVERNANCE-01,
+                        OWNER-ACTION-01, PRODUCT-OPS-01 and SEARCH-HISTORY-01, re-affirms
+                        IDENTITY-01/02/03 as REQUIRED, retitles IDENTITY-03 as CREDENTIAL-PROXY-01
+                        and supplies the merged implementation order in its §15.)
 ```
+
+Errata are cumulative and none of them rewrites history: the frozen roadmap file and every report
+under `docs/reports/**` stay byte-identical, and corrections live only in the errata above.
 
 Authority reading list for a session picking this up: `CLAUDE.md`,
 `docs/nortropic-control-room-plan-v1.md`, `docs/claude-operating-model-v1.md`, then
 `docs/nortropic-factory-room-master-roadmap-v1.md` **together with**
-`docs/nortropic-factory-room-roadmap-erratum-01.md`, then this handoff and the backlog.
+`docs/nortropic-factory-room-roadmap-erratum-01.md`,
+`docs/nortropic-factory-room-product-erratum-v2.md` and
+`docs/nortropic-factory-room-requirement-addendum-v3.md`, then this handoff and the backlog.
 
 ## CURRENT_AUTHORITATIVE_MAIN
 
-Measured 2026-08-15, after five further publications (ROOM-03, UX-SWEEP-RESIDUALS,
-FACTORY-VISUAL-CAPTURE-V1, ROOM-08, SUPERVISOR-01).
+Re-measured 2026-08-15 in the ERRATUM-02_PRODUCT_V2 run worktree, after four further publications
+(STATUS-02, PR #31; REPORT-01, PR #32; ERRATUM-01, PR #33; SHREDDER-01A, PR #34).
 
 ```text
-Nortropic/verkstadsgolvet  origin/main = 851c0b25b7463d616d5c95d94d55245687bf0a8b
-    measurement: git rev-parse origin/main (in the STATUS-02 run worktree, 2026-08-15); the value
-    matches the SUPERVISOR-01 merge commit, so origin/main has not moved beyond SUPERVISOR-01 at
-    measurement time. Previous recorded value was 4701f1c0a46f25e114637efa556fe80411de412e
-    (ROOM-01, recorded by STATUS-01).
-Nortropic/nortropic-system origin/main = 32b6e076f96d095d32bb7bf9e6c2519632af80a1
-    measurement: git rev-parse origin/main, run by the supervising session outside this worktree,
-    2026-08-14; unchanged at this status update. This repository cannot and does not measure that
-    repository.
+Nortropic/verkstadsgolvet  origin/main = ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08
+    measurement: git rev-parse origin/main (ERRATUM-02_PRODUCT_V2 run worktree, 2026-08-15); the
+    value matches the SHREDDER-01A merge commit (PR #34). The previously recorded value was
+    851c0b25b7463d616d5c95d94d55245687bf0a8b (SUPERVISOR-01, PR #30, recorded by STATUS-02), and
+    main has moved FORWARD from it through four merges, measured with
+    git log --merges 851c0b25…..ac2ba4ea… (oldest first):
+        be624ad6610dba12fa47c6a2515b87499600efe4  STATUS-02      PR #31
+        cb133c53e189a14255faefceaeb459cd21165d2c  REPORT-01      PR #32
+        5accd9e533e9280de52c17e91b31a1c1aea2e5e3  ERRATUM-01     PR #33
+        ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08  SHREDDER-01A   PR #34
+    cb133c53… is therefore the THIRD-newest merge on main, not an older recorded value: it is the
+    commit the Railway CLI verified as deployed during ERRATUM-01, and two merges (#33 and #34)
+    have landed on main after it. That ordering is what makes CORRECTED_DECISION_6 bite.
+Nortropic/nortropic-system origin/main = e56edc08e5f069f16b5bdb853302a0f39c1f7075
+    measurement: reported by the supervising session outside this worktree, 2026-08-15 — the
+    backend moved to h-032 (host-builder-r2, PR #79). Previous recorded value was
+    32b6e076f96d095d32bb7bf9e6c2519632af80a1. This repository cannot and does not measure that
+    repository, and this movement is NOT evidence that S5/S10/S13 have been frozen or built: no
+    live half may be reclassified without measuring that repository's own roadmap state.
 ```
 
 Both values are measured-at-date facts, not live truth. Re-measure before relying on them.
+
+```text
+PRODUCTION_DEPLOY_NOT_RE-MEASURED
+  the last CLI-verified deployed SHA is cb133c53e189a14255faefceaeb459cd21165d2c (erratum-01,
+  2026-08-15). It PREDATES ac2ba4ea… (SHREDDER-01A), so the showroom product is NOT proven visible
+  in production. Per erratum-02 CORRECTED_DECISION_6 a merged slice is not a shipped slice; see
+  productRequirements P1 and P4 in the ledger.
+```
 
 ## CURRENT_COMPLETED_SLICES
 
@@ -166,6 +216,35 @@ SUPERVISOR-01   measured-gap closure in scripts/claude-loop/**
     run       supervisor-01_async_ownership-20260815011935
     closes    measured gaps in recover / stale-run classification, per that run's summary
               (inventory-first: each closed gap cites the measurement that showed it open)
+    also      lands the WAKEUP PRIMITIVE watchForReadyWork in scripts/claude-loop/autopilot.ts —
+              recorded here by erratum-02 after re-reading the file at ac2ba4ea…, because it was
+              first omitted from this entry. Bounded poll-based observation returning READY /
+              RUN_TERMINAL / TIMEOUT, optionally scoped to one taskId (the existing
+              dependency-satisfied observation). Takes no claim, writes no state, starts no run,
+              mandatory timeout: a wake primitive, NOT a second scheduler. SUPERVISOR-02 extends
+              it; it does not rebuild it.
+
+ERRATUM-01   remote-operation and Railway corrections (docs only)
+    merge     5accd9e533e9280de52c17e91b31a1c1aea2e5e3
+    PR        https://github.com/Nortropic/verkstadsgolvet/pull/33
+    run       erratum-01_remote_railway-20260815074829
+
+SHREDDER-01A showroom visibility contract + FACTORY_ROOM_MODE — SHOWROOM SIDE ONLY
+    base      5accd9e533e9280de52c17e91b31a1c1aea2e5e3
+    candidate 59269e6735c718f9e7a3fb1db0f322c3cd3226ee
+    merge     ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08
+    PR        https://github.com/Nortropic/verkstadsgolvet/pull/34
+    run       shredder-01a_showroom_contract-20260815080309 (candidate rounds 0-2)
+    scope     15 changed files, measured with git diff --name-only 5accd9e5… ac2ba4ea…:
+              app/(app)/loop/page.tsx, app/(app)/loop/mata/page.tsx, components/loop/IntakeShell.tsx,
+              MaskinHeader.tsx, MaskinShell.tsx, RunStatusBar.tsx, flag.ts, ui.ts,
+              components/loop/room/FactoryRoomHeader.tsx, lib/loop/room/mode.ts and five test files
+    lands     the authenticated /loop and /loop/mata routes no longer 404-gate on LOOP_ENABLED;
+              lib/loop/room/mode.ts resolves SHOWROOM fail-closed for every value of
+              FACTORY_ROOM_MODE while LIVE_MODE_IMPLEMENTED is false; showroom label vocabulary has
+              one source. components/loop/flag.ts survives as the app/api/loop/** transport gate.
+    LIMIT     a merged product-visibility change is NOT a production observation. Production
+              visibility is P1/P4 and remains unproven at this measurement.
 ```
 
 `ROOM-01` is fixture-backed presentation. It is not a live integration claim.
@@ -196,6 +275,10 @@ ROUTINES_PREVIEW_ENTITLEMENT
             beta header anthropic-beta: experimental-cc-routine-2026-04-01
             (/Users/elinhaggstrom/nortropic/evidence/factory-room/remote-surfaces-verification-2026-08-14.md)
   blocks:   REMOTE-04 empirical proof (Claude Code Routines adapter; previously numbered REMOTE-03)
+  narrowed by erratum-02 CORRECTED_DECISION_4: Routines are an ADAPTER to the Nortropic
+            standing-work contract, never standing work itself. This entitlement therefore blocks
+            the Routines adapter ONLY — it does not block STANDING-01, STANDING-MANAGEMENT-01,
+            SUPERVISOR-02, the schedule trigger class or any other trigger class.
 
 NOT A CORE BLOCKER — reclassified by erratum-01, recorded so it is not re-promoted by mistake:
 CLAUDE_TAG_ENTITLEMENT
@@ -243,11 +326,31 @@ SUPERVISOR_WORKTREE_MUST_BE_FAST_FORWARDED
 
 ## CURRENT_NEXT_ELIGIBLE_SLICES
 
+Erratum 02 reopened a large amount of eligible frontend work: showroom visibility, conversation,
+room identity, non-authoritative context, website-factory output, telemetry projection and the
+standing-work contract do not depend on the backend chain at all.
+
 ```text
-REMOTE-01  Nortropic Slack App / "Nortropic Tag" — FAKE-TRANSPORT HALF ONLY
-           (client shell, app identity, request signature/timestamp authentication, workspace/user/
-           channel allowlists, Slack event-id dedup, UX and message design, typed-intent adapter
-           contract, translation tests, rejection UX, notification design)
+ELIGIBLE NOW (no backend dependency; each must be labelled showroom / fixture / fake-transport):
+SHREDDER-01B           discoverable, polished showroom exposure (deps SHREDDER-01A — merged)
+CONVERSATION-01        conversational showroom room-timeline interaction (deps SHREDDER-01B)
+WEBSITE-FACTORY-01     showroom website-factory output surfaces (deps SHREDDER-01B)
+SHOWROOM-SCENARIOS-01  the required scenario coverage list (deps SHREDDER-01B)
+STANDING-01            vendor-neutral standing-work and trigger contract (no deps)
+SUPERVISOR-02          event-driven + dependency wakeups, measured gaps only (deps SUPERVISOR-01)
+REMOTE-01              "Nortropic Tag — own Slack app" — FAIL-CLOSED SHELL HALF ONLY
+                       (client shell, app identity, request signature/timestamp authentication,
+                       workspace/user/channel allowlists, Slack event-id dedup, UX and message
+                       design, typed-intent adapter contract, translation tests, rejection UX,
+                       notification design)
+OWNER-ACTION-01        display half only — the remote owner-ACTION write path stays fail-closed
+                       until separately threat-modelled and frozen
+
+ELIGIBLE ONCE THEIR NON-BACKEND PREDECESSOR LANDS (still no backend dependency):
+ROOM-IDENTITY-01 → SESSION-01, PARTICIPANT-01 → CONTEXT-01A → OPERATOR-PROTOCOL-01 (contract plus
+fixture implementation), DATA-GOVERNANCE-01, SEARCH-HISTORY-01; TELEMETRY-01 and
+RELEASE-RECOVERY-01 after WEBSITE-FACTORY-01; STANDING-MANAGEMENT-01 after STANDING-01;
+NOTIFICATION-01 after SUPERVISOR-02; SLACK-INBOX-01 and PRODUCT-OPS-01 above the REMOTE-01 shell
 ```
 
 **Terminal condition B no longer holds.** It was recorded when REMOTE-01 was believed to be blocked
@@ -259,7 +362,10 @@ and must never be described as live-complete.
 Measured against the published ledger, with erratum-01 numbering:
 
 ```text
-blocked on the backend chain (S5 / S10 / S13, UNFROZEN at nortropic-system 32b6e07):
+blocked on the backend chain (S5 / S10 / S13, UNFROZEN at nortropic-system 32b6e07 when last
+measured there; the backend has since moved to e56edc08 (h-032) but that movement is NOT evidence
+that S5/S10/S13 are frozen or built and must be re-measured in that repository before any live
+half is reclassified):
     ROOM-02 (live intake), ROOM-04, ROOM-05, ROOM-06,
     REMOTE-00 and every slice dependent on it — ROOM-07 (needs ROOM-06 + REMOTE-00),
     CONTEXT-01 (needs REMOTE-00), REMOTE-03, REMOTE-05,
@@ -274,13 +380,19 @@ transitively blocked by all of the above:
     except the optional REMOTE-02)
 ```
 
-Apart from the REMOTE-01 fake-transport half reopened by erratum-01, the fixture-backed and
-browser-side halves that could be built without a live backend have been built. The rest is not
-frontend work that has been skipped; it is work whose prerequisites are owned elsewhere. Neither a
-terminal condition nor a blocker is completion of the programme, and neither is permission to mark
-any blocked slice as done.
+The list above is the LIVE-half classification and is unchanged as such. What erratum 02 corrects is
+the false conclusion drawn from it: the statement that "the fixture-backed and browser-side halves
+that could be built without a live backend have been built" was wrong. It was true only of the
+slices the frozen roadmap had already named. The showroom product, the conversational room, room
+identity, non-authoritative context, the whole website-factory output model, the telemetry
+projection, the standing-work contract and the Nortropic Tag shell are all buildable now, and the
+programme must never stop at a blocked live backend while such work remains
+(addendum-v3 §15). Neither a terminal condition nor a blocker is completion of the programme, and
+neither is permission to mark any blocked slice as done.
 
-Nothing downstream of the backend chain is eligible for a LIVE claim.
+Nothing downstream of the backend chain is eligible for a LIVE claim, and nothing above is eligible
+for a PRODUCTION claim without a CLI-verified deployed SHA plus observed production behaviour
+(erratum-02 CORRECTED_DECISION_6).
 
 ## LOCKED_INVARIANTS
 
@@ -305,6 +417,27 @@ ROOM_CONTEXT_IS_AUTHORITY=NO
 REMOTE_CLIENT_IS_AUTHORITY=NO
 ```
 
+Added by erratum 02 — these EXTEND the block above and weaken nothing in it:
+
+```text
+SHOWROOM_FIXTURE_IS_AUTHORITY=NO
+DIRECT_SLACK_TO_MAIN=NO
+DIRECT_NORTROPIC_STATE_MUTATION=NO
+DIRECT_NORTROPIC_PROMOTION=NO
+NORTROPIC_TRUST_AUTHORITY=NO
+STANDING_WORK_WRITES_MAIN=NO
+SHOWROOM_BEFORE_BACKEND_COMPLETE=YES
+VISIBLE_PRODUCT_NOW=YES
+PRODUCTION_VISIBILITY_REQUIRED=YES
+BACKEND_MISSING_MEANS_SHOWROOM_NOT_HIDDEN=YES
+BACKEND_MISSING_MEANS_FAKE_LIVE=NO
+```
+
+The five canonical intention verbs are unchanged and remain a closed set: `intake.submit`,
+`run.start`, `run.pause_at_safe_boundary`, `run.resume`, `inspect`. No adapter, standing-work
+trigger, conversational surface or showroom scenario invents a sixth verb, overloads one of the five
+with a schedule payload, or invents an alternative command-status vocabulary.
+
 ## REMOTE_INTEGRATION_STATUS
 
 All remote integrations are still `NOT_STARTED` as implementations. The numbering below is the
@@ -314,7 +447,7 @@ still carries the old numbers and is translated through that erratum, not edited
 ```text
 id         slice                                    old id     status       classification
 REMOTE-00  common Nortropic Remote Operator API     REMOTE-00  NOT_STARTED  REQUIRED (unchanged)
-REMOTE-01  Nortropic Slack App / "Nortropic Tag"    REMOTE-01  NOT_STARTED  REQUIRED (core, rescoped)
+REMOTE-01  "Nortropic Tag — own Slack app"          REMOTE-01  NOT_STARTED  REQUIRED (core, rescoped)
 REMOTE-02  Anthropic Claude Tag optional adapter    NEW SLICE  NOT_STARTED  OPTIONAL
 REMOTE-03  Claude Code Channels adapter             REMOTE-02  NOT_STARTED  REQUIRED
 REMOTE-04  Claude Code Routines adapter             REMOTE-03  NOT_STARTED  REQUIRED
@@ -335,7 +468,13 @@ mutation or lease-breaker manipulation; the controller may always reject; and Sl
 actual command state (`queued`/`claimed`/`applied`/`rejected`/`expired`), never optimistic success.
 Its REMOTE-00 dependency binds the LIVE half only — see CURRENT_NEXT_ELIGIBLE_SLICES.
 
-### Deployment facts (erratum 02 — the Railway CLI is the verification path)
+`REMOTE-01` is retitled **"Nortropic Tag — own Slack app"** by erratum 02; the id is unchanged
+because renaming a frozen id is forbidden, and `NORTROPIC-TAG-01` in the erratum-02 and addendum-v3
+implementation orders is an ALIAS for `REMOTE-01`, not a second slice. Addendum-v3 adds three
+slices above it: `SLACK-INBOX-01` (§7, real remote source intake), `OPERATOR-PROTOCOL-01` (§6, the
+single versioned protocol every client speaks) and `PRODUCT-OPS-01` (§13, operating the service).
+
+### Deployment facts (erratum-01 §ERRATUM 2 — the Railway CLI is the verification path)
 
 Measured 2026-08-15 via the Railway CLI 5.41.0. Measured-at-date facts, not live truth.
 
@@ -352,46 +491,127 @@ environment        LOOP_ENABLED=true present in production
 rule               production completion claims require a CLI-verified deployed SHA plus an
                    observed production URL; deploy state is not recorded as unverified while
                    connected CLI access exists and has not been exhausted
+STALE AT           2026-08-15 (erratum 02): origin/main has since moved to ac2ba4ea… via PR #33 and
+                   PR #34. The deployed SHA above therefore no longer equals origin/main, and the
+                   showroom product is NOT proven visible in production. Re-measure before any
+                   production claim — this is exactly CORRECTED_DECISION_6.
 ```
+
+## ROADMAP_COVERAGE
+
+```text
+ROADMAP_COVERAGE_COMPLETE=YES   (at ROADMAP LEVEL ONLY — coverage, never implementation)
+```
+
+Measured 2026-08-15 in the ERRATUM-02_PRODUCT_V2 run worktree, by parsing
+`backlog/nortropic-factory-room-master-v1.json` with node:
+
+```text
+slices                     46, every one with exactly one status from the ledger vocabulary
+                           (NOT_STARTED, IN_PROGRESS, PROVEN, BLOCKED, DEFERRED_BY_OWNER,
+                           REJECTED_WITH_REASON); no duplicate id; every dependency resolves to an
+                           id that exists in the same file
+productRequirements        34 (P1..P34 with no gap), every one with exactly one valid status;
+                           5 IN_PROGRESS (P1, P2, P3, P32, P34), 29 NOT_STARTED, 0 PROVEN
+V2 slices present          SHREDDER-01A, SHREDDER-01B, CONVERSATION-01, ROOM-IDENTITY-01,
+                           CONTEXT-01A, WEBSITE-FACTORY-01, TELEMETRY-01, SHOWROOM-SCENARIOS-01,
+                           STANDING-01, SUPERVISOR-02, REMOTE-01 (retitled "Nortropic Tag")
+V3 slices present          SESSION-01, PARTICIPANT-01, OPERATOR-PROTOCOL-01, SLACK-INBOX-01,
+                           NOTIFICATION-01, STANDING-MANAGEMENT-01, RELEASE-RECOVERY-01,
+                           DATA-GOVERNANCE-01, OWNER-ACTION-01, PRODUCT-OPS-01, SEARCH-HISTORY-01,
+                           plus IDENTITY-01/02/03 re-affirmed (IDENTITY-03 titled
+                           CREDENTIAL-PROXY-01, IDENTITY-02 extended with room-scoped binding)
+no end-to-end PROVEN       HARDEN-01 and EMPIRICAL-01 are NOT_STARTED; the six PROVEN rows
+                           (MASTER-00, ROOM-01, ROOM-03, ROOM-08, SUPERVISOR-01, SHREDDER-01A) are
+                           artifact-, fixture- or browser-half slices and each carries its LIMIT
+```
+
+Per addendum-v3 §17 this value asserts coverage only: **nothing here is implemented, and no source
+requirement may be treated as satisfied by this document existing.** The third condition of §17 —
+an independent reviewer confirming that no source requirement was dropped or silently merged into a
+weaker requirement — is the reviewer's primary falsification duty on the publishing task, and this
+`YES` stands only if that count/coverage check confirms it.
 
 ## EXACT_NEXT_ACTION
 
+The merged V2 + V3 order (erratum-02 §REQUIRED IMPLEMENTATION ORDER together with addendum-v3 §15).
+Dependency-aware execution may reorder INDEPENDENT slices; it may not omit any of them, and no
+security-sensitive write path is built before its frozen gate and authority prerequisites exist.
+
 ```text
-1. Author REMOTE-01 as a FAKE-TRANSPORT slice (Claude run, eligible now per erratum-01):
-   Slack client shell, own bot identity, request signature + timestamp-freshness verification (or
-   authenticated Socket Mode), workspace/user/channel allowlists, Slack event-id dedup, the
-   typed-intent adapter contract with its translation tests, rejection UX and message/notification
-   design — all against a fail-closed fake transport. LIVE command execution stays out of scope
-   until REMOTE-00 lands, and the slice must be reported as fake-transport, never live-complete.
-
-2. Owner ceremony (owner decision, not a Claude run): create the Nortropic-owned Slack app in the
-   owner's Slack workspace, hold its signing secret and bot token server-side only, install it and
-   set the workspace/user/channel allowlists. No Anthropic entitlement is involved.
-
-3. Advance the nortropic-system chain to unblock the live slices (owner decision):
-       h-031 (currently undefined — the backend's own next step must be defined first)
-       → SUB-1..SUB-4 (h-027..h-030)
-       → S5 / S10 / S13
-   Landing S5 + S13 unblocks the live halves of ROOM-03 and ROOM-05; S10 + S13 unblocks ROOM-02;
-   S13 unblocks ROOM-06, REMOTE-00, the REMOTE-01 live half and the live mobile proof deferred by
-   ROOM-08.
-
-4. Optionally create the GitHub App "Nortropic Promoter" to unblock backend S7 and the
-   IDENTITY-01 promoter principal.
-
-5. OPTIONAL and deliberately last: provision a Claude Tag entitlement (Team/Enterprise org,
-   org-Owner pairing, Routines enabled) only if the optional REMOTE-02 adapter is later desired.
-   Per erratum-01 this is NOT on the critical path for remote operation from a phone.
+ 1. ERRATUM-02 + ADDENDUM-V3 — this document set and the ledger additions (THIS TASK; publication
+    is the supervisor's, not the model's)
+ 2. SHREDDER-01B — discoverable, polished showroom exposure above the merged SHREDDER-01A contract
+ 3. RAILWAY PRODUCTION PROOF (P1/P4) — supervisor or owner runs the connected Railway CLI outside
+    the model sandbox and records a deployed SHA at or after ac2ba4ea…, the observed production URL
+    and the observed behaviour. Merged is not shipped (CORRECTED_DECISION_6).
+ 4. CONVERSATION-01 — conversational showroom room-timeline interaction, typed-intention preview
+    cards, NO dispatch in showroom, no LLM required
+ 5. ROOM-IDENTITY-01 — non-authoritative room/conversation/thread/participant identity model,
+    client_kind ∈ {web, slack, claude_tag_optional, claude_code_channel, routine, system_observer}
+ 6. SESSION-01 — persistent agent session vs ephemeral workspace lifecycle (addendum-v3 §1)
+ 7. PARTICIPANT-01 — shared room, multi-participant steering, concurrency (§2)
+ 8. CONTEXT-01A — durable NON-AUTHORITATIVE context foundation; storage architecture decided by an
+    inventory-first architect; stale memory always loses to the current snapshot
+ 9. OPERATOR-PROTOCOL-01 — one versioned Nortropic operator protocol, contract plus fixture
+    implementation (§6); live transport still binds REMOTE-00
+10. WEBSITE-FACTORY-01 — showroom website-factory output surfaces (project, build, quality,
+    preview, release, after-release), plus SHOWROOM-SCENARIOS-01 alongside it
+11. TELEMETRY-01 — complete operator read-model surface; lease/generation/heartbeat-age/duration/
+    usage rendered em dash until a real controller contract exists
+12. SEARCH-HISTORY-01 — read-only search and history across the long-lived room (§14)
+13. NORTROPIC-TAG-01 (= REMOTE-01) — own Slack app, FAIL-CLOSED SHELL half only
+14. SLACK-INBOX-01 — real remote source intake, fixture/fake-transport half (§7)
+15. DATA-GOVERNANCE-01 — showroom, context and audit data governance (§11)
+16. STANDING-01 — vendor-neutral standing-work and trigger contract (seven trigger classes)
+17. STANDING-MANAGEMENT-01 — the narrow management contract, FROZEN before live standing-work
+    writes (§9)
+18. SUPERVISOR-02 — event-driven and dependency-satisfied wakeups, measured gaps only, no second
+    scheduler and no second canonical backlog
+19. NOTIFICATION-01 — delivery, acknowledgement and resolution; acknowledgement is never authority
+    and never replaces backend h-014 alarm semantics (§8)
+20. PRODUCT-OPS-01 — operate Verkstadsgolvet and Nortropic Tag; runbooks, health, rotation (§13)
+21. IDENTITY-01 — mechanical principals (owner ceremony: the GitHub App "Nortropic Promoter" is
+    required before the promoter principal can exist)
+22. IDENTITY-02 — versioned capability bundles WITH room-scoped binding (§4)
+23. IDENTITY-03 / CREDENTIAL-PROXY-01 — the Nortropic Credential Proxy; threat model and
+    adversarial gates frozen BEFORE implementation (§5)
+24. RELEASE-RECOVERY-01 — release, incident and rollback PROJECTION; no rollback execution path is
+    authorized by that requirement alone (§10)
+25. Newly eligible live/backend integrations (ROOM-02, ROOM-04, ROOM-05, ROOM-06, ROOM-07,
+    REMOTE-00, the REMOTE-01 live half) → remote adapters (REMOTE-03, REMOTE-04, REMOTE-05, and the
+    OPTIONAL REMOTE-02 last) → HARDEN-01 → EMPIRICAL-01, the full remote proof
 ```
 
-The frontend programme resumes automatically from this handoff when a dependency lands: re-measure
-both origin/main values, re-read CURRENT_NEXT_ELIGIBLE_SLICES against the newly satisfied
-prerequisite, and author the first slice whose dependencies and authority prerequisites are then
-genuinely met. Do not author a blocked slice in the meantime, and do not convert a fixture-backed
-half into a live claim without the backend prerequisite actually being present.
+```text
+UNORDERED BY DESIGN
+OWNER-ACTION-01  remote attention is not remote authority. Its display half rides on the room
+                 surfaces; the remote owner-ACTION write path stays FAIL-CLOSED until it has been
+                 separately threat-modelled, test-authored, frozen, mechanically authenticated,
+                 replay-protected, candidate/run/task-bound and independently reviewed as its own
+                 authority slice. Its presence in the ledger is coverage, never authorization.
+```
+
+Owner ceremonies that no Claude run can satisfy, still open and still required where noted:
+create the Nortropic-owned Slack app (blocks the LIVE half of step 13, not the shell); advance the
+`nortropic-system` chain to S5 / S10 / S13 (blocks every live half); optionally create the GitHub
+App "Nortropic Promoter" (blocks backend S7 and the IDENTITY-01 promoter principal); and — OPTIONAL
+and deliberately last — a Claude Tag entitlement, only if the optional `REMOTE-02` adapter is later
+desired. Per erratum-01 that entitlement is NOT on the critical path for remote operation from a
+phone.
+
+The programme no longer waits on the backend: steps 2 and 4–20 above have no backend dependency at
+all. When a backend dependency does land, re-measure both origin/main values, re-read
+CURRENT_NEXT_ELIGIBLE_SLICES against the newly satisfied prerequisite, and author the first slice
+whose dependencies and authority prerequisites are then genuinely met. Do not author a blocked
+slice in the meantime, and do not convert a showroom, fixture-backed or fake-transport half into a
+live claim without the prerequisite actually being present.
 
 Read `docs/nortropic-factory-room-master-roadmap-v1.md` for the frozen exit criteria, negative
-controls and visual-review requirements of whichever slice unblocks first — always together with
-`docs/nortropic-factory-room-roadmap-erratum-01.md`, which supplies the corrected REMOTE numbering,
-the Nortropic Slack App scope and the deployment-verification rule — and
-`backlog/nortropic-factory-room-master-v1.json` for the machine-readable slice records.
+controls and visual-review requirements of whichever slice comes next — always together with
+`docs/nortropic-factory-room-roadmap-erratum-01.md` (corrected REMOTE numbering, Nortropic Slack App
+scope, deployment-verification rule), `docs/nortropic-factory-room-product-erratum-v2.md` (the six
+V2 corrections, the P1..P34 requirements ledger, the source-honesty model and the showroom scenario
+coverage) and `docs/nortropic-factory-room-requirement-addendum-v3.md` (the verbatim owner
+completeness addendum) — and `backlog/nortropic-factory-room-master-v1.json` for the
+machine-readable slice and product-requirement records.
