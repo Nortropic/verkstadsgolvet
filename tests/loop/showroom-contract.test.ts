@@ -108,6 +108,44 @@ function attr(fragment: string, name: string): string | null {
   return match ? match[1] : null;
 }
 
+/**
+ * ELEMENTETS FAKTISKA UTSTRÄCKNING i serialiserad markup: från öppningstaggen till DESS EGEN
+ * avslutande tagg, med nästlade element av samma namn räknade.
+ *
+ * Varför inte "står efter öppningstaggen": ett syskon som renderas EFTER att roten stängts
+ * ligger också efter dess öppningstagg. En positionsjämförelse åt ett håll mäter alltså
+ * ordning, inte omslutning — och "under en förfader" är ett omslutningskrav. Räknaren nedan är
+ * medvetet enkel och matchar husets egen markup (inga självstängande taggar med samma namn);
+ * kan den inte hitta den avslutande taggen returnerar den `null`, och den som mäter faller på
+ * det i stället för att tyst mäta hela dokumentet.
+ */
+function elementRange(html: string, openingTag: string): { start: number; end: number } | null {
+  const start = html.indexOf(openingTag);
+  if (start < 0) return null;
+  const name = openingTag.match(/^<([A-Za-z][\w-]*)/)?.[1];
+  if (name === undefined) return null;
+
+  const pattern = new RegExp(`<${name}\\b[^>]*?/?>|</${name}>`, "g");
+  pattern.lastIndex = start;
+  let depth = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html)) !== null) {
+    if (match[0].startsWith("</")) {
+      depth -= 1;
+      if (depth === 0) return { start, end: match.index + match[0].length };
+    } else if (!match[0].endsWith("/>")) {
+      depth += 1;
+    }
+  }
+  return null;
+}
+
+/** Ligger `marker` INNE i elementet — efter öppningstaggen OCH före den avslutande? */
+function containedIn(html: string, range: { start: number; end: number }, marker: string): boolean {
+  const at = html.indexOf(marker);
+  return at > range.start && at < range.end;
+}
+
 function maskinenHtml(): string {
   return withoutLoopEnv(() => renderToStaticMarkup(MaskinenPage() as ReactElement));
 }
@@ -350,18 +388,21 @@ test("SHOWROOM-D: showroom öppnar ingen kommandoväg — kanalen är stängd me
 
 test("SHOWROOM-E: varje fixturburen panel står under en förfader som bär läget", () => {
   /*
-    Mätningen är strukturell: rotelementet som bär `data-room-mode` måste OMSLUTA varje
-    fixturburen panel. Uppslaget görs på positioner i markupen — panelen ligger efter rotens
-    öppningstagg och före dess slut — vilket är precis vad "under en förfader" betyder i en
-    serialiserad DOM.
+    Mätningen är strukturell och BUNDEN I BÅDA ÄNDAR: rotelementet som bär `data-room-mode` måste
+    OMSLUTA varje fixturburen panel — panelen ligger efter rotens öppningstagg OCH före dess egen
+    avslutande tagg. Ett syskon som renderas efter att roten stängts ligger också efter dess
+    öppningstagg, så en jämförelse åt ett håll hade mätt ordning i stället för omslutning. Att det
+    råkar vara samma sak idag (roten är ytterst) gör inte mätaren sann — den hade slutat mäta
+    första gången en panel flyttades ut, vilket är exakt den regression kontraktet finns för.
   */
   const html = maskinenHtml();
   const rootTag = tagsWith(html, `${ROOM_MODE_ATTRIBUTE}="${SHOWROOM}"`).find((tag) =>
     tag.includes('data-maskin-shell="true"'),
   );
   assert.ok(rootTag, "rummets rot bär inte läget");
-  const rootStart = html.indexOf(rootTag);
-  assert.ok(rootStart >= 0);
+  const root = elementRange(html, rootTag);
+  assert.ok(root, "kunde inte läsa rotens utsträckning — mätaren mäter ingenting");
+  assert.ok(root.end > root.start, "rotens slut ligger före dess början");
 
   const AUTHORITATIVE_PANELS = [
     'data-run-status-bar="true"',
@@ -373,19 +414,39 @@ test("SHOWROOM-E: varje fixturburen panel står under en förfader som bär läg
     'data-causal-chain="true"',
   ];
   for (const marker of AUTHORITATIVE_PANELS) {
-    const at = html.indexOf(marker);
-    assert.ok(at > rootStart, `${marker} renderas utanför den lägesmärkta roten`);
+    assert.ok(containedIn(html, root, marker), `${marker} renderas utanför den lägesmärkta roten`);
   }
 
-  // Intakeytans utfall likaså: skalets rot bär läget och omsluter resultaten.
+  /*
+    MÄTAREN ÄR VERKLIG PÅ VERKLIG MARKUP: sidhuvudet ligger FÖRE rummets rot och ska därför
+    falla på samma uppslag. Vore mätningen ordningsbaserad hade den bara kunnat säga "senare",
+    och ett element utanför roten hade inte gått att skilja från ett inuti.
+  */
+  assert.ok(
+    !containedIn(html, root, 'data-maskin-header="true"'),
+    "en yta utanför roten räknades som omsluten — uppslaget mäter inte omslutning",
+  );
+
+  // Intakeytans utfall likaså: skalets rot bär läget och OMSLUTER resultaten.
   const intake = intakeHtml();
-  const intakeRoot = tagsWith(intake, `${ROOM_MODE_ATTRIBUTE}="${SHOWROOM}"`).find((tag) =>
+  const intakeRootTag = tagsWith(intake, `${ROOM_MODE_ATTRIBUTE}="${SHOWROOM}"`).find((tag) =>
     tag.includes('data-intake-shell="true"'),
   );
-  assert.ok(intakeRoot, "intakeytans rot bär inte läget");
+  assert.ok(intakeRootTag, "intakeytans rot bär inte läget");
+  const intakeRoot = elementRange(intake, intakeRootTag);
+  assert.ok(intakeRoot, "kunde inte läsa intakerotens utsträckning");
+  for (const marker of [
+    'data-intake-results="true"',
+    'data-fixture-banner="true"',
+    'data-validation-showcase="true"',
+    'data-intake-dropzone="true"',
+  ]) {
+    assert.ok(containedIn(intake, intakeRoot, marker), `${marker} står utanför den märkta roten`);
+  }
+  // Sidans egen h1 ligger utanför skalet och ska falla på samma uppslag.
   assert.ok(
-    intake.indexOf('data-intake-results="true"') > intake.indexOf(intakeRoot),
-    "utfallen renderas utanför den lägesmärkta roten",
+    !containedIn(intake, intakeRoot, "<h1>"),
+    "sidhuvudets h1 räknades som omsluten av intakeskalet",
   );
 
   // NEGATIV KONTROLL: utan läge i propsen finns ingen omärkt väg — skalet faller till showroom.
@@ -395,6 +456,43 @@ test("SHOWROOM-E: varje fixturburen panel står under en förfader som bär läg
   assert.ok(
     unlabelled.includes(`${ROOM_MODE_ATTRIBUTE}="${SHOWROOM}"`),
     "ett skal utan uttryckligt läge renderade omärkt fixturdata",
+  );
+});
+
+test("SHOWROOM-E (LÖGNSTUB): en panel som flyttas UT ur den märkta roten fälls av samma uppslag", () => {
+  /*
+    Utan den här stubben vore omslutningsmätaren ovan bara en avläsning av dagens ordning.
+    Stubben är regressionen den finns för: panelen renderas som SYSKON efter att den lägesmärkta
+    roten stängts — auktoritativa fält utan förfader som bär läget, precis vad
+    FIXTURE_DATA_MUST_BE_EXPLICITLY_LABELLED förbjuder.
+  */
+  const openingTag = `<div data-maskin-shell="true" ${ROOM_MODE_ATTRIBUTE}="${SHOWROOM}">`;
+  const marker = 'data-column="backlog"';
+
+  const honest = `<main>${openingTag}<div><section ${marker}></section></div></div></main>`;
+  const lying = `<main>${openingTag}<div></div></div><section ${marker}></section></main>`;
+
+  const honestRange = elementRange(honest, openingTag);
+  const lyingRange = elementRange(lying, openingTag);
+  assert.ok(honestRange, "uppslaget hittade ingen rot i den ärliga stubben");
+  assert.ok(lyingRange, "uppslaget hittade ingen rot i lögnstubben");
+
+  // Nästlad panel: omsluten. Utflyttad panel: INTE omsluten — trots att den står senare i texten.
+  assert.equal(containedIn(honest, honestRange, marker), true, "en nästlad panel räknades som utanför");
+  assert.equal(
+    containedIn(lying, lyingRange, marker),
+    false,
+    "en panel utanför roten passerade som omsluten — mätaren mäter ordning, inte omslutning",
+  );
+  assert.ok(
+    lying.indexOf(marker) > lyingRange.start,
+    "lögnstubben lägger inte panelen efter rotens öppningstagg — den provar inte rätt regression",
+  );
+
+  // Och djupräkningen klarar nästlade element av samma namn: roten stängs av SIN egen tagg.
+  assert.ok(
+    honestRange.end > honest.indexOf(marker),
+    "rotens slut lästes som den första </div> — nästlingen räknades inte",
   );
 });
 
