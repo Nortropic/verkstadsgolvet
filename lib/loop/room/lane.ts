@@ -140,8 +140,17 @@ export const WORK_DOMAIN_PRESENTATION: Readonly<Record<WorkDomain, WorkDomainPre
     },
   });
 
-/** Etiketten över värdet. Kort, eftersom den står i en rad och inte i ett kort. */
-export const WORK_DOMAIN_CAPTION = "Arbetsdomän";
+/**
+ * Etiketten över RUMMETS värde. En rad bredvid värdet, aldrig ett eget fält med egen rubrik.
+ *
+ * DEN NAMNGER SIN ÄGARE, OCH DET ÄR INTE ORDRIKEDOM. Showroomets väljare bär en egen rad några
+ * hundra pixlar högre upp («Scenariots arbetsdomän», lib/loop/room/scenarios.ts) medan rummet
+ * visar just det scenariots fixtur. Stod den ena raden med ägare och den andra utan blev den
+ * generella den svagare halvan av paret: em-strecket kunde då läsas som ett trasigt fält i
+ * stället för som «rummets EGEN domän är okänd». Båda raderna säger därför vems domän de visar,
+ * och skillnaden mellan dem går att läsa utan att veta hur ytorna hänger ihop.
+ */
+export const WORK_DOMAIN_CAPTION = "Rummets arbetsdomän";
 
 /**
  * Notisen när ingen domän följer med.

@@ -122,10 +122,11 @@ export default function ScenarioPicker({
           genom samma upplösare som en framtida controllerpublicerad domän kommer att gå igenom.
           Bär posten inget giltigt värde blir raden ett em-streck — ytan gissar aldrig.
 
-          ETIKETTEN SÄGER VEMS DOMÄN DET ÄR. Raden står ovanför rummet och beskriver SCENARIOT,
-          alltså vilken sorts arbete den valda fixturen visar upp. Rummets egen rad (huvudets)
-          beskriver arbetet i rummet och är en annan mening — därför bär den här sin egen
-          etikett i stället för den korta förvalda.
+          ETIKETTEN SÄGER VEMS DOMÄN DET ÄR — OCH DET GÖR RUMMETS RAD OCKSÅ. Den här raden står
+          ovanför rummet och beskriver SCENARIOT, alltså vilken sorts arbete den valda fixturen
+          visar upp; huvudets rad beskriver RUMMETS eget arbete och står ofta på em-streck. Två
+          rader inom samma skärm som bara skilde sig i värde hade lästs som en motsägelse, så båda
+          namnger sin ägare i etiketten.
         */}
         <WorkDomainIndicator
           domain={scenarioWorkDomain(current)}

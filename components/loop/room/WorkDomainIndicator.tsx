@@ -40,9 +40,12 @@ export type WorkDomainIndicatorProps = {
   /** Den uttryckligen burna domänen, eller null när ingen följt med. */
   domain: WorkDomain | null;
   /**
-   * Vems domän raden gäller. Förvalet säger bara «Arbetsdomän»; ytor som visar NÅGON ANNANS
-   * domän (t.ex. ett showroom-scenarios) skickar in en egen etikett, så att raden aldrig kan
-   * läsas som ett påstående om rummets aktuella arbete.
+   * Vems domän raden gäller — ALLTID utskrivet, aldrig underförstått.
+   *
+   * Förvalet är rummets egen etikett. Ytor som visar NÅGON ANNANS domän (showroom-väljaren visar
+   * SCENARIOTS) skickar in sin egen, så att två rader på samma skärm aldrig kan läsas som två
+   * påståenden om samma sak — och så att ett em-streck läses som «den här ägarens domän är
+   * okänd» i stället för som ett trasigt fält.
    */
   caption?: string;
 };
