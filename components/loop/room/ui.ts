@@ -223,6 +223,24 @@ export const ROOM_CSS = `
   font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted);
   background: var(--bg-surface-0); box-shadow: var(--hairline); border-radius: var(--radius-chip);
   padding: 2px 6px; min-width: 0; overflow-wrap: anywhere; }
+/* ── LANE-01 · arbetsdomänens rad ─────────────────────────────────────────────
+   Nortropics två fabriksspår (KUNDPRODUKTION / SYSTEMFÖRBÄTTRINGAR) visas som EN dämpad rad:
+   etikett och värde bredvid varandra, i mono som rummets övriga märkning.
+
+   FORMEN ÄR MED FLIT INTE LÄGESMÄRKETS. «.rm-flag» bär ett LÄGE, och en kategori som lånade den
+   formen hade gjort varje lägesmärke på sidan svårare att lita på vid en snabb blick. Raden bryter
+   dessutom hellre än trycker ut sin behållare: ingen «nowrap», och långa ord bryts — ett märke får
+   aldrig bli sidans bredd vid 390 px.
+
+   INGEN EGEN BRYTPUNKT: raden ser likadan ut i alla tre vyerna. Den bär inget mått som kan spränga
+   en smal vy, och ingenting i den döljs någonstans. */
+.rm-domain { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px;
+  min-width: 0; }
+.rm-domain-key { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--text-disabled); overflow-wrap: anywhere; }
+.rm-domain-value { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--text-secondary); overflow-wrap: anywhere; }
+
 /* En upplysningsytas stycken är STYCKEN. Rummets prosa bär «margin: 0» med flit (luften kommer
    ur layouten), och utan den här regeln rann de omplacerade styckena ihop till ett block i det
    ögonblick de flyttade in bakom en växel — exakt det fel ROOM-08 löste för kedjans inledning. */

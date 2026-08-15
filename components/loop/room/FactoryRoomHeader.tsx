@@ -35,6 +35,7 @@
  */
 import * as React from "react";
 import RunStatusBar from "../RunStatusBar";
+import WorkDomainIndicator from "./WorkDomainIndicator";
 import { toneClass } from "../ui";
 import { MISSING } from "@/lib/loop/labels";
 import type { LoopSnapshot } from "@/lib/loop/schema";
@@ -53,6 +54,7 @@ import {
   roomIntro,
 } from "@/lib/loop/room/header";
 import { factoryRoomMode, type FactoryRoomMode } from "@/lib/loop/room/mode";
+import { workDomainNote, type WorkDomain } from "@/lib/loop/room/lane";
 
 export type FactoryRoomHeaderProps = {
   snapshot: LoopSnapshot;
@@ -63,6 +65,16 @@ export type FactoryRoomHeaderProps = {
    * samma etikett glider isär, så huvudet lägger bara till den maskinläsbara märkningen.
    */
   mode?: FactoryRoomMode;
+  /**
+   * LANE-01 · rummets ARBETSDOMÄN (lib/loop/room/lane.ts), om någon uttryckligen bärs hit.
+   *
+   * FÖRVALET ÄR `null`, OCH DET ÄR ETT PÅSTÅENDE OM VERKLIGHETEN: kontraktet i
+   * lib/loop/schema.ts bär inget arbetsdomänfält, så det finns idag ingen källa som kan fylla
+   * fältet för en riktig körning. Huvudet renderar då em-streck och skriver ut orsaken — det
+   * härleder ALDRIG en domän ur ett kodförråd, en titel eller ett uppgifts-id. Den dag
+   * controllern publicerar värdet (LANE-08) skickas det in här, på samma väg som läget.
+   */
+  workDomain?: WorkDomain | null;
   /** Klockan skickas in så att åldern är mätbar. Ingen komponent läser tiden i smyg. */
   now?: Date;
 };
@@ -71,6 +83,7 @@ export default function FactoryRoomHeader({
   snapshot,
   fixture,
   mode = factoryRoomMode(),
+  workDomain = null,
   now,
 }: FactoryRoomHeaderProps) {
   const clock = now ?? new Date();
@@ -92,6 +105,20 @@ export default function FactoryRoomHeader({
       */}
       <div className="rm-head-top">
         <h2 className="rm-head-title">{ROOM_TITLE}</h2>
+        {/*
+          LANE-01 · ARBETSDOMÄNEN STÅR HÖGST UPP, DÄR FRÅGAN STÄLLS.
+
+          Nortropic har två fabriksspår (KUNDPRODUKTION / SYSTEMFÖRBÄTTRINGAR), och den som
+          öppnar rummet ska kunna se vilket spår arbetet tillhör utan att öppna en bevisyta.
+          Raden ligger därför bredvid rubriken — samma radbrytande rad, ingen ny höjd på en
+          telefon när den ryms, och den bär ingen egen rubriknivå.
+
+          IDAG STÅR DEN PÅ EM-STRECK, OCH DET ÄR SANNINGEN OCH INTE EN LUCKA: propet är null om
+          ingen skickar in ett uttryckligt värde, och kontraktet har inget fält att skicka.
+          Orsaken står utskriven i upplysningsytan nedan, så em-strecket aldrig läses som ett
+          fel i vyn.
+        */}
+        <WorkDomainIndicator domain={workDomain} />
       </div>
 
       {/* Maskinens egen statusrad — samma värden, samma märkning, en enda ägare. */}
@@ -157,7 +184,7 @@ export default function FactoryRoomHeader({
       */}
       <details className="rm-details" data-head-notes="true">
         <summary>
-          <span className="rm-flag">{mode}</span> Om källan, åldern och behörigheten
+          <span className="rm-flag">{mode}</span> Om källan, åldern, behörigheten och arbetsdomänen
         </summary>
 
         <p className="rm-head-intro" data-room-intro-source={fixture ? "fixture" : "snapshot"}>
@@ -183,6 +210,17 @@ export default function FactoryRoomHeader({
 
         <p className="rm-head-note" data-owner-authority-note="true">
           {OWNER_AUTHORITY_NOTE}
+        </p>
+
+        {/*
+          LANE-01 · VARFÖR ARBETSDOMÄNEN STÅR SOM DEN GÖR.
+
+          Bärs ett uttryckligt värde säger raden vad domänen OMFATTAR; saknas det säger den varför
+          fältet är tomt. Båda är samma slags mening — en upplysning om ett värde ovanför, aldrig
+          en gissning om vilket spår arbetet tillhör.
+        */}
+        <p className="rm-head-note" data-work-domain-note="true">
+          {workDomainNote(workDomain)}
         </p>
       </details>
     </header>

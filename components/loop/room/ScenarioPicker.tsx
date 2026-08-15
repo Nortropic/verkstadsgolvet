@@ -18,15 +18,18 @@
  */
 import * as React from "react";
 import Link from "next/link";
+import WorkDomainIndicator from "./WorkDomainIndicator";
 import {
   DEFAULT_SCENARIO,
   SCENARIO_ANCHOR_ID,
   SCENARIO_PICKER_LABEL,
   SCENARIO_PICKER_NOTE,
   SCENARIO_TIMELINE_SCOPE_NOTE,
+  SCENARIO_WORK_DOMAIN_CAPTION,
   SHOWROOM_SCENARIOS,
   scenarioById,
   scenarioHref,
+  scenarioWorkDomain,
   type ShowroomScenarioId,
 } from "@/lib/loop/room/scenarios";
 import { SHOWROOM, factoryRoomMode, type FactoryRoomMode } from "@/lib/loop/room/mode";
@@ -111,6 +114,23 @@ export default function ScenarioPicker({
             </Link>
           );
         })}
+
+        {/*
+          LANE-01 · VILKET FABRIKSSPÅR DET VALDA SCENARIOT SKILDRAR.
+
+          Värdet kommer UTTRYCKLIGEN ur scenariometadatan (lib/loop/room/scenarios.ts) och läses
+          genom samma upplösare som en framtida controllerpublicerad domän kommer att gå igenom.
+          Bär posten inget giltigt värde blir raden ett em-streck — ytan gissar aldrig.
+
+          ETIKETTEN SÄGER VEMS DOMÄN DET ÄR. Raden står ovanför rummet och beskriver SCENARIOT,
+          alltså vilken sorts arbete den valda fixturen visar upp. Rummets egen rad (huvudets)
+          beskriver arbetet i rummet och är en annan mening — därför bär den här sin egen
+          etikett i stället för den korta förvalda.
+        */}
+        <WorkDomainIndicator
+          domain={scenarioWorkDomain(current)}
+          caption={SCENARIO_WORK_DOMAIN_CAPTION}
+        />
       </div>
 
       {/*
