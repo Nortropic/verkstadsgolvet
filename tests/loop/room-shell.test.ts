@@ -55,6 +55,7 @@ import {
   deriveAttention,
 } from "../../lib/loop/room/attention";
 import { ROOM_FACTS, ageText, mainConfirmation, roomIntro } from "../../lib/loop/room/header";
+import { ROOM_MODE_ATTRIBUTE, SHOWROOM, SHOWROOM_BADGE } from "../../lib/loop/room/mode";
 import {
   IDENTITY_DISCLAIMER,
   IDENTITY_FIELDS_WITHOUT_SOURCE,
@@ -356,7 +357,15 @@ test("ROOM-KÄLLA: rummets egen prosa påstår ALDRIG controllerpublicerad härk
   /*
     Två motstridiga påståenden om samma data är värre än ett tyst. Renderas rummet med fixturen
     får ingen mening i rummet säga att värdena kommer ur controllerns publicerade snapshot —
-    statusraden bär redan "FIXTUR · INTE LIVEDATA" och sidhuvudets sanningsrad säger fixtur.
+    statusraden bär redan SHOWROOM-märket (lib/loop/room/mode.ts) och sidhuvudets sanningsrad
+    säger fixtur.
+
+    MÄRKET MÄTS PÅ SIN EGEN KONSTANT (SHREDDER-01A). Raden här läste tidigare efter delsträngen
+    "FIXTUR". När statusradens märke bytte ord — "FIXTUR · INTE LIVEDATA" → SHOWROOM-märket —
+    fortsatte den träffa, men på orsakskedjans prosa ("monterad ur FIXTURENS validerade poster")
+    i stället för på märket den heter efter. Märket hade alltså kunnat försvinna ur rummet med
+    grönt prov. Nu läses konstanten själv, och de två påståendena mäts var för sig: MÄRKET ska
+    finnas, och prosan ska NAMNGE fixturen i klartext.
   */
   const snapshot = snapshotOrThrow();
   const text = withoutStyles(renderRoom(snapshot, true)).replace(/<[^>]+>/g, " ");
@@ -370,7 +379,12 @@ test("ROOM-KÄLLA: rummets egen prosa påstår ALDRIG controllerpublicerad härk
 
   // Fixturlägets ingress NAMNGER fixturen — den är inte bara tystare, den är ärlig.
   assert.match(roomIntro(true), /fixtur/i);
-  assert.ok(text.includes("FIXTUR"), "fixturmärket saknas i samma vy");
+  // … och märket för samma sanning står i SAMMA vy, mätt på sin egen konstant.
+  assert.ok(text.includes(SHOWROOM_BADGE), "showroom-märket saknas i samma vy");
+  assert.ok(
+    !SHOWROOM_BADGE.includes("FIXTUR"),
+    "märket bär ordet igen — då mäter raden ovan inte längre två skilda påståenden",
+  );
 
   // Och lägena är FAKTISKT olika texter — annars vore växlingen kosmetik.
   assert.notEqual(roomIntro(true), roomIntro(false));
@@ -957,7 +971,16 @@ test("ROOM-HUVUD: controllerns bekräftade main och dess ålder visas — ålder
   assert.ok(html.includes('data-liveness="unknown"'));
   assert.ok(!/AUTONOM/.test(markup), "rummet påstod AUTONOM utan liveness-signal");
   assert.ok(html.includes('data-age-is-liveness="false"'), "åldern märks inte som ren visning");
-  assert.ok(html.includes("FIXTUR"), "fixturmärkningen syns inte på rumsnivå");
+  /*
+    Samma korrigering som i ROOM-KÄLLA: märket mäts på SIN EGEN konstant, inte på en delsträng
+    som numera bärs av orsakskedjans prosa. Rumsnivån ska bära både märket i klartext och läget
+    maskinläsbart — försvinner statusradens märke faller raden nedan, vilket är hela poängen.
+  */
+  assert.ok(html.includes(SHOWROOM_BADGE), "showroom-märkningen syns inte på rumsnivå");
+  assert.ok(
+    html.includes(`${ROOM_MODE_ATTRIBUTE}="${SHOWROOM}"`),
+    "rumsnivån bär inget maskinläsbart produktläge",
+  );
   assert.ok(html.includes('data-room-transport-state="unknown"'), "rummet gissade ett transportläge");
 
   /*
