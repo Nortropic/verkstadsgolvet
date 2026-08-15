@@ -4,9 +4,9 @@
   "roadmap": "docs/nortropic-factory-room-master-roadmap-v1.md",
   "handoff": "docs/nortropic-factory-room-handoff-v1.md",
   "note": "Programme data for the Nortropic Factory Room master roadmap. This file is NOT a scheduler input and NOT a second canonical backlog: backlog/control-room-v1.json remains the canonical backlog consumed by scripts/claude-loop/backlog.ts, and scripts/claude-loop/** is untouched by this programme. An operator or session translates a slice below into an ordinary `npm run claude:run --task` file. Statuses use the roadmap's ledger vocabulary (NOT_STARTED, IN_PROGRESS, PROVEN, BLOCKED, DEFERRED_BY_OWNER, REJECTED_WITH_REASON) and never a percentage. allowedWrite is a best current estimate at freeze and is finalised in the task file for each slice. Gates listed for slices with a Nortropic/verkstadsgolvet half are this repository's real gate commands; slices whose target is the control plane or Nortropic/nortropic-system carry an empty gates array here because their gates are owned by that target's own operating model (nortropic-system AGENTS.md: $nortropic-test-author writes the spec row and the RED frozen gate in specs/** and verify/**, which are builder-denied).",
-  "measuredAt": "2026-08-14",
+  "measuredAt": "2026-08-15",
   "measuredMain": {
-    "Nortropic/verkstadsgolvet": "4e5e796506599f36d124248652014061f7d3985d",
+    "Nortropic/verkstadsgolvet": "851c0b25b7463d616d5c95d94d55245687bf0a8b",
     "Nortropic/nortropic-system": "32b6e076f96d095d32bb7bf9e6c2519632af80a1"
   },
   "slices": [
@@ -188,10 +188,20 @@
       "visualReview": true,
       "empiricalReview": "For one real run, every hop of the chain resolves to a stored identifier and the raw event backing each hop can be opened from the projection.",
       "remotePrerequisites": [],
-      "status": "NOT_STARTED",
-      "evidence": [],
-      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
-      "blocker": null
+      "status": "PROVEN",
+      "evidence": [
+        "run: room-03_causal_timeline-20260814154026",
+        "gates all green across rounds 2-6: npx tsc --noEmit; npm run build; npm run loop:test",
+        "independent reviewer: clean at round 6",
+        "visual reviewer: clean at round 6",
+        "changed files = 6, measured with git diff --name-only bbf945fb21e983cca1c2d1cc6d375ec3b9e8af9a 087ca6604b34f77ac78058f76f72fba1c5a1ac8b: components/loop/room/CausalChain.tsx, components/loop/room/TaskFocusRail.tsx, components/loop/room/ui.ts, components/loop/MaskinShell.tsx, lib/loop/room/causality.ts, tests/loop/room-causality.test.ts",
+        "note: fixture-side only; the live event and evidence half of this slice remains blocked on backend S5 + S13 and is not published. PROVEN here covers the fixture-side half only and is not a live-complete claim."
+      ],
+      "published": { "baseSha": "bbf945fb21e983cca1c2d1cc6d375ec3b9e8af9a", "candidateSha": "89558802283dc19be802bed2ff11c31afab098e0", "mergeSha": "087ca6604b34f77ac78058f76f72fba1c5a1ac8b", "pr": "https://github.com/Nortropic/verkstadsgolvet/pull/26" },
+      "blocker": {
+        "class": "EXTERNAL_BACKEND_SLICE",
+        "evidence": "live event/evidence half only: nortropic-codex-autopilot roadmap prints UNFROZEN for S5/S10/S13 at 32b6e07. The fixture-side half published as PR #26; the live half stays blocked on S5 (controller/handelse event store) + S13 (controller/lucka evidence and diff references)."
+      }
     },
     {
       "id": "ROOM-04",
@@ -388,10 +398,19 @@
       "visualReview": true,
       "empiricalReview": "Visual review of actual screenshots at desktop 1440x1000, tablet 900x1000 and mobile 390x844, plus a real mobile pass over reading status, opening a task, opening evidence, submitting intake, issuing a command and reading its result.",
       "remotePrerequisites": [],
-      "status": "NOT_STARTED",
-      "evidence": [],
-      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
-      "blocker": null
+      "status": "PROVEN",
+      "evidence": [
+        "run: room-08_mobile_room-20260815004053 (r4, the run that published)",
+        "superseded attempts preserved as evidence, not discarded: r1 room-08_mobile_room-20260814181216 (operator-stopped; capture infrastructure insufficient); r2 room-08_mobile_room-20260814221227 (blocked; unresumable builder session after a provider 529); r3 room-08_mobile_room-20260815000407 (operator-stopped; capture-state task-config lacked scrollToSelector)",
+        "visual: captureStates-framed screenshots (viewport plus clip) for the default, evidence-open, focus-parked and mata states at 1440x1000 / 900x1000 / 390x844, under .claude-loop/evidence/room-08_mobile_room-20260815004053/round-1/ in the run worktree",
+        "changed files = 7, measured with git diff --name-only cdb638e9875410ad2d53617b3596c3e58ecca617 d2ea9d59f7724242b095116a3fd30d59f698aa2c: components/loop/room/CausalChain.tsx, components/loop/room/RoomStep.tsx, components/loop/room/RoomTimeline.tsx, components/loop/room/ui.ts, components/loop/MaskinShell.tsx, tests/loop/room-mobile.test.ts, tests/loop/room-shell.test.ts",
+        "note: browser-half only; the live submit/command mobile proof required by empiricalReview remains blocked on backend S13 and is not published. PROVEN here covers the browser-half only and is not a live-complete claim."
+      ],
+      "published": { "baseSha": "cdb638e9875410ad2d53617b3596c3e58ecca617", "candidateSha": "e37a2cee207008d50b7a42866b1f4fd1e79e1107", "mergeSha": "d2ea9d59f7724242b095116a3fd30d59f698aa2c", "pr": "https://github.com/Nortropic/verkstadsgolvet/pull/29" },
+      "blocker": {
+        "class": "EXTERNAL_BACKEND_SLICE",
+        "evidence": "live mobile proof only: the real mobile pass over submitting intake, issuing a command and reading its result requires nortropic-system S13 (controller/lucka), which prints UNFROZEN at 32b6e07. The browser-half published as PR #29."
+      }
     },
     {
       "id": "SUPERVISOR-01",
@@ -423,9 +442,15 @@
       "visualReview": false,
       "empiricalReview": "A killed supervisor process is observed recovering, reconstructing session state, retaining the exact candidate and continuing until no eligible work remains, without a human handoff.",
       "remotePrerequisites": [],
-      "status": "NOT_STARTED",
-      "evidence": [],
-      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "status": "PROVEN",
+      "evidence": [
+        "run: supervisor-01_async_ownership-20260815011935",
+        "inventory-first gap closure: measured-gap closures in recover and stale-run classification, per that run's summary; each closed gap cites the measurement that showed it open",
+        "no second scheduler and no second canonical backlog introduced",
+        "changed files = 7, measured with git diff --name-only d2ea9d59f7724242b095116a3fd30d59f698aa2c 851c0b25b7463d616d5c95d94d55245687bf0a8b: scripts/claude-loop/autopilot.ts, scripts/claude-loop/claims.ts, scripts/claude-loop/cli.ts, scripts/claude-loop/state.ts, scripts/claude-loop/supervisor.ts, tests/claude-loop/supervisor-async-ownership.test.ts, docs/claude-loop-runbook.md",
+        "operational consequence: a merge touching scripts/claude-loop/** is not live until the operator supervisor worktree is fast-forwarded to origin/main; see the OPERATIONS NOTE in docs/nortropic-factory-room-handoff-v1.md"
+      ],
+      "published": { "baseSha": "d2ea9d59f7724242b095116a3fd30d59f698aa2c", "candidateSha": "22ef5dbec29e01232b3d6f6b53fcdaa36d7840bb", "mergeSha": "851c0b25b7463d616d5c95d94d55245687bf0a8b", "pr": "https://github.com/Nortropic/verkstadsgolvet/pull/30" },
       "blocker": null
     },
     {
