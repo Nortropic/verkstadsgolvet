@@ -12,7 +12,21 @@ MASTER_ROADMAP_COMMIT = 31f20835d7cb6d143609b8174dc04e1ae321b0d6
                         portion of the roadmap is frozen at this commit and may only be changed by a
                         separate explicit roadmap-authority task)
 MASTER_BACKLOG_PATH   = backlog/nortropic-factory-room-master-v1.json
+ERRATUM_01_PATH       = docs/nortropic-factory-room-roadmap-erratum-01.md
+                        (REQUIRED READING alongside the frozen roadmap. The roadmap is frozen and is
+                        corrected only through errata, never by editing it. Erratum 01 corrects two
+                        misclassifications: the required Slack interface is a NORTROPIC-OWNED Slack
+                        app and the Anthropic Claude Tag entitlement is NOT a core blocker — which
+                        renumbers REMOTE-02/03/04 to REMOTE-03/04/05 and adds an optional REMOTE-02;
+                        and the connected Railway CLI is the required production discovery and
+                        empirical verification path. Where this erratum and the frozen roadmap could
+                        be read as disagreeing on those two subjects, the erratum wins.)
 ```
+
+Authority reading list for a session picking this up: `CLAUDE.md`,
+`docs/nortropic-control-room-plan-v1.md`, `docs/claude-operating-model-v1.md`, then
+`docs/nortropic-factory-room-master-roadmap-v1.md` **together with**
+`docs/nortropic-factory-room-roadmap-erratum-01.md`, then this handoff and the backlog.
 
 ## CURRENT_AUTHORITATIVE_MAIN
 
@@ -177,16 +191,22 @@ PROMOTER_APP_MISSING
   blocks:   backend S7, IDENTITY-01 promoter principal, promotion-authority projection in ROOM-04
   owner:    external — the app must be created by the owner; no Claude run can satisfy this
 
-CLAUDE_TAG_ENTITLEMENT
-  evidence: Claude Tag is public beta, Team/Enterprise plans only, requires org-Owner pairing and
-            Routines enabled; no custom MCP backends, no inbound API layer
-            (/Users/elinhaggstrom/nortropic/evidence/factory-room/remote-surfaces-verification-2026-08-14.md)
-  blocks:   REMOTE-01 empirical proof
-
 ROUTINES_PREVIEW_ENTITLEMENT
   evidence: Claude Code Routines is a research preview, account-owned scheduled cloud runs,
-            beta header anthropic-beta: experimental-cc-routine-2026-04-01 (same evidence file)
-  blocks:   REMOTE-03 empirical proof
+            beta header anthropic-beta: experimental-cc-routine-2026-04-01
+            (/Users/elinhaggstrom/nortropic/evidence/factory-room/remote-surfaces-verification-2026-08-14.md)
+  blocks:   REMOTE-04 empirical proof (Claude Code Routines adapter; previously numbered REMOTE-03)
+
+NOT A CORE BLOCKER — reclassified by erratum-01, recorded so it is not re-promoted by mistake:
+CLAUDE_TAG_ENTITLEMENT
+  evidence: Claude Tag is public beta, Team/Enterprise plans only, requires org-Owner pairing and
+            Routines enabled; no custom MCP backends, no inbound API layer (same evidence file)
+  blocks:   ONLY the OPTIONAL slice REMOTE-02 (Anthropic Claude Tag adapter). It blocks nothing
+            required. The required Slack interface is REMOTE-01, a NORTROPIC-OWNED Slack app above
+            the Remote Operator API, which needs no Anthropic entitlement at all
+            (ANTHROPIC_CLAUDE_TAG_REQUIRED=NO;
+            CLAUDE_TAG_TEAM_ENTERPRISE_ENTITLEMENT_IS_CORE_BLOCKER=NO).
+  see:      docs/nortropic-factory-room-roadmap-erratum-01.md
 
 CLOSED SINCE STATUS-01 — no longer a blocker, recorded so it is not re-opened by mistake:
 SWEEP_DELTA_RELAND
@@ -197,12 +217,13 @@ SWEEP_DELTA_RELAND
             candidate d20238bc… stays preserved as evidence only.
 ```
 
-No blocker above is permission to drop a deliverable. The fixture-backed and design halves that
-could be built ahead of the backend have now been built, which is why no eligible frontend work
-remains (see CURRENT_NEXT_ELIGIBLE_SLICES); the blocked live halves are deferred, not cancelled.
-Every blocker remaining above is owned outside this repository: the backend chain, the backend's
-own operating model, or an external entitlement purchase. None of them can be cleared by a
-frontend Claude run.
+No blocker above is permission to drop a deliverable, and no blocker above may be widened beyond
+what its evidence supports — erratum-01 exists because exactly that happened to the Claude Tag
+entitlement. The blocked live halves are deferred, not cancelled. Every blocker remaining above is
+owned outside this repository: the backend chain, the backend's own operating model, or an external
+entitlement purchase; none of them can be cleared by a frontend Claude run. They do not, however,
+cover the whole programme: the REMOTE-01 fake-transport half is eligible frontend work now (see
+CURRENT_NEXT_ELIGIBLE_SLICES).
 
 ## OPERATIONS NOTE
 
@@ -223,30 +244,41 @@ SUPERVISOR_WORKTREE_MUST_BE_FAST_FORWARDED
 ## CURRENT_NEXT_ELIGIBLE_SLICES
 
 ```text
-NONE.
+REMOTE-01  Nortropic Slack App / "Nortropic Tag" — FAKE-TRANSPORT HALF ONLY
+           (client shell, app identity, request signature/timestamp authentication, workspace/user/
+           channel allowlists, Slack event-id dedup, UX and message design, typed-intent adapter
+           contract, translation tests, rejection UX, notification design)
 ```
 
-**Terminal condition B of the autonomous programme has been reached.** Every remaining roadmap
-slice is blocked, and no eligible frontend work remains. Measured against the published ledger:
+**Terminal condition B no longer holds.** It was recorded when REMOTE-01 was believed to be blocked
+on an Anthropic entitlement. Erratum 01 corrects that: the required Slack interface is a
+Nortropic-owned Slack app, and its non-live half depends on nothing. A missing backend S13 blocks
+LIVE command execution ONLY. Any REMOTE-01 slice built before S13 must be labelled fake-transport
+and must never be described as live-complete.
+
+Measured against the published ledger, with erratum-01 numbering:
 
 ```text
 blocked on the backend chain (S5 / S10 / S13, UNFROZEN at nortropic-system 32b6e07):
     ROOM-02 (live intake), ROOM-04, ROOM-05, ROOM-06,
     REMOTE-00 and every slice dependent on it — ROOM-07 (needs ROOM-06 + REMOTE-00),
-    CONTEXT-01 (needs REMOTE-00), REMOTE-02, REMOTE-04
+    CONTEXT-01 (needs REMOTE-00), REMOTE-03, REMOTE-05,
+    and the LIVE half of REMOTE-01 only (its fake-transport half is eligible now)
 blocked on control-plane environment work owned by the backend's operating model:
     IDENTITY-01, IDENTITY-02, IDENTITY-03, OBSERVER-01, AUDIT-01, RETRO-01
 blocked on external entitlements:
-    REMOTE-01 (Claude Tag requires a Team/Enterprise org)
-    REMOTE-03 (Claude Code Routines research preview)
+    REMOTE-04 (Claude Code Routines research preview)
+    REMOTE-02 (OPTIONAL only — Claude Tag Team/Enterprise org; blocks no required deliverable)
 transitively blocked by all of the above:
-    HARDEN-01 (needs IDENTITY-01..03, REMOTE-00, CONTEXT-01), EMPIRICAL-01 (needs everything)
+    HARDEN-01 (needs IDENTITY-01..03, REMOTE-00, CONTEXT-01), EMPIRICAL-01 (needs everything
+    except the optional REMOTE-02)
 ```
 
-The fixture-backed and browser-side halves that could be built without a live backend have been
-built. What is left is not frontend work that has been skipped; it is work whose prerequisites are
-owned elsewhere. Terminal condition B is not completion of the programme and is not permission to
-mark any blocked slice as done.
+Apart from the REMOTE-01 fake-transport half reopened by erratum-01, the fixture-backed and
+browser-side halves that could be built without a live backend have been built. The rest is not
+frontend work that has been skipped; it is work whose prerequisites are owned elsewhere. Neither a
+terminal condition nor a blocker is completion of the programme, and neither is permission to mark
+any blocked slice as done.
 
 Nothing downstream of the backend chain is eligible for a LIVE claim.
 
@@ -275,36 +307,81 @@ REMOTE_CLIENT_IS_AUTHORITY=NO
 
 ## REMOTE_INTEGRATION_STATUS
 
-At freeze, all remote integrations are `NOT_STARTED` as implementations. Their empirical proof
-carries the entitlement prerequisites listed under CURRENT_BLOCKERS.
+All remote integrations are still `NOT_STARTED` as implementations. The numbering below is the
+corrected numbering from `docs/nortropic-factory-room-roadmap-erratum-01.md`; the frozen roadmap
+still carries the old numbers and is translated through that erratum, not edited.
 
 ```text
-REMOTE-00  common remote operator adapter      NOT_STARTED
-REMOTE-01  Slack / Claude Tag                  NOT_STARTED
-REMOTE-02  Claude Code Channels                NOT_STARTED
-REMOTE-03  Claude Code Routines                NOT_STARTED
-REMOTE-04  remote notifications and mobile     NOT_STARTED
+id         slice                                    old id     status       classification
+REMOTE-00  common Nortropic Remote Operator API     REMOTE-00  NOT_STARTED  REQUIRED (unchanged)
+REMOTE-01  Nortropic Slack App / "Nortropic Tag"    REMOTE-01  NOT_STARTED  REQUIRED (core, rescoped)
+REMOTE-02  Anthropic Claude Tag optional adapter    NEW SLICE  NOT_STARTED  OPTIONAL
+REMOTE-03  Claude Code Channels adapter             REMOTE-02  NOT_STARTED  REQUIRED
+REMOTE-04  Claude Code Routines adapter             REMOTE-03  NOT_STARTED  REQUIRED
+REMOTE-05  remote notifications and mobile flow     REMOTE-04  NOT_STARTED  REQUIRED
+```
+
+```text
+ANTHROPIC_CLAUDE_TAG_REQUIRED=NO
+CLAUDE_TAG_TEAM_ENTERPRISE_ENTITLEMENT_IS_CORE_BLOCKER=NO
+NORTROPIC_SLACK_APP_REQUIRED=YES
+REMOTE_OPERATION_FROM_PHONE_REQUIRED=YES
+```
+
+REMOTE-01 resolves ALL Slack input to exactly the five canonical typed intentions
+(`intake.submit`, `run.start`, `run.pause_at_safe_boundary`, `run.resume`, `inspect`); no Slack
+input becomes shell, generic Git, a file edit, a verdict, an attestation, a promotion, a main
+mutation or lease-breaker manipulation; the controller may always reject; and Slack reports only
+actual command state (`queued`/`claimed`/`applied`/`rejected`/`expired`), never optimistic success.
+Its REMOTE-00 dependency binds the LIVE half only — see CURRENT_NEXT_ELIGIBLE_SLICES.
+
+### Deployment facts (erratum 02 — the Railway CLI is the verification path)
+
+Measured 2026-08-15 via the Railway CLI 5.41.0. Measured-at-date facts, not live truth.
+
+```text
+deploy mechanism   GitHub main auto-deploy (RAILPACK, reason=deploy) — the SINGLE deploy path;
+                   railway up must NOT be used in parallel
+project            verkstadsgolvet (27b6eb8a-e43e-41f3-a324-c06e83b0f56d)
+environment        production (6866bf05-7148-4397-9844-11056838e3a9)
+service            verkstadsgolvet (7ba0575d-5c74-4bde-a417-2d5f54ecb5de)
+domain             verkstadsgolvet-production.up.railway.app
+latest deployment  f328ebee-f9f6-4bf0-9e76-281032735ddf SUCCESS
+deployed SHA       cb133c53e189a14255faefceaeb459cd21165d2c (= origin/main at measurement)
+environment        LOOP_ENABLED=true present in production
+rule               production completion claims require a CLI-verified deployed SHA plus an
+                   observed production URL; deploy state is not recorded as unverified while
+                   connected CLI access exists and has not been exhausted
 ```
 
 ## EXACT_NEXT_ACTION
 
-There is no next frontend slice to author. The next actions are **owner decisions**, not Claude
-runs:
-
 ```text
-1. Advance the nortropic-system chain to unblock the live slices:
+1. Author REMOTE-01 as a FAKE-TRANSPORT slice (Claude run, eligible now per erratum-01):
+   Slack client shell, own bot identity, request signature + timestamp-freshness verification (or
+   authenticated Socket Mode), workspace/user/channel allowlists, Slack event-id dedup, the
+   typed-intent adapter contract with its translation tests, rejection UX and message/notification
+   design — all against a fail-closed fake transport. LIVE command execution stays out of scope
+   until REMOTE-00 lands, and the slice must be reported as fake-transport, never live-complete.
+
+2. Owner ceremony (owner decision, not a Claude run): create the Nortropic-owned Slack app in the
+   owner's Slack workspace, hold its signing secret and bot token server-side only, install it and
+   set the workspace/user/channel allowlists. No Anthropic entitlement is involved.
+
+3. Advance the nortropic-system chain to unblock the live slices (owner decision):
        h-031 (currently undefined — the backend's own next step must be defined first)
        → SUB-1..SUB-4 (h-027..h-030)
        → S5 / S10 / S13
    Landing S5 + S13 unblocks the live halves of ROOM-03 and ROOM-05; S10 + S13 unblocks ROOM-02;
-   S13 unblocks ROOM-06, REMOTE-00 and the live mobile proof deferred by ROOM-08.
+   S13 unblocks ROOM-06, REMOTE-00, the REMOTE-01 live half and the live mobile proof deferred by
+   ROOM-08.
 
-2. Optionally provision the Claude Tag entitlement (Team/Enterprise org, org-Owner pairing,
-   Routines enabled) if REMOTE-01 empirical proof is wanted. This is a purchase/administration
-   decision, not an implementation gap.
-
-3. Optionally create the GitHub App "Nortropic Promoter" to unblock backend S7 and the
+4. Optionally create the GitHub App "Nortropic Promoter" to unblock backend S7 and the
    IDENTITY-01 promoter principal.
+
+5. OPTIONAL and deliberately last: provision a Claude Tag entitlement (Team/Enterprise org,
+   org-Owner pairing, Routines enabled) only if the optional REMOTE-02 adapter is later desired.
+   Per erratum-01 this is NOT on the critical path for remote operation from a phone.
 ```
 
 The frontend programme resumes automatically from this handoff when a dependency lands: re-measure
@@ -314,5 +391,7 @@ genuinely met. Do not author a blocked slice in the meantime, and do not convert
 half into a live claim without the backend prerequisite actually being present.
 
 Read `docs/nortropic-factory-room-master-roadmap-v1.md` for the frozen exit criteria, negative
-controls and visual-review requirements of whichever slice unblocks first, and
+controls and visual-review requirements of whichever slice unblocks first — always together with
+`docs/nortropic-factory-room-roadmap-erratum-01.md`, which supplies the corrected REMOTE numbering,
+the Nortropic Slack App scope and the deployment-verification rule — and
 `backlog/nortropic-factory-room-master-v1.json` for the machine-readable slice records.
