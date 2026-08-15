@@ -54,13 +54,21 @@ import WorkComposer from "./room/WorkComposer";
 import { ROOM_CSS } from "./room/ui";
 import { LOOP_CSS } from "./ui";
 import { ROOM_TRANSPORT_NOTE } from "@/lib/loop/room/header";
+import { factoryRoomMode, type FactoryRoomMode } from "@/lib/loop/room/mode";
 
 export default function MaskinShell({
   snapshot,
   fixture = false,
+  mode = factoryRoomMode(),
 }: {
   snapshot: LoopSnapshot | null;
   fixture?: boolean;
+  /**
+   * Rummets produktläge (lib/loop/room/mode.ts). Skickas in av routen; skalet härleder det
+   * aldrig ur data. Läget bärs på rummets rot så att INGEN yta under den kan läsas som ett
+   * omärkt auktoritativt fält.
+   */
+  mode?: FactoryRoomMode;
 }) {
   return (
     <div
@@ -68,6 +76,7 @@ export default function MaskinShell({
       data-maskin-shell="true"
       data-factory-room="true"
       data-fixture={fixture ? "true" : "false"}
+      data-room-mode={mode}
     >
       <style dangerouslySetInnerHTML={{ __html: LOOP_CSS }} />
       <style dangerouslySetInnerHTML={{ __html: ROOM_CSS }} />
@@ -87,7 +96,7 @@ export default function MaskinShell({
             fixturmärkningen) och lägger till den härledda uppmärksamheten. Statusraden har kvar
             ensamt ägarskap över sina värden — huvudet ritar dem aldrig en andra gång.
           */}
-          <FactoryRoomHeader snapshot={snapshot} fixture={fixture} />
+          <FactoryRoomHeader snapshot={snapshot} fixture={fixture} mode={mode} />
 
           {/*
             SCENEN ÄR TVÅ BANOR, INTE TRE.
@@ -142,9 +151,9 @@ export default function MaskinShell({
           */}
           {fixture && (
             <p className="mk-hint" data-stream-source-boundary="true">
-              Ytorna ovan kommer ur den genererade fixturen. Strömpanelen nedan talar med
-              kontrollplanets läsyta på riktigt och märker själv ut sitt transportläge — de två
-              källorna blandas aldrig.
+              Ytorna ovan är showroom: simulerad fabriksdata ur den genererade fixturen.
+              Strömpanelen nedan läser kontrollplanet på riktigt och märker själv ut sitt
+              transportläge — de två källorna blandas aldrig.
             </p>
           )}
           {/*

@@ -56,7 +56,9 @@ export function countLabel(n: number): string {
  *                   tom är ett ÄRLIGT tomläge, inte ett fel och inte heller "nästan live".
  *   KONTRAKTSLÄGE — kommandoytan är byggd men kanalen är stängd (503) tills backendens skiva
  *                   finns. Ytan får aldrig beskrivas som en fungerande väg.
- *   FIXTUR        — statusraden, kolumnerna och korten kommer ur den GENERERADE fixturen.
+ *   SHOWROOM      — statusraden, kolumnerna och korten kommer ur den GENERERADE fixturen. Ordet
+ *                   är produktens (lib/loop/room/mode.ts); påståendet är oförändrat, och texten
+ *                   namnger fortfarande fixturen i klartext.
  *
  * Texten HÄRLEDS ur samma värden som ytorna själva läser (`commandChannelEnabled`,
  * FIXTURE_MODE via `fixture`-flaggan) i stället för att skrivas som en fri mening. Byts ett
@@ -100,6 +102,16 @@ export const MASKIN_HEADER_SUB =
   "Kontrollrummets läsvy — ingen authority. Tre källor med olika läge:";
 
 /**
+ * SHREDDER-01A · Etiketten för den källa som är simulerad fabriksdata.
+ *
+ * Ordet "FIXTUR" är fabriksteknik; showroom är produktens ord för samma sanning. Etiketten byter
+ * alltså vokabulär, aldrig påstående: segmentets text NAMNGER fortfarande fixturen, och strängen
+ * som märker läget kommer ur lib/loop/room/mode.ts så att en yta inte kan börja säga något annat
+ * än en annan.
+ */
+export const MASKIN_HEADER_SHOWROOM_LABEL = "Showroom";
+
+/**
  * Hänvisningen till den som FAKTISKT äger transportläget. Sidhuvudet säger vilken källa
  * panelen läser; om anslutningen är öppen, återansluter, pollar eller inte ens är konfigurerad
  * står i panelen — och bara där.
@@ -128,7 +140,7 @@ export function maskinHeaderTruth({
       id: "stream",
       mode: "live",
       label: "Live",
-      text: "Eventströmmen läser kontrollplanet — tom tills backendens lucka publicerar.",
+      text: "Eventströmmen läser kontrollplanet — tom tills backend publicerar.",
     },
     channelEnabled
       ? {
@@ -147,8 +159,8 @@ export function maskinHeaderTruth({
       ? {
           id: "snapshot",
           mode: "fixture",
-          label: "Fixtur",
-          text: "Statusrad, kolumner och kort kommer ur en genererad fixtur.",
+          label: MASKIN_HEADER_SHOWROOM_LABEL,
+          text: "Statusrad, kolumner och kort ur en genererad fixtur.",
         }
       : {
           id: "snapshot",

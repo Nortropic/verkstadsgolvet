@@ -46,22 +46,34 @@ import {
   mainConfirmation,
   roomIntro,
 } from "@/lib/loop/room/header";
+import { factoryRoomMode, type FactoryRoomMode } from "@/lib/loop/room/mode";
 
 export type FactoryRoomHeaderProps = {
   snapshot: LoopSnapshot;
   fixture: boolean;
+  /**
+   * SHREDDER-01A · rummets produktläge (lib/loop/room/mode.ts). Huvudet MÄRKER läget; själva
+   * märket renderas av statusraden nedanför, som redan äger fixturmärkningen. Två ägare av
+   * samma etikett glider isär, så huvudet lägger bara till den maskinläsbara märkningen.
+   */
+  mode?: FactoryRoomMode;
   /** Klockan skickas in så att åldern är mätbar. Ingen komponent läser tiden i smyg. */
   now?: Date;
 };
 
-export default function FactoryRoomHeader({ snapshot, fixture, now }: FactoryRoomHeaderProps) {
+export default function FactoryRoomHeader({
+  snapshot,
+  fixture,
+  mode = factoryRoomMode(),
+  now,
+}: FactoryRoomHeaderProps) {
   const clock = now ?? new Date();
   const confirmation = mainConfirmation(snapshot, clock);
   const attention = deriveAttention(snapshot);
   const ageMissing = confirmation.age_text === null;
 
   return (
-    <header className="rm-head" data-factory-room-header="true">
+    <header className="rm-head" data-factory-room-header="true" data-room-mode={mode}>
       {/*
         Rubrik och källa på SAMMA rad. Rummet öppnar redan under appens egen h1 "Maskinen"; en
         andra titel med ett eget stycke under sig blir en andra ingress, och varje rad här är

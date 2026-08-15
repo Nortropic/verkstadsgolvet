@@ -22,9 +22,18 @@
  * · TRANSPORTLÄGET ÄGS AV STRÖMPANELEN (V9), som har den faktiska signalen och renderar den
  *   med orsak. Sidhuvudet upprepar det aldrig — det hänvisar till det. Ett huvud som gissade
  *   anslutningsläge skulle förr eller senare motsäga panelen två rader längre ned.
+ * · SHREDDER-01A · LÄGESRADEN ÄR EN RAD. Produktläget (lib/loop/room/mode.ts) står som en kort
+ *   rad med `data-room-mode`, inte som en försvarsvägg av friskrivningar: den långa tekniska
+ *   detaljen hör hemma i de tekniska ytorna (statusraden, strömpanelen, orsakskedjan), där den
+ *   går att granska. Huvudet ska läsas som en produkt och ändå vara sant.
  */
 import * as React from "react";
 import PageHeader from "@/components/PageHeader";
+import {
+  SHOWROOM_MODE_LINE,
+  factoryRoomMode,
+  type FactoryRoomMode,
+} from "@/lib/loop/room/mode";
 import {
   MASKIN_HEADER_CSS,
   MASKIN_HEADER_SUB,
@@ -32,13 +41,31 @@ import {
   maskinHeaderTruth,
 } from "./ui";
 
-export default function MaskinHeader({ fixture }: { fixture: boolean }) {
+export default function MaskinHeader({
+  fixture,
+  mode = factoryRoomMode(),
+}: {
+  fixture: boolean;
+  /** Rummets produktläge. Skickas in av routen; komponenten läser aldrig env i smyg. */
+  mode?: FactoryRoomMode;
+}) {
   const segments = maskinHeaderTruth({ fixture });
 
   return (
-    <div className="mk-header" data-maskin-header="true">
+    <div className="mk-header" data-maskin-header="true" data-room-mode={mode}>
       <style dangerouslySetInnerHTML={{ __html: MASKIN_HEADER_CSS }} />
       <PageHeader title="Maskinen" sub={MASKIN_HEADER_SUB} />
+      {/*
+        Lägesraden bär husets befintliga notisform (`mk-header-truth-note`): den har redan
+        radlängdstak och nedtonad vikt i MASKIN_HEADER_CSS, och en ny klass utan regel hade
+        krävt en ändring i ett stilark som ligger utanför den här skivan. Det SYNLIGA märket
+        för samma läge bärs av statusraden nedanför, en gång.
+      */}
+      {mode === "SHOWROOM" && (
+        <p className="mk-header-truth-note" data-room-mode-line="true">
+          {SHOWROOM_MODE_LINE}
+        </p>
+      )}
       <ul className="mk-header-truth" data-header-truth="true">
         {segments.map((segment) => (
           <li

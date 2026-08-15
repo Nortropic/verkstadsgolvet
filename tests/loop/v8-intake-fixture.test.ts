@@ -92,6 +92,12 @@ import {
   type IntakeRejectionCode,
 } from "../../lib/loop/intake";
 import { LOOP_CSS } from "../../components/loop/ui";
+import {
+  SHOWROOM,
+  SHOWROOM_BADGE,
+  SHOWROOM_EXPLANATION,
+  type FactoryRoomMode,
+} from "../../lib/loop/room/mode";
 import { MISSING, NEEDS_SPEC_EXPLANATION, TASK_LIFECYCLE_PRESENTATION } from "../../lib/loop/labels";
 import { SUBMISSION_LIFECYCLE, TASK_LIFECYCLE } from "../../lib/loop/schema";
 
@@ -165,20 +171,19 @@ function renderShell(): string {
       candidates: fixtureIntakeCandidates(),
       overCount: fixtureIntakeOverCountSelection(),
       fixture: FIXTURE_MODE,
+      mode: SHOWROOM,
     }),
   );
 }
 
-/** Hela routen, som den faktiskt renderas: sidhuvudets h1 OCH skalets paneler i ett svep. */
+/**
+ * Hela routen, som den faktiskt renderas: sidhuvudets h1 OCH skalets paneler i ett svep.
+ *
+ * SHREDDER-01A · ingen env-ställning längre. Den inloggade routen renderar utan flagga — se
+ * provet "V8*-SHOWROOM" nedan och tests/loop/showroom-contract.test.ts.
+ */
 function renderPage(): string {
-  const before = process.env.LOOP_ENABLED;
-  try {
-    process.env.LOOP_ENABLED = "true";
-    return renderToStaticMarkup(MataMaskinenPage() as ReactElement);
-  } finally {
-    if (before === undefined) delete process.env.LOOP_ENABLED;
-    else process.env.LOOP_ENABLED = before;
-  }
+  return renderToStaticMarkup(MataMaskinenPage() as ReactElement);
 }
 
 function cards(html: string): string[] {
@@ -192,42 +197,51 @@ function attr(fragment: string, name: string): string | null {
 
 /* ── 1 · Grinden och fixturläget ──────────────────────────────────────────── */
 
-test("V8*-GATE: /loop/mata finns inte när LOOP_ENABLED är av — samma fail-closed som resten", () => {
+test("V8*-SHOWROOM: /loop/mata renderar UTAN LOOP_ENABLED och är märkt som showroom", () => {
+  /*
+    ERSÄTTER den upphävda 404-mätningen. Ägarbeslutet i
+    docs/nortropic-factory-room-roadmap-erratum-01.md gör produkten synlig
+    (HIDE_LOOP_ROUTE_UNTIL_BACKEND=NO) och kräver i stället EXPLICIT MÄRKNING av simulerad data
+    (FIXTURE_DATA_MUST_BE_EXPLICITLY_LABELLED=YES). Flaggan gatar fortfarande app/api/loop/**
+    (mätt av V4/V9/V10) — den grinden är oförändrad och rörs inte av den här skivan.
+  */
   const before = process.env.LOOP_ENABLED;
   try {
     delete process.env.LOOP_ENABLED;
-    assert.throws(() => MataMaskinenPage(), /NEXT_HTTP_ERROR_FALLBACK;404/);
-    process.env.LOOP_ENABLED = "false";
-    assert.throws(() => MataMaskinenPage(), /NEXT_HTTP_ERROR_FALLBACK;404/);
+    const html = renderToStaticMarkup(MataMaskinenPage() as ReactElement);
+    assert.ok(html.includes('data-intake-shell="true"'), "intakeytan renderades inte utan flagga");
+    assert.ok(html.includes(`data-room-mode="${SHOWROOM}"`), "läget är inte maskinläsbart");
+    assert.ok(html.includes(SHOWROOM_BADGE), "showroom-märket saknas på /loop/mata");
 
-    process.env.LOOP_ENABLED = "true";
-    const page = MataMaskinenPage() as ReactElement;
-    assert.ok(page, "sidan returnerade inget träd med LOOP_ENABLED=true");
-    const route = readFileSync(path.join(REPO_ROOT, "app/(app)/loop/mata/page.tsx"), "utf8");
-    assert.match(route, /export const dynamic = "force-dynamic"/);
+    process.env.LOOP_ENABLED = "false";
+    const withFlagOff = renderToStaticMarkup(MataMaskinenPage() as ReactElement);
+    assert.ok(withFlagOff.includes(`data-room-mode="${SHOWROOM}"`));
+    assert.ok(withFlagOff.includes(SHOWROOM_BADGE));
   } finally {
     if (before === undefined) delete process.env.LOOP_ENABLED;
     else process.env.LOOP_ENABLED = before;
   }
+
+  const route = readFileSync(path.join(REPO_ROOT, "app/(app)/loop/mata/page.tsx"), "utf8");
+  assert.match(route, /export const dynamic = "force-dynamic"/);
+  assert.ok(!/notFound\(\)/.test(route), "routen döljer fortfarande produkten bakom en 404");
 });
 
 test("V8*-DATA: routen matar skalet med EXAKT fixturens utfall — ingen egen modell", () => {
-  const before = process.env.LOOP_ENABLED;
-  try {
-    process.env.LOOP_ENABLED = "true";
-    const page = MataMaskinenPage() as ReactElement;
-    const children = React.Children.toArray(
-      (page.props as { children: React.ReactNode }).children,
-    ) as ReactElement[];
-    const shell = children.find((child) => child.type === IntakeShell);
-    assert.ok(shell, "routen renderar inte IntakeShell");
-    const props = shell.props as { outcomes: IntakeOutcome[]; fixture: boolean };
-    assert.deepEqual(props.outcomes, fixtureIntakeOutcomes());
-    assert.equal(props.fixture, FIXTURE_MODE, "fixturläget märks inte ut för skalet");
-  } finally {
-    if (before === undefined) delete process.env.LOOP_ENABLED;
-    else process.env.LOOP_ENABLED = before;
-  }
+  const page = MataMaskinenPage() as ReactElement;
+  const children = React.Children.toArray(
+    (page.props as { children: React.ReactNode }).children,
+  ) as ReactElement[];
+  const shell = children.find((child) => child.type === IntakeShell);
+  assert.ok(shell, "routen renderar inte IntakeShell");
+  const props = shell.props as {
+    outcomes: IntakeOutcome[];
+    fixture: boolean;
+    mode: FactoryRoomMode;
+  };
+  assert.deepEqual(props.outcomes, fixtureIntakeOutcomes());
+  assert.equal(props.fixture, FIXTURE_MODE, "fixturläget märks inte ut för skalet");
+  assert.equal(props.mode, SHOWROOM, "routen skickar inte in produktläget");
 });
 
 test("V8*-FIXTUR: läget märks ut synligt och maskinläsbart — skivan påstår aldrig att den är live", () => {
@@ -243,8 +257,19 @@ test("V8*-FIXTUR: läget märks ut synligt och maskinläsbart — skivan påstå
   assert.ok(html.includes('data-intake-transport="NONE"'));
   assert.ok(html.includes('data-client-hashes="false"'));
   assert.ok(html.includes('data-fixture="true"'));
-  assert.ok(html.includes('data-fixture-banner="true"'), "fixturbannern saknas");
+  assert.ok(html.includes('data-fixture-banner="true"'), "showroom-märkningen saknas");
+  assert.ok(html.includes(`data-room-mode="${SHOWROOM}"`), "läget är inte maskinläsbart");
+  assert.ok(html.includes(SHOWROOM_BADGE), "showroom-märkets exakta text saknas");
+  assert.ok(html.includes(SHOWROOM_EXPLANATION), "den enda förklarande meningen saknas");
+  /*
+    PROSAN ÄR FLYTTAD, INTE BORTA. Den fulla tekniska sanningen står kvar ORDAGRANT i den
+    öppningsbara detaljen — inklusive vad den levande vägen är blockerad på och vem som är
+    förtroendeankare. En kortad yta får aldrig bli en tystad yta.
+  */
   assert.ok(html.includes(INTAKE_BLOCKED_ON), "blockeringen på S10 + S13 nämns inte i UI:t");
+  assert.ok(html.includes('data-intake-backend-detail="true"'), "den tekniska detaljen saknas");
+  assert.match(html, /förtroendeankare/, "förtroendeankaret nämns inte längre någonstans");
+  assert.match(html, /ingen sha256|beräknar ingen sha256/i, "hash-sanningen föll bort");
   assert.ok(
     !/live-komplett|live complete|nu live\b/i.test(html),
     "UI:t beskrev fixturskivan som live",
