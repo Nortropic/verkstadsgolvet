@@ -1258,7 +1258,10 @@
         "mergeSha": "330457cfa56646d5f56b7746c0e0064009505eb5",
         "pr": "https://github.com/Nortropic/verkstadsgolvet/pull/37"
       },
-      "blocker": "the step ordinal .rm-step-n stays hidden at 720-959 px because ROOM-LAYOUT in tests/loop/room-shell.test.ts freezes that rule and the measurement lies outside this slice's write scope. Omitting a TRUE ordinal is an omission, never an untruth; restoring it belongs to the slice that owns that measurement."
+      "blocker": {
+        "class": "EXTERNAL_SLICE_WRITE_SCOPE",
+        "evidence": "the step ordinal .rm-step-n stays hidden at 720-959 px because ROOM-LAYOUT in tests/loop/room-shell.test.ts freezes that rule and the measurement lies outside this slice's write scope. Omitting a TRUE ordinal is an omission, never an untruth; restoring it belongs to the slice that owns that measurement."
+      }
     },
     {
       "id": "CONVERSATION-01",
