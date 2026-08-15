@@ -53,7 +53,7 @@ import WorkComposer, {
 } from "../../components/loop/room/WorkComposer";
 import { fixtureEmptySnapshot, fixtureSnapshot } from "../../lib/loop/fixtures";
 import { MISSING } from "../../lib/loop/labels";
-import { SHOWROOM, SHOWROOM_BADGE } from "../../lib/loop/room/mode";
+import { SHOWROOM } from "../../lib/loop/room/mode";
 import {
   DEFAULT_SCENARIO,
   SCENARIO_PARAM,
@@ -921,8 +921,17 @@ test("NAV-F: kompositören pekar på /loop/mata och förhandsvisar inlämningen 
   );
   assert.ok(!/data-command|aria-disabled/.test(html), "kompositören bär en kommandoväg");
 
-  // Och läget står i klartext på ytan, inte bara i ett attribut någon annanstans.
-  assert.ok(html.includes(SHOWROOM_BADGE), "kompositören är inte märkt som showroom");
+  /*
+    Och läget står i klartext på ytan, inte bara i ett attribut någon annanstans.
+
+    MÄTT PÅ LÄGET, INTE PÅ HELA MÄRKESSTRÄNGEN. «.rm-flag» är rummets lägesmärke och bär ett
+    LÄGE — SHOWROOM, LIVE, OFFLINE, BLOCKED eller em-streck. Provet mätte tidigare hela
+    SHOWROOM_BADGE («SHOWROOM · SIMULERAD FABRIKSDATA») och låste därmed en hel mening inne i ett
+    märke vars ordförråd är lägen. Den fulla strängen är inte borta ur vyn: statusraden renderar
+    den som sitt DATAKÄLLA-märke, utanför varje upplysningsyta, på samma skärm — och den
+    mätningen ägs av showroom-contract-provet, som redan gör den.
+  */
+  assert.ok(html.includes(SHOWROOM), "kompositören är inte märkt med rummets läge");
   assert.ok(html.includes('data-composer-mode="fixture"'), "fixturläget märks inte ut");
 });
 

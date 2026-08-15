@@ -34,7 +34,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { INTAKE_BLOCKED_ON, INTAKE_MODE } from "@/lib/loop/intake";
-import { SHOWROOM, SHOWROOM_BADGE } from "@/lib/loop/room/mode";
+import { SHOWROOM } from "@/lib/loop/room/mode";
 
 export const COMPOSER_TITLE = "Mata maskinen";
 
@@ -92,8 +92,27 @@ export default function WorkComposer() {
       {/* h2: samma nivå som kolumnernas rubriker — rummets ytor är syskon, inte nästlade. */}
       <div className="rm-composer-head">
         <h2 className="rm-composer-title">{COMPOSER_TITLE}</h2>
+        {/*
+          MÄRKET BÄR ETT LÄGE, INTE EN MENING (residual 2).
+
+          Här stod «SHOWROOM · SIMULERAD FABRIKSDATA» — hela märkessträngen — i rummets LÄGESMÄRKE.
+          Två saker var fel med det, och ingen av dem är smak:
+
+          · ORDFÖRRÅDET. «.rm-flag» är rummets lägesmärke, och dess ordförråd är lägen: SHOWROOM,
+            LIVE, OFFLINE, BLOCKED, em-streck. Varje annat märke i skivan följer redan den regeln.
+            En hel mening i ett märke gör märket till en etikett bland andra, och då sjunker
+            värdet av ALLA lägesmärken på sidan vid en snabb blick.
+          · HÖJDEN VID 390 PX. En 31 tecken lång versal mono-chip hamnar på samma radbrytande rad
+            som rubriken «Mata maskinen» och konkurrerar med precis den titel som ska mötas först.
+
+          INGEN ÄRLIGHET GÅR FÖRLORAD, OCH DET ÄR MÄTT: statusraden ovanför renderar samma fulla
+          sträng (SHOWROOM_BADGE) som sitt DATAKÄLLA-märke, utanför varje upplysningsyta, några
+          hundra pixlar högre upp på samma skärm. Sidhuvudets lägesrad bär den dessutom i sin
+          gemenes form. Strängen finns alltså kvar, synlig och oöppnad — den upprepas bara inte en
+          tredje gång i ett märke vars uppgift är att säga LÄGET.
+        */}
         <span className="rm-flag" data-composer-flag="true">
-          {SHOWROOM_BADGE}
+          {SHOWROOM}
         </span>
       </div>
       <p className="rm-composer-lead">{COMPOSER_LEAD}</p>
