@@ -81,23 +81,23 @@ surface that cannot answer that question fails independent visual review (§13).
 
 ## CURRENT_AUTHORITATIVE_MAIN
 
-Re-measured 2026-08-15 in the ERRATUM-02_PRODUCT_V2 run worktree, after four further publications
-(STATUS-02, PR #31; REPORT-01, PR #32; ERRATUM-01, PR #33; SHREDDER-01A, PR #34).
+Re-measured 2026-08-15 in the STATUS-03_SHREDDER_DONE run worktree, after four further publications
+(ERRATUM-02 V2+V3, PR #35; ERRATUM-03 lanes, PR #36; SHREDDER-01C, PR #37; SHREDDER-01B, PR #38).
 
 ```text
-Nortropic/verkstadsgolvet  origin/main = ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08
-    measurement: git rev-parse origin/main (ERRATUM-02_PRODUCT_V2 run worktree, 2026-08-15); the
-    value matches the SHREDDER-01A merge commit (PR #34). The previously recorded value was
-    851c0b25b7463d616d5c95d94d55245687bf0a8b (SUPERVISOR-01, PR #30, recorded by STATUS-02), and
+Nortropic/verkstadsgolvet  origin/main = c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e
+    measurement: git rev-parse origin/main (STATUS-03_SHREDDER_DONE run worktree, 2026-08-15); the
+    value matches the SHREDDER-01B merge commit (PR #38). The previously recorded value was
+    ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08 (SHREDDER-01A, PR #34, recorded by ERRATUM-02), and
     main has moved FORWARD from it through four merges, measured with
-    git log --merges 851c0b25…..ac2ba4ea… (oldest first):
-        be624ad6610dba12fa47c6a2515b87499600efe4  STATUS-02      PR #31
-        cb133c53e189a14255faefceaeb459cd21165d2c  REPORT-01      PR #32
-        5accd9e533e9280de52c17e91b31a1c1aea2e5e3  ERRATUM-01     PR #33
-        ac2ba4ea6eeedf5e3fd78a9785d852d8e5d9ec08  SHREDDER-01A   PR #34
-    cb133c53… is therefore the THIRD-newest merge on main, not an older recorded value: it is the
-    commit the Railway CLI verified as deployed during ERRATUM-01, and two merges (#33 and #34)
-    have landed on main after it. That ordering is what makes CORRECTED_DECISION_6 bite.
+    git log --oneline --first-parent origin/main (oldest first):
+        69e3a6be5300c08f8b54cd82a28bbed7a5112395  ERRATUM-02 V2+V3   PR #35
+        e851b49b27020693ff4c4387092a89e01d38fb17  ERRATUM-03 lanes   PR #36
+        330457cfa56646d5f56b7746c0e0064009505eb5  SHREDDER-01C       PR #37
+        c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e  SHREDDER-01B       PR #38
+    Merge parentage was verified with git log -1 --format=%P on the two product merges:
+    c86cf2aa… = parents 330457cf… (base) + 92d318b3… (candidate); 330457cf… = parents e851b49b…
+    (base) + 1c153eeb… (candidate).
 Nortropic/nortropic-system origin/main = e56edc08e5f069f16b5bdb853302a0f39c1f7075
     measurement: reported by the supervising session outside this worktree, 2026-08-15 — the
     backend moved to h-032 (host-builder-r2, PR #79). Previous recorded value was
@@ -109,11 +109,59 @@ Nortropic/nortropic-system origin/main = e56edc08e5f069f16b5bdb853302a0f39c1f707
 Both values are measured-at-date facts, not live truth. Re-measure before relying on them.
 
 ```text
-PRODUCTION_DEPLOY_NOT_RE-MEASURED
-  the last CLI-verified deployed SHA is cb133c53e189a14255faefceaeb459cd21165d2c (erratum-01,
-  2026-08-15). It PREDATES ac2ba4ea… (SHREDDER-01A), so the showroom product is NOT proven visible
-  in production. Per erratum-02 CORRECTED_DECISION_6 a merged slice is not a shipped slice; see
-  productRequirements P1 and P4 in the ledger.
+PRODUCTION_DEPLOY_RE-MEASURED
+  the deployed SHA is now c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e — EQUAL to origin/main, not
+  behind it. The showroom product is therefore proven present in production as an anonymous
+  observation; the AUTHENTICATED production rendering is a separate, still-open owner ceremony.
+  See RAILWAY_PRODUCTION_EVIDENCE below and productRequirements P1 and P4 in the ledger.
+```
+
+## RAILWAY_PRODUCTION_EVIDENCE
+
+Measured 2026-08-15 by the supervisor/operator outside the model sandbox (the model sandbox has no
+network route to Railway and no browser). These are measured-at-date facts, not live truth, and
+they are recorded here because erratum-02 `CORRECTED_DECISION_6` makes production observation —
+not merge — the evidence that a product activation slice shipped.
+
+```text
+deployment         e5246608 SUCCESS
+deployed SHA       c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e  (= origin/main at measurement)
+deployed at        2026-08-15T21:10:16Z
+deploy path        GitHub main auto-deploy — the SINGLE deploy path; railway up must NOT be used
+                   in parallel
+domain             verkstadsgolvet-production.up.railway.app
+
+ANONYMOUS PRODUCTION PROBES — PASS
+    /            → 307 to /login
+    /loop        → 307 to /login
+    /loop/mata   → 307 to /login
+    /login       → 200
+    reading: the authentication wall is intact in production and the showroom routes are
+    reachable-and-protected rather than 404-gated. This is the SHREDDER-01A contract observed in
+    production: the routes no longer disappear behind LOOP_ENABLED, they redirect to login.
+
+ANONYMOUS PRODUCTION SCREENSHOTS — CAPTURED
+    desktop + mobile of the auth wall, at
+    /Users/elinhaggstrom/nortropic/evidence/factory-room/production-20260815/
+    (captured outside the model sandbox; this run could not list that directory, which lies
+    outside its allowed working directory, and did not verify the file names)
+```
+
+```text
+PRODUCTION_AUTH_SCREENSHOTS=BLOCKED
+  what is missing: a screenshot of the AUTHENTICATED production surface — the deployed
+  Kartongförstöraren behind the login wall.
+  exact single owner action (either one closes it):
+    (a) complete the Claude-in-Chrome extension install and run /chrome in a Claude Code session;
+        or
+    (b) log in at https://verkstadsgolvet-production.up.railway.app/loop and visually confirm the
+        Kartongförstöraren sidebar entry, the home product entry and the showroom render.
+  HONESTY RULE — recorded explicitly so the supporting evidence is never promoted:
+    the deployed commit's AUTHENTICATED rendering WAS captured at 1440 / 900 / 390 across four
+    capture states by the factory's visual harness, on the byte-identical tree. That is
+    SUPPORTING EVIDENCE, NOT A SUBSTITUTE for production screenshots: it proves what the code
+    renders, never what the production deployment serves to a logged-in operator. No slice may be
+    called production-complete on the authenticated surface until (a) or (b) is performed.
 ```
 
 ## CURRENT_COMPLETED_SLICES
@@ -264,7 +312,86 @@ SHREDDER-01A showroom visibility contract + FACTORY_ROOM_MODE — SHOWROOM SIDE 
               one source. components/loop/flag.ts survives as the app/api/loop/** transport gate.
     LIMIT     a merged product-visibility change is NOT a production observation. Production
               visibility is P1/P4 and remains unproven at this measurement.
+              SUPERSEDED BY MEASUREMENT 2026-08-15: production visibility IS now observed
+              anonymously at c86cf2aa… — see RAILWAY_PRODUCTION_EVIDENCE. The authenticated
+              production surface remains open.
+
+ERRATUM-02   owner product erratum V2 + requirement addendum V3 (docs + ledger only)
+    merge     69e3a6be5300c08f8b54cd82a28bbed7a5112395
+    PR        https://github.com/Nortropic/verkstadsgolvet/pull/35
+    run       erratum-02_product_v2-20260815090127
+
+ERRATUM-03   owner two-lane clarification + LANE-01..LANE-09 ledger rows (docs + ledger only)
+    merge     e851b49b27020693ff4c4387092a89e01d38fb17
+    PR        https://github.com/Nortropic/verkstadsgolvet/pull/36
+    run       erratum-03_lanes-20260815095233
+
+SHREDDER-01C tablet reading order + the page h1 is the product name — SHOWROOM SIDE ONLY
+    base      e851b49b27020693ff4c4387092a89e01d38fb17
+    candidate 1c153eebe9114b8082b46a67289f06a8c16019c1  (candidate round 2)
+    merge     330457cfa56646d5f56b7746c0e0064009505eb5
+    PR        https://github.com/Nortropic/verkstadsgolvet/pull/37
+    run       shredder-01c_tablet_contract-20260815133707
+    scope     3 changed files, measured with git diff --name-only e851b49b… 330457cf…:
+              components/loop/MaskinHeader.tsx, components/loop/room/ui.ts,
+              tests/loop/room-mobile.test.ts
+    lands     the /loop h1 becomes "Kartongförstöraren" — the product's own name — instead of
+              "Maskinen", the house word for the machine CONCEPT; two independent review rounds
+              had failed that discontinuity. The word "maskinen" survives in running text where it
+              means the machine, never as the page's name. And the ENTRY LEADS AT EVERY WIDTH:
+              .rm-lane-focus no longer lifts above the composer at 720–959 px (order 0, written
+              out rather than omitted), so ≤959 px has ONE reading order — head → attention →
+              mata maskinen → queue → work → shelf → timeline → stream.
+    LIMIT     the step ordinal .rm-step-n stays hidden at 720–959 px because ROOM-LAYOUT in
+              tests/loop/room-shell.test.ts freezes that rule and the measurement lies outside
+              this slice's write scope. Omitting a TRUE ordinal is an omission, never an untruth;
+              the lane names remain visible in every view and nothing from the snapshot is hidden.
+
+SHREDDER-01B Kartongförstöraren discoverable and polished (showroom exposure) — SHOWROOM ONLY
+    base      330457cfa56646d5f56b7746c0e0064009505eb5
+    candidate 92d318b37d939753a955286619d626f39cdb87df  (candidate round 6)
+    merge     c86cf2aa24cf2ad2673fff2d252d5b1f91ca7f7e
+    PR        https://github.com/Nortropic/verkstadsgolvet/pull/38
+    run       shredder-01b_showroom_exposure-20260815174428 (the run that published)
+    scope     17 changed files, +2735 / -145, measured with git diff --name-only and --stat
+              330457cf… c86cf2aa…: app/(app)/loop/page.tsx, app/(app)/page.tsx,
+              components/Sidebar.tsx, components/loop/CommandButton.tsx, CommandDeck.tsx,
+              MaskinHeader.tsx, MaskinShell.tsx, components/loop/room/CausalChain.tsx,
+              FactoryRoomHeader.tsx, IdentityStrip.tsx, RoomStep.tsx, RoomTimeline.tsx,
+              ScenarioPicker.tsx (new), WorkComposer.tsx, ui.ts, lib/loop/room/scenarios.ts (new),
+              tests/loop/showroom-navigation.test.ts (new, 1386 lines)
+    lands     a sidebar entry and a homepage product entry to /loop; the WorkComposer as the
+              unmistakable entry at every breakpoint, routing to /loop/mata with honest static
+              affordance copy and NO fake submission; the prose diet (defensive paragraphs
+              RELOCATED verbatim behind disclosures, never deleted); and a clearly-labelled
+              showroom scenario picker selected from a closed allowlist over generated,
+              schema-validated fixtures, reachable from inside the room by a same-page anchor.
+    visual    final compact run carried a visual PASS, including the 390-wide fold acceptance
+              at approximately y730 of 844.
+    superseded evidence runs, preserved as evidence, not lost and not silently dropped:
+              r1 stopped on the tablet judge conflict — reference candidate
+                 89655e13dc60d853f050fca9caedb698298a94f9 ("candidate round 14", 15:00:24)
+              r2 stopped blind-stalled, with no candidate commit at all
+              r3 stopped on the fold/scope conflict — reference candidate
+                 fecc5643670c751ab6bce0e89e6193cd3feb75c8 ("candidate round 3", 18:54:33)
+              r4 stopped on architect max-turns
+              measured here: NEITHER 89655e13… NOR fecc5643… is an ancestor of the published
+              candidate — git log 330457cf…..92d318b3… lists exactly six commits (rounds
+              0, 1, 2, 4, 5, 6, 20:22:18 → 22:44:15) and contains neither. They are genuinely
+              superseded branches, not earlier rounds of the run that published.
+              NOT MEASURED HERE: the run IDS of r1–r4. They live under
+              .git/claude-factory/runs/, which is in the shared git directory OUTSIDE this run
+              worktree's allowed read scope, so this run could not read them and did not guess
+              them. The four descriptions above are operator-supplied; only the two candidate
+              SHAs, their round labels, their timestamps and their non-ancestry were measured.
+    LIMIT     showroom exposure ONLY. Nothing here submits, dispatches or commands: the composer
+              is an affordance, the scenario picker reads generated fixtures, and no typed work
+              domain is introduced (that is LANE-01).
 ```
+
+The two SHREDDER runs above have a production observation behind them, which no earlier programme
+slice had: `RAILWAY_PRODUCTION_EVIDENCE` records the deploy of exactly `c86cf2aa…` plus anonymous
+probes. That closes the anonymous half of `P1`/`P4` and only that half.
 
 `ROOM-01` is fixture-backed presentation. It is not a live integration claim.
 `ROOM-03` and `ROOM-08` are published as explicitly partial slices: their live halves stay blocked
@@ -313,6 +440,24 @@ CLAUDE_TAG_ENTITLEMENT
             CLAUDE_TAG_TEAM_ENTERPRISE_ENTITLEMENT_IS_CORE_BLOCKER=NO).
   see:      docs/nortropic-factory-room-roadmap-erratum-01.md
 
+PRODUCTION_AUTH_SCREENSHOTS
+  evidence: RAILWAY_PRODUCTION_EVIDENCE above — the deploy and the ANONYMOUS probes are measured,
+            the AUTHENTICATED production rendering is not.
+  blocks:   the authenticated sub-item of P1 and P4 ONLY. It blocks NO slice: LANE-01 and every
+            other entry in CURRENT_NEXT_ELIGIBLE_SLICES may proceed while it is open, and it must
+            not be used to stall the programme.
+  owner:    external — one owner action, (a) Claude-in-Chrome + /chrome, or (b) log in at
+            https://verkstadsgolvet-production.up.railway.app/loop and confirm the sidebar entry,
+            the home product entry and the showroom render.
+
+CLOSED SINCE ERRATUM-02 — no longer a blocker, recorded so it is not re-opened by mistake:
+PRODUCTION_DEPLOY_BEHIND_MAIN
+  was:      the CLI-verified deployed SHA cb133c53… predated the showroom product, so no merged
+            showroom slice was proven visible in production (erratum-02 CORRECTED_DECISION_6)
+  now:      CLOSED for the anonymous half. The deployed SHA is c86cf2aa…, EQUAL to origin/main,
+            with anonymous probes passing. It re-opens automatically the moment main moves ahead
+            of the deployment again — re-measure, never assume.
+
 CLOSED SINCE STATUS-01 — no longer a blocker, recorded so it is not re-opened by mistake:
 SWEEP_DELTA_RELAND
   was:      run ux-advisory-sweep-v1-20260814064509 BLOCKED on external base drift; its remainder
@@ -330,7 +475,7 @@ entitlement purchase; none of them can be cleared by a frontend Claude run. They
 cover the whole programme: the REMOTE-01 fake-transport half is eligible frontend work now (see
 CURRENT_NEXT_ELIGIBLE_SLICES).
 
-## OPERATIONS NOTE
+## OPERATIONS NOTES
 
 ```text
 SUPERVISOR_WORKTREE_MUST_BE_FAST_FORWARDED
@@ -344,6 +489,25 @@ SUPERVISOR_WORKTREE_MUST_BE_FAST_FORWARDED
             failure was silent: nothing reported that the requested capture states were ignored.
   lesson:   a merged supervisor capability is not an operating capability. Verify the running
             checkout, not the merge, before treating supervisor behaviour as available.
+
+REVIEWER_TURN_BUDGET_TOO_SMALL_FOR_LARGE_SLICES
+  measured: during SHREDDER-01B, reviewer role sessions exhausted their turn budget FIVE times on
+            the same diff (17 files, +2735/-145, including a 1386-line test file). Each exhaustion
+            costs a full role session and produces no verdict, so the slice cannot converge on
+            review quality — it converges on whoever runs out of turns first.
+  proposed: raise reviewer maxTurns in .claude/agents/reviewer.md for large product slices.
+  owner:    OWNER-AUTHOR LANE. .claude/** is denied write for product agents (CLAUDE.md), so no
+            product run may make this change. It must be authored as its own owner task; this
+            entry is a proposal, never an authorization.
+
+FRESH_RUN_WORKTREES_HAVE_NO_NODE_MODULES
+  measured: a fresh run worktree starts without node_modules, and builder sessions repeatedly
+            missed the npm ci instruction — so the first gate run failed on a missing toolchain
+            rather than on the candidate.
+  now:      the operator watcher preinstalls dependencies as a stopgap.
+  proposed: durable fix — the supervisor provisions node_modules BEFORE the first gate run
+            (factory-infra follow-up, scripts/claude-loop/**). Recorded as a proposal; it is not
+            part of any product slice.
 ```
 
 ## CURRENT_NEXT_ELIGIBLE_SLICES
@@ -354,10 +518,10 @@ standing-work contract do not depend on the backend chain at all.
 
 ```text
 ELIGIBLE NOW (no backend dependency; each must be labelled showroom / fixture / fake-transport):
-SHREDDER-01B           discoverable, polished showroom exposure (deps SHREDDER-01A — merged)
-CONVERSATION-01        conversational showroom room-timeline interaction (deps SHREDDER-01B)
-WEBSITE-FACTORY-01     showroom website-factory output surfaces (deps SHREDDER-01B)
-SHOWROOM-SCENARIOS-01  the required scenario coverage list (deps SHREDDER-01B)
+LANE-01                work-domain contract — THE NEXT SLICE (deps SHREDDER-01B — merged, PR #38)
+CONVERSATION-01        conversational showroom room-timeline interaction (deps SHREDDER-01B — met)
+WEBSITE-FACTORY-01     showroom website-factory output surfaces (deps SHREDDER-01B — met)
+SHOWROOM-SCENARIOS-01  the required scenario coverage list (deps SHREDDER-01B — met)
 STANDING-01            vendor-neutral standing-work and trigger contract (no deps)
 SUPERVISOR-02          event-driven + dependency wakeups, measured gaps only (deps SUPERVISOR-01)
 REMOTE-01              "Nortropic Tag — own Slack app" — FAIL-CLOSED SHELL HALF ONLY
@@ -375,7 +539,8 @@ RELEASE-RECOVERY-01 after WEBSITE-FACTORY-01; STANDING-MANAGEMENT-01 after STAND
 NOTIFICATION-01 after SUPERVISOR-02; SLACK-INBOX-01 and PRODUCT-OPS-01 above the REMOTE-01 shell
 
 LANE SLICES (lanes clarification §11 — no backend dependency except LANE-08):
-LANE-01 after SHREDDER-01B → then LANE-02, LANE-03, LANE-04 and LANE-09 (all deps LANE-01 only);
+LANE-01 is ELIGIBLE NOW (its only dependency, SHREDDER-01B, merged as PR #38) → then LANE-02,
+LANE-03, LANE-04 and LANE-09 (all deps LANE-01 only);
 LANE-05 after LANE-01 + SEARCH-HISTORY-01; LANE-06 after LANE-01 + NOTIFICATION-01;
 LANE-07 after LANE-01 + the REMOTE-01 shell; LANE-08 is backend-blocked (see below)
 ```
@@ -421,7 +586,10 @@ neither is permission to mark any blocked slice as done.
 
 Nothing downstream of the backend chain is eligible for a LIVE claim, and nothing above is eligible
 for a PRODUCTION claim without a CLI-verified deployed SHA plus observed production behaviour
-(erratum-02 CORRECTED_DECISION_6).
+(erratum-02 CORRECTED_DECISION_6). That bar has now been MET ONCE, for exactly one commit:
+`c86cf2aa…` is CLI-verified as deployed and was probed anonymously (see
+RAILWAY_PRODUCTION_EVIDENCE). It is met for that commit only. The next merge makes the recorded
+deployed SHA stale again, and the authenticated production surface has still not been observed.
 
 ## LOCKED_INVARIANTS
 
@@ -534,10 +702,13 @@ environment        LOOP_ENABLED=true present in production
 rule               production completion claims require a CLI-verified deployed SHA plus an
                    observed production URL; deploy state is not recorded as unverified while
                    connected CLI access exists and has not been exhausted
-STALE AT           2026-08-15 (erratum 02): origin/main has since moved to ac2ba4ea… via PR #33 and
-                   PR #34. The deployed SHA above therefore no longer equals origin/main, and the
-                   showroom product is NOT proven visible in production. Re-measure before any
-                   production claim — this is exactly CORRECTED_DECISION_6.
+SUPERSEDED AT      2026-08-15 (this status task): the block above is the ERRATUM-01 measurement and
+                   is kept for history only. It has been RE-MEASURED — deployment e5246608 SUCCESS
+                   at c86cf2aa…, equal to origin/main, with anonymous probes passing. The current
+                   values live in RAILWAY_PRODUCTION_EVIDENCE above; read that section, not this
+                   one, for the deployment state. The project/environment/service/domain
+                   identifiers above were not re-measured by this run and are carried forward
+                   unchanged.
 ```
 
 ## ROADMAP_COVERAGE
@@ -546,18 +717,26 @@ STALE AT           2026-08-15 (erratum 02): origin/main has since moved to ac2ba
 ROADMAP_COVERAGE_COMPLETE=YES   (at ROADMAP LEVEL ONLY — coverage, never implementation)
 ```
 
-Re-measured 2026-08-15 in the ERRATUM-03_LANES run worktree, by parsing
+Re-measured 2026-08-15 in the STATUS-03_SHREDDER_DONE run worktree, by parsing
 `backlog/nortropic-factory-room-master-v1.json` with node:
 
 ```text
-slices                     55 (46 before this task, plus LANE-01..LANE-09), every one with exactly
-                           one status from the ledger vocabulary
+slices                     56 (55 before this task, plus the SHREDDER-01C row this task added after
+                           measuring that no such row existed), every one with exactly one status
+                           from the ledger vocabulary
                            (NOT_STARTED, IN_PROGRESS, PROVEN, BLOCKED, DEFERRED_BY_OWNER,
                            REJECTED_WITH_REASON); no duplicate id; every dependency resolves to an
                            id that exists in the same file
+slice statuses             8 PROVEN, 1 IN_PROGRESS (LANE-04), 47 NOT_STARTED
 productRequirements        34 (P1..P34 with no gap), every one with exactly one valid status;
-                           5 IN_PROGRESS (P1, P2, P3, P32, P34), 29 NOT_STARTED, 0 PROVEN
-V2 slices present          SHREDDER-01A, SHREDDER-01B, CONVERSATION-01, ROOM-IDENTITY-01,
+                           2 PROVEN (P2, P4), 4 IN_PROGRESS (P1, P3, P32, P34), 28 NOT_STARTED.
+                           These are the FIRST PROVEN product requirements in the programme: P2 is
+                           the showroom UX SHAPE via the PR #24 → #26 → #29 → #38 chain, and P4 is
+                           deployment-SHA verification. Both carry an explicit narrowing — P2 is a
+                           shape and not the full erratum-02 surface list, P4 records the open
+                           authenticated-visual sub-item in its blocker field.
+V2 slices present          SHREDDER-01A, SHREDDER-01B, SHREDDER-01C, CONVERSATION-01,
+                           ROOM-IDENTITY-01,
                            CONTEXT-01A, WEBSITE-FACTORY-01, TELEMETRY-01, SHOWROOM-SCENARIOS-01,
                            STANDING-01, SUPERVISOR-02, REMOTE-01 (retitled "Nortropic Tag")
 V3 slices present          SESSION-01, PARTICIPANT-01, OPERATOR-PROTOCOL-01, SLACK-INBOX-01,
@@ -565,14 +744,19 @@ V3 slices present          SESSION-01, PARTICIPANT-01, OPERATOR-PROTOCOL-01, SLA
                            DATA-GOVERNANCE-01, OWNER-ACTION-01, PRODUCT-OPS-01, SEARCH-HISTORY-01,
                            plus IDENTITY-01/02/03 re-affirmed (IDENTITY-03 titled
                            CREDENTIAL-PROXY-01, IDENTITY-02 extended with room-scoped binding)
-LANE slices present        LANE-01..LANE-09 (lanes clarification §11), all NOT_STARTED; LANE-08 is
-                           the only one carrying a blocker (EXTERNAL_BACKEND_SLICE, the ROOM-05
-                           S5/S13 chain). No pre-existing slice status was changed by adding them.
+LANE slices present        LANE-01..LANE-09 (lanes clarification §11); LANE-04 is now IN_PROGRESS
+                           (presentation half only — the composer's two-lane intent choice landed
+                           incidentally with SHREDDER-01B) and the other eight are NOT_STARTED.
+                           LANE-08 is the only one carrying a blocker (EXTERNAL_BACKEND_SLICE, the
+                           ROOM-05 S5/S13 chain).
 lanes top-level keys       currentBootstrapWorkDomain = SYSTEM_IMPROVEMENT;
                            customerProductionLoopStatus recorded per §11
-no end-to-end PROVEN       HARDEN-01 and EMPIRICAL-01 are NOT_STARTED; the six PROVEN rows
-                           (MASTER-00, ROOM-01, ROOM-03, ROOM-08, SUPERVISOR-01, SHREDDER-01A) are
-                           artifact-, fixture- or browser-half slices and each carries its LIMIT
+no end-to-end PROVEN       HARDEN-01 and EMPIRICAL-01 are NOT_STARTED; the eight PROVEN rows
+                           (MASTER-00, ROOM-01, ROOM-03, ROOM-08, SUPERVISOR-01, SHREDDER-01A,
+                           SHREDDER-01B, SHREDDER-01C) are artifact-, fixture-, browser-half or
+                           showroom slices and each carries its LIMIT. SHREDDER-01B is the first
+                           with a production observation behind it, and even that is the ANONYMOUS
+                           half only — no live controller path is proven anywhere in this ledger.
 ```
 
 Per addendum-v3 §17 this value asserts coverage only: **nothing here is implemented, and no source
@@ -583,22 +767,27 @@ weaker requirement — is the reviewer's primary falsification duty on the publi
 
 ## FACTORY_LANE_STATUS
 
-The status-report keys required by the lanes clarification §15, with honest current values. Every
-lane slice is `NOT_STARTED`: nothing in the two-lane distinction is implemented, and recording the
-clarification is not implementing it.
+The status-report keys required by the lanes clarification §15, with honest current values.
+Re-measured 2026-08-15 in this run worktree by reading `components/loop/room/WorkComposer.tsx` at
+`c86cf2aa…`. The typed two-lane distinction is still NOT implemented: one showroom surface now
+*shows* the two lanes, which is presentation, not a contract.
 
 ```text
-WORK_DOMAIN_CONTRACT_STATUS          = NOT_STARTED   (LANE-01)
+WORK_DOMAIN_CONTRACT_STATUS          = NOT_STARTED   (LANE-01 — the next slice)
 CUSTOMER_PRODUCTION_SHOWROOM_STATUS  = NOT_STARTED   (LANE-02)
 SYSTEM_IMPROVEMENT_SHOWROOM_STATUS   = NOT_STARTED   (LANE-03)
-INTAKE_DOMAIN_SELECTION_STATUS       = NOT_STARTED   (LANE-04)
+INTAKE_DOMAIN_SELECTION_STATUS       = IN_PROGRESS   (LANE-04 — PRESENTATION HALF ONLY. SHREDDER-01B
+                                       renders "Vad vill du göra?" plus the two lanes with one
+                                       example each. Both link to the same /loop/mata; nothing is
+                                       classified, stored or typed. NOT a work-domain contract.)
 CURRENT_BOOTSTRAP_LANE               = SYSTEM_IMPROVEMENT
 CUSTOMER_PRODUCTION_LOOP_STATUS      = separate future production capability using the shared
                                        Nortropic trust kernel; the Codex bootstrap autopilot is not
                                        this loop
-LANE_VISUAL_REVIEW                   = NOT_STARTED   (no lane UX exists, so no screenshot of a lane
-                                       distinction has been reviewed; §13 is blocking once LANE-02,
-                                       LANE-03 or LANE-04 produce UI)
+LANE_VISUAL_REVIEW                   = PARTIAL        (the SHREDDER-01B visual review saw the two
+                                       lane affordances in the composer at desktop/tablet/mobile,
+                                       but no LANE-02/03 lane-distinction UX exists yet; §13 stays
+                                       blocking for those)
 ```
 
 The five owner locks, verbatim from §1 of the clarification:
@@ -616,6 +805,15 @@ and `customerProductionLoopStatus`.
 
 ## EXACT_NEXT_ACTION
 
+```text
+EXACT_NEXT_ACTION = author and run LANE-01 (work-domain contract).
+  why now:  its only dependency is SHREDDER-01B, merged as PR #38 and observed deployed at
+            c86cf2aa…; steps 1–4 of the order below are published.
+  not this: the open PRODUCTION_AUTH_SCREENSHOTS owner ceremony is NOT a prerequisite for LANE-01
+            and must not be used to stall the programme. It is one owner action, tracked in
+            RAILWAY_PRODUCTION_EVIDENCE and in productRequirements P1/P4.
+```
+
 The merged V2 + V3 order (erratum-02 §REQUIRED IMPLEMENTATION ORDER together with addendum-v3 §15),
 now carrying the LANE slices from the lanes clarification §11. Dependency-aware execution may
 reorder INDEPENDENT slices; **it may not omit any of them**, and no security-sensitive write path is
@@ -630,13 +828,17 @@ weaker item.
 
 ```text
  1. ERRATUM-02 + ADDENDUM-V3 — that document set and its ledger additions (published)
- 2. ERRATUM-03_LANES — the verbatim lanes clarification, the LANE-01..LANE-09 ledger additions and
-    this handoff update (THIS TASK; publication is the supervisor's, not the model's)
+ 2. ERRATUM-03_LANES — the verbatim lanes clarification and the LANE-01..LANE-09 ledger additions
+    (published, PR #36)
  3. SHREDDER-01B — discoverable, polished showroom exposure above the merged SHREDDER-01A contract
- 4. RAILWAY PRODUCTION PROOF (P1/P4) — supervisor or owner runs the connected Railway CLI outside
-    the model sandbox and records a deployed SHA at or after ac2ba4ea…, the observed production URL
-    and the observed behaviour. Merged is not shipped (CORRECTED_DECISION_6).
- 5. LANE-01 — work-domain contract: the smallest safe typed CUSTOMER_PRODUCTION / SYSTEM_IMPROVEMENT
+    (published, PR #38; SHREDDER-01C landed the tablet reading order and the h1 alongside it,
+    PR #37)
+ 4. RAILWAY PRODUCTION PROOF (P1/P4) — DONE FOR THE ANONYMOUS HALF: deployment e5246608 SUCCESS at
+    c86cf2aa…, equal to origin/main, with anonymous probes and anonymous screenshots recorded in
+    RAILWAY_PRODUCTION_EVIDENCE. STILL OPEN: the authenticated production surface
+    (PRODUCTION_AUTH_SCREENSHOTS=BLOCKED) — one owner action, and it does NOT block LANE-01.
+ 5. LANE-01 — **THIS IS THE NEXT SLICE TO AUTHOR AND RUN.** Work-domain contract: the smallest safe
+    typed CUSTOMER_PRODUCTION / SYSTEM_IMPROVEMENT
     context, one canonical field name chosen by architect review, never a task state, never in
     TASK_LIFECYCLE, lib/loop/schema.ts unedited, missing live value renders —
  6. LANE-02 — customer-production showroom: the output is the WEBSITE (synthetic "Nisses Måleri
@@ -644,7 +846,13 @@ weaker item.
  7. LANE-03 — system-improvement showroom: Nortropic improving its own machinery (component,
     slice, task, role, candidate, gate, review, publication, authoritative main, dependency)
  8. LANE-04 — intake domain selection: explicit operator choice between "Bygg / ändra kundprojekt"
-    and "Förbättra Nortropic"; LLM classification may suggest but is NEVER the authority
+    and "Förbättra Nortropic"; LLM classification may suggest but is NEVER the authority.
+    PARTLY LANDED as PRESENTATION by SHREDDER-01B (PR #38): WorkComposer.tsx renders the question
+    "Vad vill du göra?" and the two lanes with a domain-appropriate example each. Measured by
+    reading that file at c86cf2aa…, both affordances link to the same built /loop/mata surface,
+    no classification runs, no model is consulted and no state is stored — the file says so
+    itself. The TYPED work domain is LANE-01's to define; a display surface must never invent
+    the contract.
  9. CONVERSATION-01 — conversational showroom room-timeline interaction, typed-intention preview
     cards, NO dispatch in showroom, no LLM required
 10. ROOM-IDENTITY-01 — non-authoritative room/conversation/thread/participant identity model,
