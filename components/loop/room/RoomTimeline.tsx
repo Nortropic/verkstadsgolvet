@@ -29,6 +29,7 @@ import {
   roomTimeline,
   type TimelineEntry,
 } from "@/lib/loop/room/timeline";
+import { SHOWROOM, factoryRoomMode, type FactoryRoomMode } from "@/lib/loop/room/mode";
 
 /** Texten när rummet inte har någon validerad fixturkälla att visa. Aldrig en tom, tyst yta. */
 export const TIMELINE_NO_FIXTURE_TEXT =
@@ -143,7 +144,19 @@ function Entry({ entry }: { entry: TimelineEntry }) {
   );
 }
 
-export default function RoomTimeline({ fixture }: { fixture: boolean }) {
+export default function RoomTimeline({
+  fixture,
+  mode = factoryRoomMode(),
+}: {
+  fixture: boolean;
+  /**
+   * Rummets produktläge. Skalet skickar det inte hit, så ytan FRÅGAR lägesmodulen i stället för
+   * att påstå ett läge — samma mönster som FactoryRoomHeader använder. Skillnaden är hela
+   * poängen: märket nedan blir då en avläsning av `factoryRoomMode()` (fail-closed), aldrig en
+   * yta som skriver ordet «showroom» för hand.
+   */
+  mode?: FactoryRoomMode;
+}) {
   /*
     Fixturkatalogen är den ENDA källan till operatörsposter i den här skivan. Är fixturläget av
     finns det ingenting validerat att visa — och då visas ingenting, med orsak. Fixturposter får
@@ -159,8 +172,34 @@ export default function RoomTimeline({ fixture }: { fixture: boolean }) {
         h2: rummets ytor ligger på samma nivå, och nivån ska SYNAS. Egen klass i stället för
         h3-rubrikernas mono-versaler, annars går sektionen inte att skilja från segmenten under.
       */}
-      <h2 className="rm-timeline-title">{TIMELINE_HEADING}</h2>
-      <p className="rm-timeline-note">{TIMELINE_NO_GLOBAL_ORDER_NOTE}</p>
+      <div className="rm-timeline-head">
+        <h2 className="rm-timeline-title">{TIMELINE_HEADING}</h2>
+        {/* Läget som VÄRDE ur lib/loop/room/mode.ts — ingen avskriven sträng, inget gissat läge.
+            Källan (fixtur) står i segmentens egna rubriker, som äger den sanningen. */}
+        <span className="rm-flag" data-timeline-flag={mode}>
+          {mode}
+        </span>
+      </div>
+
+      {/*
+        SHREDDER-01B §owner-8 · ORDNINGSNOTISEN ÄR FLYTTAD, INTE BORTTAGEN.
+        Den fulla texten står ordagrant kvar, i en upplysningsyta av exakt samma sort som
+        rummets bevisytor. Kravet var att den primära ytan ska LÄSAS som en färdig produkt —
+        aldrig att ärligheten ska kortas.
+
+        VÄXELN BÄR INGET MÄRKE, OCH DET ÄR EN REGEL OM ORDFÖRRÅD — INTE OM SMAK.
+        «.rm-flag» är rummets LÄGESMÄRKE, och dess ordförråd är lägen: SHOWROOM, LIVE, OFFLINE,
+        BLOCKED, em-streck. Här stod en gång ordet «ORDNING» i samma märke — en kategoriBETECKNING
+        formad exakt som ett tillstånd. En operatör som ögnar sidan efter statusmarkörer läste då
+        ett sektionsord som om det vore ett läge, och märkets värde som markör sjunker för varje
+        ord som inte är ett läge. Rubriken säger redan vad luckan innehåller, så växeln är ren
+        text — samma form som kommandoytans egna växlar. Läget för hela tidslinjen står som märke
+        i rubrikraden ovan, en gång, där det hör hemma.
+      */}
+      <details className="rm-details" data-timeline-note="true">
+        <summary>Så är tidslinjen sorterad</summary>
+        <p className="rm-timeline-note">{TIMELINE_NO_GLOBAL_ORDER_NOTE}</p>
+      </details>
 
       {segments.length === 0 ? (
         <p className="rm-timeline-note" data-timeline-empty="true">
@@ -175,10 +214,20 @@ export default function RoomTimeline({ fixture }: { fixture: boolean }) {
             data-room-segment-source="fixture"
           >
             <h3 className="rm-segment-title">{segment.title}</h3>
-            <p className="rm-timeline-note">{segment.description}</p>
-            <p className="rm-timeline-note" data-room-order-note={segment.id}>
-              {segment.order_note}
-            </p>
+            {/*
+              Segmentets två inledande stycken bärs av en upplysningsyta: de beskriver hur
+              posterna är ordnade och varifrån de kommer, vilket är teknisk bakgrund — medan
+              själva posterna är det operatören kom hit för att läsa. Texten är oförändrad.
+            */}
+            <details className="rm-details" data-segment-note={segment.id}>
+              <summary>
+                <span className="rm-flag">{SHOWROOM}</span> Om segmentet
+              </summary>
+              <p className="rm-timeline-note">{segment.description}</p>
+              <p className="rm-timeline-note" data-room-order-note={segment.id}>
+                {segment.order_note}
+              </p>
+            </details>
 
             {segment.entries.length === 0 ? (
               <p className="rm-timeline-note">{TIMELINE_EMPTY_TEXT}</p>

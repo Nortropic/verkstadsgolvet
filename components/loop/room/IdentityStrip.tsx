@@ -26,16 +26,27 @@ export default function IdentityStrip({ task }: { task: TaskView | null }) {
 
   return (
     <section className="rm-identity" data-identity-strip="true" aria-label={IDENTITY_HEADING}>
+      {/*
+        SHREDDER-01B §owner-8 · LÅSTEXTEN STÅR KVAR I VYN — KOMPAKTERAD, INTE UNDANSTOPPAD.
+
+        Meningen om workflowsroll är EN rad på ett femtiotal tecken, och den är remsans själva
+        skäl (se filens bindande regler och lib/loop/room/identity.ts: «Den mening remsan MÅSTE
+        bära. Ordagrant»). Bakom en upplysningsyta hade den bytt en rad text mot en 38 px hög
+        växel vars etikett var längre än meningen — mer krom, inte mindre, och ett obligatoriskt
+        påstående borta ur förstaläget. Prosadieten gäller försvarsstycken, inte den här raden.
+
+        Kompakteringen sker därför i FORMEN: samma element, samma märkning och samma ordagranna
+        konstant, men som en dämpad rad i rubrikraden i stället för en inramad ruta.
+      */}
       <div className="rm-identity-head">
         <h2 className="rm-identity-title">{IDENTITY_HEADING}</h2>
         <span className="rm-identity-caption" data-identity-caption="ui-label">
           {IDENTITY_WORKFLOW_CAPTION}
         </span>
+        <p className="rm-identity-lock" data-identity-lock="true">
+          {IDENTITY_DISCLAIMER}
+        </p>
       </div>
-
-      <p className="rm-identity-lock" data-identity-lock="true">
-        {IDENTITY_DISCLAIMER}
-      </p>
 
       <div className="rm-identity-grid">
         {fields.map((field) => (

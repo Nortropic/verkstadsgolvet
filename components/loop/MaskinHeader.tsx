@@ -41,6 +41,54 @@ import {
   maskinHeaderTruth,
 } from "./ui";
 
+/** Etiketten på huvudets upplysningsyta. Den säger vad som ligger bakom luckan, aldrig ett läge. */
+export const MASKIN_HEADER_MORE_LABEL = "Om ytorna: ström, kommandokanal och datakälla";
+
+/**
+ * SHREDDER-01B · HUVUDETS EGEN BRYTPUNKTSREGEL — EN LUCKA SOM STÅR ÖPPEN PÅ SKRIVBORDET.
+ *
+ * PROBLEMET, MÄTT: vid 390 px låg «Mata maskinen» på 1098 px, alltså en hel skärm under
+ * vikningen. Sidhuvudets tre sanningssegment och transportnotisen står för 120 px av det —
+ * fyra rader brasklapp mellan produktens namn och rummets ingång.
+ *
+ * LÖSNINGEN: segmenten och notisen flyttar in i ett nativt `<details>`. Ingen sträng raderas,
+ * ingen märkning ändras, och varje frusen mätare i tests/loop/ux-loop-header-v2.test.ts läser
+ * exakt samma element som förut — de tre `mk-header-truth-row`, de tre `data-truth-source`,
+ * `data-truth-note="transport"` och transportnotisens text ligger kvar i markupen.
+ *
+ * OCH SKRIVBORDET ÄR OFÖRÄNDRAT: vid 720 px och uppåt fälls luckan ut av CSS och summaryn döljs,
+ * så huvudet ser ut precis som före den här skivan. Bara telefonen får den stängda formen.
+ *
+ * DEGRADERINGEN ÄR UTSKRIVEN I STÄLLET FÖR UNDERFÖRSTÅDD. Utfällningen kräver
+ * `::details-content`, och regeln står därför bakom `@supports selector(::details-content)`. En
+ * motor som saknar väljaren tillämpar INGEN av de två raderna — varken utfällningen eller
+ * döljandet av summaryn — och möter då en stängd lucka med synlig, klickbar etikett på
+ * skrivbordet. Det är en ärlig degradering: texten finns, den är nåbar, den är bara ett svep
+ * bort. Vore raderna oskyddade hade samma motor fått en dold summary över ett dolt innehåll,
+ * alltså text som varken syns eller går att nå — och det är skillnaden regeln finns för.
+ *
+ * Stilarket är eget och namnrymdat («mk-header-more»). MASKIN_HEADER_CSS ligger i
+ * components/loop/ui.ts, utanför den här skivans skrivrätt, och är orört: det injiceras
+ * fortfarande ordagrant av komponenten nedan.
+ */
+export const MASKIN_HEADER_MORE_CSS = `
+/* Ingen egen marginal: segmentlistan bär redan sin «margin: 7px 0 0» ur MASKIN_HEADER_CSS, och
+   «.mk-header» är en flexspalt där marginaler inte kollapsar. En marginal här hade lagt sig
+   OVANPÅ den och flyttat skrivbordets sidhuvud sex pixlar — luckan ska vara osynlig vid ≥720 px. */
+.mk-header-more { margin: 0; }
+.mk-header-more > summary { display: inline-flex; align-items: center; gap: 8px;
+  min-height: 38px; cursor: pointer; font-family: var(--font-mono); font-size: 10.5px;
+  letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); }
+.mk-header-more > summary:focus-visible { box-shadow: var(--focus-ring); border-radius: 4px; }
+.mk-header-more > summary:hover { color: var(--text-secondary); }
+@media (min-width: 720px) {
+  @supports selector(::details-content) {
+    .mk-header-more::details-content { content-visibility: visible; }
+    .mk-header-more > summary { display: none; }
+  }
+}
+`;
+
 export default function MaskinHeader({
   fixture,
   mode = factoryRoomMode(),
@@ -54,6 +102,7 @@ export default function MaskinHeader({
   return (
     <div className="mk-header" data-maskin-header="true" data-room-mode={mode}>
       <style dangerouslySetInnerHTML={{ __html: MASKIN_HEADER_CSS }} />
+      <style dangerouslySetInnerHTML={{ __html: MASKIN_HEADER_MORE_CSS }} />
       {/*
         SHREDDER-01C · SIDANS h1 ÄR PRODUKTENS NAMN.
 
@@ -75,22 +124,39 @@ export default function MaskinHeader({
           {SHOWROOM_MODE_LINE}
         </p>
       )}
-      <ul className="mk-header-truth" data-header-truth="true">
-        {segments.map((segment) => (
-          <li
-            className="mk-header-truth-row"
-            key={segment.id}
-            data-truth-source={segment.id}
-            data-truth-mode={segment.mode}
-          >
-            <span className="mk-header-truth-label">{segment.label}</span>
-            <span className="mk-header-truth-text">{segment.text}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="mk-header-truth-note" data-truth-note="transport">
-        {MASKIN_HEADER_TRANSPORT_NOTE}
-      </p>
+      {/*
+        SHREDDER-01B · SANNINGEN ÄR FLYTTAD, ALDRIG KORTAD (§owner-8).
+
+        De tre sanningssegmenten och transportnotisen står ordagrant kvar, med oförändrad
+        märkning, i en nativ upplysningsyta. Skälet är mätt vid 390 px och står i sin helhet vid
+        MASKIN_HEADER_MORE_CSS ovan; formen är densamma som rummet redan använder för teknisk
+        text (FactoryRoomHeader, WorkComposer, RoomTimeline).
+
+        VAD SOM MED FLIT STÅR KVAR FRAMME, EFTERSOM DET ÄR LÄGE OCH INTE BRASKLAPP: produktens
+        namn i sidans h1, ingressen, och lägesraden «SHOWROOM · simulerad fabriksdata». En
+        operatör som öppnar telefonen ska mötas av VAD ytan är och VILKET läge den står i — inte
+        av fyra rader om vem som äger transportläget.
+      */}
+      <details className="mk-header-more" data-header-more="true">
+        <summary>{MASKIN_HEADER_MORE_LABEL}</summary>
+
+        <ul className="mk-header-truth" data-header-truth="true">
+          {segments.map((segment) => (
+            <li
+              className="mk-header-truth-row"
+              key={segment.id}
+              data-truth-source={segment.id}
+              data-truth-mode={segment.mode}
+            >
+              <span className="mk-header-truth-label">{segment.label}</span>
+              <span className="mk-header-truth-text">{segment.text}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mk-header-truth-note" data-truth-note="transport">
+          {MASKIN_HEADER_TRANSPORT_NOTE}
+        </p>
+      </details>
     </div>
   );
 }

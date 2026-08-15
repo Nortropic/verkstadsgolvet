@@ -53,6 +53,11 @@ const I = {
   leadscraper: (
     <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M4 2.5v4.5a4 4 0 0 0 8 0V2.5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /><path d="M2.5 2.5h3M10.5 2.5h3M2.5 5.5h3M10.5 5.5h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
   ),
+  /* Kartongförstöraren — lådan på toppen, inmatningsspringan och remsorna som kommer ut.
+     Egen form bland linje-ikonerna: ingen annan post i navigeringen är en maskin man matar. */
+  kartong: (
+    <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><rect x="3.2" y="1.8" width="9.6" height="3.6" rx="1" stroke="currentColor" strokeWidth="1.4" /><rect x="1.6" y="6.2" width="12.8" height="3" rx="1" stroke="currentColor" strokeWidth="1.4" /><path d="M4.4 11v3M8 11v3.5M11.6 11v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+  ),
   /* Uthoppspil för externa länkar (öppnas i ny flik). */
   extlink: (
     <svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M6 3.5H4A1.5 1.5 0 0 0 2.5 5v7A1.5 1.5 0 0 0 4 13.5h7A1.5 1.5 0 0 0 12.5 12v-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><path d="M9 2.5h4.5V7M13.2 2.8 7.5 8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -72,6 +77,35 @@ const LEADS = [
   { href: "/leads/kalibrering", label: "Kalibrering" },
 ];
 
+/**
+ * NAVIGERINGSPOSTENS MÅTT I DEN SMALA REMSAN.
+ *
+ * `.nav-item` bär i app/globals.css full bredd OCH dold overflow. Vid smala vyer blir
+ * `.sidebar-nav` en RAD, och då gäller två flexregler samtidigt: basbredden blir hela radens,
+ * och en post med annan overflow än synlig får automatisk minimistorlek noll. Posterna krymper
+ * därför mot noll bredd, och sidomenyns egen sidled-scroll bläddrar förbi osynliga länkar i
+ * stället för att visa dem.
+ *
+ * Måttet ger varje post sin innehållsbredd, vilket är precis vad den horisontella scrollen behöver.
+ *
+ * DET GÄLLER ALLA POSTER, INTE BARA DEN NYA — OCH DET ÄR SKÄLET TILL ATT DET LIGGER HÄR.
+ * Att immunisera en enda post hade gett den full bredd och lämnat de övriga MINDRE restbredd än
+ * före ändringen: en post blir nåbar genom att tio blir sämre. Konstanten delas därför av samtliga
+ * poster. Det är en storleksegenskap per post, inte en omstrukturering av menyn: ordning, klasser,
+ * ikoner och mål är oförändrade.
+ *
+ * «ALLA POSTER» BETYDER OCKSÅ GRUPPERNAS KNAPPAR, INTE BARA LÄNKARNA.
+ * Leads och Systemhälsa är `<button className="nav-item">`, inte `<Link>` — men de bär samma
+ * klass, samma mått och samma navigering (de gör `router.push` när de fälls ut). Lämnas de utan
+ * måttet blir de de ENDA flexbarn som får krympa, och då absorberar de HELA det negativa
+ * utrymmet i remsan och klämts till noll bredd: två nåbara poster försvinner för att de andra
+ * immuniserades. Regeln är alltså «varje element med klassen nav-item», aldrig «varje länk».
+ *
+ * DEN RIKTIGA FIXEN LIGGER I STILARKET, som den här skivan inte äger: full bredd hör inte hemma i
+ * radläget alls. Tills en skiva som äger app/globals.css tar bort den bär posterna sitt mått själva.
+ */
+const NAV_ITEM_ROW_FIT = { flex: "none", width: "auto" } as const;
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -89,6 +123,17 @@ export default function Sidebar() {
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname === href;
+
+  /**
+   * SEKTIONENS ROT **OCH** DESS UNDERSIDOR.
+   *
+   * `isActive` är exakt-matchning och släcks därför på en undersida — riktigt för de poster som
+   * ÄR en sida. Kartongförstöraren är en sektion: /loop och /loop/mata är samma produkt, och
+   * navigeringen får inte se ut som att man lämnat den när man står i inlämningen. Samma
+   * mekanism som grupperna ovan redan använder (`pathname.startsWith`), men med
+   * snedstrecket utskrivet så att ett framtida "/loopa" aldrig kan tändas av misstag.
+   */
+  const inSection = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <aside className="sidebar">
@@ -109,16 +154,28 @@ export default function Sidebar() {
           </span>
         </Link>
 
-        <Link href="/" className={`nav-item${isActive("/") ? " active" : ""}`}>
+        {/* Kartongförstöraren — produktens ingång för arbete. Står direkt under "Ny kund" och
+            före Översikt: det är den yta man kommer hit för att använda, inte en undersida i en
+            rapport. Aktiv även på /loop/**, eftersom inlämningen är samma produkt. */}
+        <Link
+          href="/loop"
+          className={`nav-item${inSection("/loop") ? " active" : ""}`}
+          data-nav-loop="true"
+          style={NAV_ITEM_ROW_FIT}
+        >
+          <span className="nav-ic">{I.kartong}</span> Kartongförstöraren
+        </Link>
+
+        <Link href="/" className={`nav-item${isActive("/") ? " active" : ""}`} style={NAV_ITEM_ROW_FIT}>
           <span className="nav-ic">{I.oversikt}</span> Översikt
         </Link>
-        <Link href="/agenter" className={`nav-item${isActive("/agenter") ? " active" : ""}`}>
+        <Link href="/agenter" className={`nav-item${isActive("/agenter") ? " active" : ""}`} style={NAV_ITEM_ROW_FIT}>
           <span className="nav-ic">{I.agenter}</span> Agenter
         </Link>
-        <Link href="/dokument" className={`nav-item${isActive("/dokument") ? " active" : ""}`}>
+        <Link href="/dokument" className={`nav-item${isActive("/dokument") ? " active" : ""}`} style={NAV_ITEM_ROW_FIT}>
           <span className="nav-ic">{I.dokument}</span> Dokument
         </Link>
-        <Link href="/youtube-research" className={`nav-item${isActive("/youtube-research") ? " active" : ""}`}>
+        <Link href="/youtube-research" className={`nav-item${isActive("/youtube-research") ? " active" : ""}`} style={NAV_ITEM_ROW_FIT}>
           <span className="nav-ic">{I.youtube}</span> YouTube research
         </Link>
 
@@ -128,6 +185,7 @@ export default function Sidebar() {
           <button
             type="button"
             className={`nav-item${inLeads ? " active" : ""}`}
+            style={NAV_ITEM_ROW_FIT}
             aria-expanded={openLeads}
             onClick={() =>
               setOpenLeads((o) => {
@@ -145,7 +203,12 @@ export default function Sidebar() {
           {openLeads && (
             <div className="nav-sub">
               {LEADS.map((l) => (
-                <Link key={l.href} href={l.href} className={`nav-item${isActive(l.href) ? " active" : ""}`}>
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className={`nav-item${isActive(l.href) ? " active" : ""}`}
+                  style={NAV_ITEM_ROW_FIT}
+                >
                   {l.label}
                 </Link>
               ))}
@@ -159,6 +222,7 @@ export default function Sidebar() {
           <button
             type="button"
             className={`nav-item${inHealth ? " active" : ""}`}
+            style={NAV_ITEM_ROW_FIT}
             aria-expanded={open}
             onClick={() =>
               setOpen((o) => {
@@ -176,7 +240,12 @@ export default function Sidebar() {
           {open && (
             <div className="nav-sub">
               {HEALTH.map((h) => (
-                <Link key={h.href} href={h.href} className={`nav-item${isActive(h.href) ? " active" : ""}`}>
+                <Link
+                  key={h.href}
+                  href={h.href}
+                  className={`nav-item${isActive(h.href) ? " active" : ""}`}
+                  style={NAV_ITEM_ROW_FIT}
+                >
                   {h.label}
                 </Link>
               ))}
@@ -184,22 +253,22 @@ export default function Sidebar() {
           )}
         </div>
 
-        <Link href="/systemkarta" className={`nav-item${isActive("/systemkarta") ? " active" : ""}`}>
+        <Link href="/systemkarta" className={`nav-item${isActive("/systemkarta") ? " active" : ""}`} style={NAV_ITEM_ROW_FIT}>
           <span className="nav-ic">{I.karta}</span> Systemkarta
         </Link>
-        <Link href="/gbp" className={`nav-item${isActive("/gbp") ? " active" : ""}`}>
+        <Link href="/gbp" className={`nav-item${isActive("/gbp") ? " active" : ""}`} style={NAV_ITEM_ROW_FIT}>
           <span className="nav-ic">{I.gbp}</span> Google Business Profile
         </Link>
-        <Link href="/statistik" className={`nav-item${isActive("/statistik") ? " active" : ""}`}>
+        <Link href="/statistik" className={`nav-item${isActive("/statistik") ? " active" : ""}`} style={NAV_ITEM_ROW_FIT}>
           <span className="nav-ic">{I.statistik}</span> Cookies, GDPR & statistik
         </Link>
-        <Link href="/marknadsforing" className={`nav-item${isActive("/marknadsforing") ? " active" : ""}`}>
+        <Link href="/marknadsforing" className={`nav-item${isActive("/marknadsforing") ? " active" : ""}`} style={NAV_ITEM_ROW_FIT}>
           <span className="nav-ic">{I.marknad}</span> Marknadsföring
         </Link>
-        <Link href="/integrationer" className={`nav-item${isActive("/integrationer") ? " active" : ""}`}>
+        <Link href="/integrationer" className={`nav-item${isActive("/integrationer") ? " active" : ""}`} style={NAV_ITEM_ROW_FIT}>
           <span className="nav-ic">{I.integrationer}</span> Integrationer
         </Link>
-        <Link href="/framtiden" className={`nav-item${isActive("/framtiden") ? " active" : ""}`}>
+        <Link href="/framtiden" className={`nav-item${isActive("/framtiden") ? " active" : ""}`} style={NAV_ITEM_ROW_FIT}>
           <span className="nav-ic">{I.framtiden}</span> Framtiden
         </Link>
       </nav>
