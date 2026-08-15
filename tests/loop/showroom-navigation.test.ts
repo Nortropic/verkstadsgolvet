@@ -38,6 +38,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 (globalThis as unknown as { React: typeof React }).React = React;
 
 import MaskinenPage from "../../app/(app)/loop/page";
+import {
+  MASKIN_HEADER_MORE_CSS,
+  MASKIN_HEADER_MORE_MARKER,
+} from "../../components/loop/MaskinHeader";
 import CommandDeck from "../../components/loop/CommandDeck";
 import MaskinShell from "../../components/loop/MaskinShell";
 import {
@@ -1283,4 +1287,75 @@ test("NAV-G: den renderade /loop-sidan bär varken procent, rörelse eller frams
   const visible = withoutStyles(html);
   assert.ok(visible.includes(SCENARIO_PICKER_LABEL));
   assert.ok(visible.includes('data-work-composer="true"'));
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * I · HUVUDETS LUCKA SER UT SOM EN KONTROLL — UTAN ATT KOSTA HÖJD
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+test("NAV-I: sidhuvudets lucka bär en affordans, och den är höjdneutral", () => {
+  /*
+    FYNDET MÄTAREN FRYSER: «display: inline-flex» på en summary släcker webbläsarens egen
+    triangel. Kvar blev nedtonad versal mono — en rad som läser som en BILDTEXT, trots att den är
+    den enda ledtråden på telefonen om att de tre sanningssegmenten och transportnotisen
+    fortfarande finns. Ett fynd om UPPTÄCKBARHET, inte om ärlighet: texten låg kvar i DOM:en hela
+    tiden.
+
+    OCH DEN ANDRA HALVAN ÄR LIKA VIKTIG: åtgärden får inte kosta höjd. Raden ligger innanför den
+    uppmätta budgeten för telefonens första vy, och varje extra pixel här är en pixel som trycker
+    «Mata maskinen» mot vikningen igen. Mätaren äger därför BÅDA kraven samtidigt — en framtida
+    «snyggare» chipform med ram och utfyllnad ska fällas här, inte upptäckas i ett skärmklipp.
+  */
+  const markup = withoutStyles(renderToStaticMarkup(MaskinenPage() as ReactElement));
+
+  // 1 · Affordansen finns i markupen, som text — inte som injicerat CSS-innehåll.
+  assert.ok(
+    markup.includes(MASKIN_HEADER_MORE_MARKER),
+    "luckans visare renderas inte — summaryn läser fortfarande som en bildtext",
+  );
+  assert.match(
+    markup,
+    /class="mk-header-more-marker"[^>]*aria-hidden="true"/,
+    "visaren är inte dold för skärmläsare — riktningen är dekor, läget bärs av <details>",
+  );
+  assert.ok(
+    markup.includes('class="mk-header-more-text"'),
+    "etiketten bär ingen egen yta att stryka under",
+  );
+
+  // 2 · Understrykningen ligger på ETIKETTEN, inte på hela raden (annars stryks visaren under).
+  assert.match(
+    MASKIN_HEADER_MORE_CSS,
+    /\.mk-header-more-text \{[^}]*text-decoration:\s*underline/,
+    "etiketten är inte understruken — en kontroll ska skilja sig från en bildtext",
+  );
+
+  // 3 · HÖJDNEUTRALT: kontrollhöjden står kvar, och ingen box har lagts till.
+  const summaryRule = MASKIN_HEADER_MORE_CSS.match(
+    /\.mk-header-more > summary \{([^}]*)\}/,
+  )?.[1];
+  assert.ok(summaryRule, "summaryns basregel går inte att läsa");
+  assert.match(summaryRule, /min-height:\s*38px/, "luckan tappade rummets kontrollhöjd");
+  for (const forbidden of [/padding:/, /background:/, /border:/, /box-shadow:/]) {
+    assert.ok(
+      !forbidden.test(summaryRule),
+      `summaryn fick ${forbidden} — en chipform lägger på höjd, och höjden är fold-budgeten`,
+    );
+  }
+
+  /*
+    4 · INGEN RÖRELSE. Visaren har två STATISKA lägen (stängd och öppen); en övergång eller en
+    animation hade varit rörelse utan signal, vilket hela /loop-trädet förbjuder.
+  */
+  assert.ok(
+    !/@keyframes|animation:|transition:/i.test(MASKIN_HEADER_MORE_CSS),
+    "luckans stilark bär rörelse",
+  );
+
+  // 5 · Och skrivbordet är oberört: summaryn döljs bara där luckan ändå står utfälld.
+  assert.match(
+    MASKIN_HEADER_MORE_CSS,
+    /@media \(min-width: 720px\)[\s\S]*@supports selector\(::details-content\)/,
+    "utfällningen vid >=720px står inte längre bakom sitt stödvillkor",
+  );
 });

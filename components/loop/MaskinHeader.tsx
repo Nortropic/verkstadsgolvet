@@ -45,6 +45,20 @@ import {
 export const MASKIN_HEADER_MORE_LABEL = "Om ytorna: ström, kommandokanal och datakälla";
 
 /**
+ * VISARE FRAMFÖR ETIKETTEN — LUCKAN SKA SE UT SOM EN LUCKA.
+ *
+ * FYNDET: «display: inline-flex» på en summary släcker webbläsarens EGEN triangel, och utan den
+ * återstod nedtonad 10,5-punkters versal mono — alltså något som läser som en BILDTEXT. På
+ * telefonen är den raden den enda ledtråden om att de tre sanningssegmenten och transportnotisen
+ * fortfarande finns, så en ledtråd som inte ser klickbar ut är hela fold-åtgärdens synliga söm.
+ *
+ * Visaren står som konstant och inte som ett CSS-«content», eftersom injicerad text inte går att
+ * mäta i markupen och inte följer med i en kopierad rad. Den är `aria-hidden`: riktningen är
+ * dekor, och det öppna eller stängda läget bärs redan av `<details>` självt för den som lyssnar.
+ */
+export const MASKIN_HEADER_MORE_MARKER = "▸";
+
+/**
  * SHREDDER-01B · HUVUDETS EGEN BRYTPUNKTSREGEL — EN LUCKA SOM STÅR ÖPPEN PÅ SKRIVBORDET.
  *
  * PROBLEMET, MÄTT: vid 390 px låg «Mata maskinen» på 1098 px, alltså en hel skärm under
@@ -76,11 +90,29 @@ export const MASKIN_HEADER_MORE_CSS = `
    «.mk-header» är en flexspalt där marginaler inte kollapsar. En marginal här hade lagt sig
    OVANPÅ den och flyttat skrivbordets sidhuvud sex pixlar — luckan ska vara osynlig vid ≥720 px. */
 .mk-header-more { margin: 0; }
+/*
+  AFFORDANSEN ÄR HÖJDNEUTRAL — MED FLIT.
+
+  Raden bär redan rummets kontrollhöjd (38 px) och ligger innanför den uppmätta budgeten för
+  telefonens första vy. Ledtrådarna nedan är därför TECKENNIVÅ: en visare, en understruken
+  etikett och en mindre nedtonad färg. Ingen bakgrund, ingen ram, ingen extra utfyllnad — en
+  chipform som «.rm-details > summary» hade lagt på höjd, och höjd är exakt det som en gång sköt
+  «Mata maskinen» under vikningen.
+*/
 .mk-header-more > summary { display: inline-flex; align-items: center; gap: 8px;
   min-height: 38px; cursor: pointer; font-family: var(--font-mono); font-size: 10.5px;
-  letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); }
+  letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-secondary); }
 .mk-header-more > summary:focus-visible { box-shadow: var(--focus-ring); border-radius: 4px; }
-.mk-header-more > summary:hover { color: var(--text-secondary); }
+.mk-header-more > summary:hover { color: var(--text-primary); }
+/* Visaren pekar åt höger när luckan är stängd och nedåt när den är öppen. Ingen övergång och
+   ingen rörelse: två statiska lägen, inte en animation. */
+.mk-header-more-marker { display: inline-flex; flex: none; font-size: 11px; line-height: 1; }
+.mk-header-more[open] > summary .mk-header-more-marker { transform: rotate(90deg); }
+/* Understrykningen är det som skiljer en kontroll från en bildtext vid en snabb blick. Den
+   ligger på etiketten och inte på hela raden, så visaren inte får ett streck under sig. */
+.mk-header-more-text { text-decoration: underline; text-decoration-color: var(--border-stronger);
+  text-underline-offset: 3px; }
+.mk-header-more > summary:hover .mk-header-more-text { text-decoration-color: currentColor; }
 @media (min-width: 720px) {
   @supports selector(::details-content) {
     .mk-header-more::details-content { content-visibility: visible; }
@@ -138,7 +170,12 @@ export default function MaskinHeader({
         av fyra rader om vem som äger transportläget.
       */}
       <details className="mk-header-more" data-header-more="true">
-        <summary>{MASKIN_HEADER_MORE_LABEL}</summary>
+        <summary>
+          <span className="mk-header-more-marker" aria-hidden="true">
+            {MASKIN_HEADER_MORE_MARKER}
+          </span>
+          <span className="mk-header-more-text">{MASKIN_HEADER_MORE_LABEL}</span>
+        </summary>
 
         <ul className="mk-header-truth" data-header-truth="true">
           {segments.map((segment) => (
