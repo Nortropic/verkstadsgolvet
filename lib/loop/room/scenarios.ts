@@ -159,7 +159,30 @@ export function scenarioSnapshot(id: ShowroomScenarioId): LoopSnapshot | null {
  *
  * Förvalet har INGEN parameter: den omärkta adressen /loop ska fortsätta betyda exakt samma sak
  * som den alltid gjort, så att en delad länk aldrig bär ett dolt urval.
+ *
+ * ETT VAL SOM INTE ÄR FÖRVALET BÄR OCKSÅ ETT ANKARE — OCH SKÄLET ÄR MÄTT.
+ *
+ * Vid ≤719 px målas väljaren efter hela rummet, alltså tusentals pixlar ned. Utan ankaret ledde
+ * ett klick på «Tom fabrik» till sidans TOPP, och operatören mötte då en tom fabrik ovanför en
+ * full tidslinje medan meningen som förklarar just den motsägelsen — SCENARIO_TIMELINE_SCOPE_NOTE,
+ * som renderas i väljaren — stod kvar längst ned. Det är precis den motsägelse den synliga
+ * räckviddsraden finns för att förhindra, återinförd av returvägen.
+ *
+ * Med ankaret landar man KVAR VID KONTROLLEN man nyss använde: det valda chipet står markerat och
+ * räckviddsraden läses i samma ögonblick som valet görs, vilket är det enda ögonblick den
+ * verkligen behövs.
+ *
+ * FÖRVALET FÅR MED FLIT INGET ANKARE. Två skäl, båda konkreta: den omärkta adressen ska förbli
+ * byte-identisk med den som alltid gällt (en delad länk får varken bära ett urval eller en
+ * scrollposition), och förvalet har ingen motsägelse att förklara — kön, blicken och hyllan är
+ * fulla precis som tidslinjen, så räckviddsraden renderas inte ens.
+ *
+ * ANKARET NÅR ALDRIG SERVERN. Ett fragment skickas inte i förfrågan, så routens urval, den
+ * slutna listan och «utan parameter renderas exakt fixtureSnapshot()» är oberörda av den här
+ * raden. Den styr var i sidan webbläsaren ställer sig, ingenting annat.
  */
 export function scenarioHref(id: ShowroomScenarioId): string {
-  return id === DEFAULT_SCENARIO ? "/loop" : `/loop?${SCENARIO_PARAM}=${id}`;
+  return id === DEFAULT_SCENARIO
+    ? "/loop"
+    : `/loop?${SCENARIO_PARAM}=${id}#${SCENARIO_ANCHOR_ID}`;
 }

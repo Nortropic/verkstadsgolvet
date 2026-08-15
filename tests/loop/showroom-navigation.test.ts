@@ -434,9 +434,34 @@ test("NAV-C: listan är sluten och varje ogiltigt värde faller till förvalet",
     "mätaren skiljer inte en tolerant upplösare från den slutna",
   );
 
-  // Förvalet har INGEN parameter: den omärkta adressen betyder samma sak som förut.
+  /*
+    FÖRVALET HAR INGEN PARAMETER OCH INGET ANKARE: den omärkta adressen betyder samma sak som
+    förut, byte för byte. En delad länk får varken bära ett dolt urval eller en scrollposition.
+  */
   assert.equal(scenarioHref("full"), "/loop");
-  assert.equal(scenarioHref("tom"), `/loop?${SCENARIO_PARAM}=tom`);
+
+  /*
+    RETURVÄGEN, FRUSEN. Vid ≤719 px står väljaren efter hela rummet; utan ankaret landade ett val
+    av «Tom fabrik» på sidans topp, och operatören mötte en tom fabrik ovanför en FULL tidslinje
+    medan meningen som förklarar just det stod kvar längst ned. Ankaret håller kvar operatören vid
+    kontrollen, där räckviddsraden läses i samma ögonblick som valet görs.
+
+    Ankaret pekar på samma id som väljaren bär och som kompositörens pekare länkar till — samma
+    konstant, aldrig tre avskrifter.
+  */
+  assert.equal(scenarioHref("tom"), `/loop?${SCENARIO_PARAM}=tom#${SCENARIO_ANCHOR_ID}`);
+  assert.ok(
+    scenarioHref("tom").includes(`#${SCENARIO_ANCHOR_ID}`),
+    "det icke-förvalda scenariot saknar returväg till kontrollen",
+  );
+
+  /*
+    OCH ANKARET ÄR INGEN ANDRA URVALSKANAL. Fragmentet skickas aldrig i förfrågan, så routens
+    upplösning är oberörd: strängen före brädgården är exakt den adress som gällde förut.
+  */
+  assert.equal(scenarioHref("tom").split("#")[0], `/loop?${SCENARIO_PARAM}=tom`);
+  assert.equal(resolveScenario(`tom#${SCENARIO_ANCHOR_ID}`), DEFAULT_SCENARIO,
+    "en parameter med fragment i värdet skulle plocka upp ett scenario — listan är inte längre sluten");
 
   /*
     BESKRIVNINGEN LOVAR INTE MER ÄN VALET BYTER.
