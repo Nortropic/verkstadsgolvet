@@ -2,6 +2,29 @@
  * ROOM-01 · Fabriksrummets EGET stilark (`rm-`), injicerat som ett ANDRA stiltagg-block
  * bredvid LOOP_CSS.
  *
+ * ROOM-08 · MOBILT FÖRST — SAMMA RUM, INTE ETT MINDRE RUM
+ * -------------------------------------------------------
+ * Vid 390 px visas EXAKT samma markup som vid 1440 px. Media-frågorna får bara ARRANGERA om
+ * ytorna; ingen regel tar bort en bevis- eller upplysningsyta, och det finns ingen mobilvariant
+ * av rummet som visar färre fält. Den disciplinen bärs av tre saker i den här filen:
+ *
+ *   1. INGEN `display: none` PÅ EN BEVISYTA. Det enda som döljs i en media-fråga är
+ *      ordningstalet `.rm-step-n` — ett PÅSTÅENDE OM LAYOUTEN, inte information ur snapshoten —
+ *      och det döljs bara i de vyer där påståendet inte längre stämmer (720–959 px, där arbetet
+ *      lägger sig först). Vid ≤719 px står banorna åter i berättelsens ordning, och då kommer
+ *      talet tillbaka.
+ *   2. NARRATIVORDNING I DEN ENKLA SPALTEN. Vid ≤719 px är kolumnen rummets axel uppifrån och
+ *      ned: huvud → uppmärksamhet → mata maskinen → kön → arbetet med sin orsakskedja och sin
+ *      kommandoyta → hyllan → tidslinjen → strömmen. `order` nollställs därför på fokusbanan i
+ *      det blocket, så att den ärvda 959-regeln inte gör mobilen till en annan berättelse än
+ *      den DOM:en bär.
+ *   3. TUMSTORA TRÄFFYTOR OCH INGEN SIDLED-SCROLL PÅ SIDAN. Rummets EGNA vägar till bevisen —
+ *      upplysningsytan (`<details>`) och köns genväg till inlämningen — har minst samma höjd som
+ *      rummets primära kontroll (`.rm-cta`) i VARJE vy, som basregler: en bevisytas åtkomlighet
+ *      får inte bero på fönstrets bredd. Husets egna komponenter inuti rummet lyfts bara i de
+ *      smala vyerna, av ett utskrivet skäl (se 959-blocket). Bred mono-text (SHA:er, JSON) bryts
+ *      eller scrollar i SIN EGEN behållare — som dessutom går att nå med tangentbordet.
+ *
  * BINDANDE REGLER SOM FILEN BÄR
  * -----------------------------
  * · components/loop/ui.ts och LOOP_CSS RÖRS INTE. Rummet lägger till en egen namnrymd i stället
@@ -84,7 +107,8 @@ export const ROOM_CSS = `
 .rm-step { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1.4px;
   text-transform: uppercase; color: var(--text-muted); }
 /* Ordningstalet gäller bara där banorna FAKTISKT står i den ordningen — se RoomStep.tsx.
-   Regeln som döljer det under 960 px står i media-blocket längst ned. */
+   Talet döljs därför i EXAKT ett intervall: 720–959 px, där arbetet lyfts först. Regeln står i
+   959-blocket nedan, och 719-blocket EFTER det visar talet igen — där är ordningen sann. */
 .rm-step-n { color: var(--text-disabled); }
 /* Mitten är rummets blick: samma tokens, men lyft ur sidan så att den läses först. */
 .rm-lane-focus .mk-col { box-shadow: inset 0 0 0 1px var(--border-strong),
@@ -109,10 +133,15 @@ export const ROOM_CSS = `
 /* Backlog-kolumnens egen CTA pekar på SAMMA inlämningsyta som kompositören ovanför. Den tas
    inte bort (den är kolumnens etablerade ingång och provad som sådan i H3-grinden) men den får
    inte se ut som en andra knapp för samma sak: EN knappform i banan, och den tillhör rummets
-   primära handling. Här blir länken därför ren text — samma mål, samma räckvidd, ingen yta. */
+   primära handling. Här blir länken därför ren text — samma mål, samma räckvidd, ingen yta.
+
+   ROOM-08: länken är ren text, men dess TRÄFFYTA är rummets kontrollhöjd i varje vy — samma
+   skäl som upplysningsytan ovan, och samma mått som rummets primära knapp den pekar mot. Formen
+   ändras inte av det: «inline-flex» med «min-height» gör ytan hög, inte texten stor. */
 .rm-lane-in .mk-col [data-intake-cta="true"] { align-self: flex-start; font-size: 11.5px;
   padding: 0; background: none; box-shadow: none; color: var(--accent-text);
-  text-decoration: underline; text-underline-offset: 2px; border-radius: var(--radius-chip); }
+  text-decoration: underline; text-underline-offset: 2px; border-radius: var(--radius-chip);
+  display: inline-flex; align-items: center; min-height: 38px; }
 .rm-lane-in .mk-col [data-intake-cta="true"]:hover { color: var(--text-primary); }
 .rm-lane-in .mk-col [data-intake-cta="true"]:focus-visible { box-shadow: var(--focus-ring); }
 
@@ -175,7 +204,21 @@ export const ROOM_CSS = `
 .rm-source { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1px;
   text-transform: uppercase; color: var(--text-muted); }
 .rm-details { min-width: 0; }
-.rm-details > summary { display: inline-flex; align-items: center; height: 24px; padding: 0 9px;
+/*
+  ROOM-08 · UPPLYSNINGSYTANS TRÄFFYTA ÄR EN BASREGEL, INTE EN MOBILREGEL.
+
+  Växeln «{ } rådata» är rummets väg till rådata, bevisreferenser och identifierare — den ENDA
+  vägen till flera av dem. Måttet stod först i 959-blocket, och då hängde det på VYBREDD i
+  stället för på pekdonet: en pekskärmsbärbar eller en surfplatta i liggande läge vid ≥960 px
+  fick kvar en 24 px hög yta för samma bevis. Ett bevis vars åtkomlighet beror på fönstrets
+  bredd är precis den sortens skrivbordsbundenhet ROOM-08 finns för att ta bort.
+
+  Höjden är därför rummets egen kontrollhöjd («.rm-cta», 38 px) i VARJE vy, och den är satt som
+  «min-height» så att ytan kan växa om etiketten någon gång bryts. Ingenting döljs och ingen text
+  kortas — bara träffytan. Skrivbordet blir en aning luftigare av det; den ändringen är avsedd
+  och ska granskas på skrivbordets vyklipp.
+*/
+.rm-details > summary { display: inline-flex; align-items: center; min-height: 38px; padding: 0 12px;
   border-radius: var(--radius-control); font-family: var(--font-mono); font-size: 11px;
   letter-spacing: 0.6px; color: var(--text-secondary); background: var(--bg-surface-0);
   box-shadow: inset 0 0 0 1px var(--border-strong); cursor: pointer; list-style: none; }
@@ -195,6 +238,19 @@ export const ROOM_CSS = `
   font-weight: 600; color: var(--text-primary); letter-spacing: 0.2px; }
 .rm-chain-note { margin: 0; font-size: 11px; line-height: 16px; color: var(--text-muted);
   max-width: 82ch; overflow-wrap: anywhere; }
+/*
+  ROOM-08 · KEDJANS INLEDNING ÄR TRE STYCKEN, INTE ETT.
+
+  Notiserna ligger i en egen behållare (data-chain-source) INNE i .rm-chain. Behållaren var inte
+  en flex-förälder, så sektionens gap nådde inte in — och eftersom .rm-chain-note har margin: 0
+  (med flit: luften ska komma ur layouten, inte ur marginalkollaps) rann ingressen, ordningsnotisen
+  och bevisnotisen ihop till ETT block. Vid 390 px blev det ett femtontal solida rader innan
+  kedjans första hopp: precis den mobilläsbarhet den här skivan finns för.
+
+  Behållaren får därför samma spaltform och samma gap som sektionen den ligger i. Basregel, inte
+  media-regel: styckena ska vara stycken i varje vy — det är läsbarhet, inte en brytpunktsfråga.
+*/
+.rm-chain > [data-chain-source] { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
 .rm-chain-violations { list-style: none; margin: 0; padding: 8px 10px; display: flex;
   flex-direction: column; gap: 4px; background: var(--tint-danger-bg);
   box-shadow: inset 0 0 0 1px var(--tint-danger-border); border-radius: var(--radius-control); }
@@ -219,6 +275,28 @@ export const ROOM_CSS = `
 
 /* Bred teknisk text scrollar i SIN EGEN behållare — aldrig hela sidan. */
 .rm-scroll-x { overflow-x: auto; min-width: 0; }
+/*
+  ROOM-08 · EN SCROLLYTA SOM BARA GÅR ATT NÅ MED PEKARE ÄR OTILLGÄNGLIGA BEVIS.
+
+  Behållaren är fokuserbar (tabIndex i RoomTimeline/CausalChain), så rådatan går att bläddra i
+  med tangentbord — och då måste fokus också SYNAS.
+
+  RINGEN RÄCKER INTE ENSAM PÅ EN RÅDATARUTA. Husets --focus-ring är en 1px kantlinje plus ett
+  svagt sken, och rutans VILOLÄGE är redan en 1px kantlinje («.mk-raw» i LOOP_CSS): skillnaden
+  mellan fokuserad och ofokuserad hade då bara varit kantens FÄRG, och en kritisk skillnad som
+  bärs av färg ensam är en frusen negativ kontroll i ROOM-08. Fokusläget får därför också en
+  TJOCKLEK: en 3px inre kant ur husets egen --border-stronger ovanpå ringen. Skillnaden syns
+  då i form, inte bara i kulör — och ingen ny token införs.
+*/
+.rm-scroll-x:focus-visible { box-shadow: var(--focus-ring), inset 0 0 0 3px var(--border-stronger); }
+
+/* ── ROOM-08 · räckvidd i strömpanelen ───────────────────────────────────────
+   Strömmens metarad bär mono-identifierare (ts, run_id, task_id) i en flex-rad vars behållare
+   klipper i sidled («.mk-stream-rows overflow-x: hidden» i LOOP_CSS). Vid 390 px är ett
+   run_id bredare än raden, och utan de här två egenskaperna KLIPPS slutet av identifieraren
+   bort: bevis som finns på skrivbordet men inte i telefonen. Regeln ändrar inte LOOP_CSS — den
+   ligger i rummets namnrymd och gäller bara inuti rummet. */
+.rm-room .mk-event-meta > * { min-width: 0; overflow-wrap: anywhere; }
 
 @media (max-width: 1279px) {
   .rm-stage { gap: var(--gap-sm); grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
@@ -237,11 +315,71 @@ export const ROOM_CSS = `
 }
 @media (max-width: 959px) {
   .rm-stage { grid-template-columns: minmax(0, 1fr); }
-  /* Arbetet först på smala vyer — samma disciplin som Maskinens mk-col-current haft sedan V2. */
+  /* Arbetet först vid 720–959 px — samma disciplin som Maskinens mk-col-current haft sedan V2.
+     Vid ≤719 px nollställs ordningen igen (blocket längst ned): där är rummet en spalt och
+     DOM-ordningen in → arbete → ut är hela layouten. */
   .rm-lane-focus { grid-column: 1 / -1; order: -1; }
   /* …och då tystnar ordningstalet: layouten visar inte längre 1, 2, 3, så etiketten får inte
-     påstå det. Namnet står kvar, för det är sant i varje vy. */
+     påstå det. Namnet står kvar, för det är sant i varje vy. Det här är det ENDA rummet döljer
+     i en media-fråga, och det är ett påstående om layouten — aldrig ett värde ur snapshoten. */
   .rm-step-n { display: none; }
+  /*
+    ROOM-08 · TRÄFFYTOR FÖR EN TUMME — OCH GRÄNSEN FÖR VAD RUMMET FÅR ÄNDRA.
+
+    Under 960 px är pekdonet en tumme lika ofta som en muspekare. Rummets EGNA ytor — växeln
+    «{ } rådata» och köns genväg till inlämningen — har redan rummets kontrollhöjd i varje vy;
+    de reglerna står som BASREGLER längre upp, eftersom en bevisytas åtkomlighet inte får bero
+    på fönstrets bredd.
+
+    Kvar här står husets egna komponenter inuti rummet. Väljarna träffar exakt två klassfamiljer,
+    och vad de FAKTISKT når i rummets markup räknas upp utan avrundning, eftersom en av ytorna
+    BÄR ETT BEVIS:
+
+      · «.mk-button» (V7) når i rummet EN familj av ytor: kommandoytans typade intentioner
+        (CommandButton ur CommandDeck — pausa, återuppta, inspektera), som alla är blockerade så
+        länge kommandokanalen är stängd. Husets andra knapp med samma klass sitter i inlämningens
+        IntakeDropzone, och den ligger på /loop/mata — utanför «.rm-room», alltså utanför den här
+        regelns räckvidd.
+      · «.mk-toggle» (V9) når två slags växlar, båda inuti strömpanelen:
+        – panelens egen kontrollrad (data-stream-controls i EventStream): språkparet «[sv]» och
+          «[raw event_type]» samt pausa/återuppta autoskroll. De väljer VISNING och filtrerar
+          ingenting — inga rader tas bort ur strömmen av dem;
+        – VARJE RADS egen «{ }»-växel (EventRow), som är den enda dörren till händelsens råa
+          nyttolast.
+        Rummet renderar ingen «.mk-toggle» utanför strömpanelen.
+
+    De lyfts i de smala vyerna och BARA där. Det är ett medvetet val, inte en kvarglömd rest:
+
+      · Deras skrivbordsform är en ANNAN SKIVAS PROVADE YTA (V7:s kommandoyta, V9:s strömpanel),
+        och att skriva om den från rummets stilark är precis det den här filens bindande regler
+        förbjuder — samma skäl som gör att strömmens rådataruta får behålla sin form vid ≥960 px.
+      · Vid ≥960 px behåller de därför husets egna höjder: idag 30 px för «.mk-button» och 26 px
+        för «.mk-toggle». Båda ligger över WCAG 2.5.8:s golv på 24 px, så radens rådataväxel är
+        aldrig under kravet i någon vy — men den får rummets strängare mått bara i de smala, till
+        skillnad från rummets EGNA bevisytor, som bär det överallt. Siffrorna upprepas inte i
+        provet: det LÄSER dem ur LOOP_CSS, så en framtida förtätning av husets knapp fäller
+        mätaren i stället för att tyst ta med sig rummet under golvet.
+
+    Provet mäter båda nivåerna: rummets kontrollhöjd på rummets egna ytor i ALLA tre vyerna,
+    och golvet på husets komponenter läst ur husets eget stilark.
+  */
+  .rm-room .mk-button, .rm-room .mk-toggle { min-height: 38px; }
+  /*
+    STRÖMMENS RÅDATA ÄR DEN ENDA BEVISYTAN RUMMET INTE ÄGER MARKUPEN TILL.
+
+    EventRow ligger utanför den här skivans skrivrätt, så dess rådataruta kan inte få ett
+    tabindex som rummets egna rutor fick. Kvar blir en yta vars enda väg genom en bred rad är en
+    horisontell panorering med pekare. Där rummet ÄR en spalt (≤959 px) tas därför själva
+    behovet bort i stället: raderna bryts, och ingen panorering behövs. Det är samma behandling
+    LOOP_CSS självt ger originalkällan vid 719 px — byte-identiskt, bara ombrutet.
+
+    KVARSTÅENDE BEGRÄNSNING, UTSKRIVEN I STÄLLET FÖR UNDERFÖRSTÅDD: vid ≥960 px behåller
+    strömmens ruta Maskinens egen form (white-space: pre med egen sidled-scroll) och kan då bara
+    panoreras med pekare. Att skriva om den formen på skrivbordet vore att göra om en annan
+    skivas provade yta från rummets stilark; rätt åtgärd är ett tabindex i EventRow, och den
+    hör till den skiva som äger strömpanelen.
+  */
+  .rm-room .mk-raw[data-event-raw="true"] { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 /*
   ORDNING SÄTTS BARA PÅ SCENENS EGNA BARN.
@@ -259,8 +397,65 @@ export const ROOM_CSS = `
   order-värde sätts på något annat än scenens egna barn, så samma miss inte kan komma tillbaka
   nästa gång en yta flyttar.
 */
+/*
+  ROOM-08 · DEN ENKLA SPALTEN ÄR BERÄTTELSEN, INTE EN HOPPRESSAD SKRIVBORDSVY.
+
+  Vid 390 px finns ingen scen att ordna om i sidled: allt ligger i EN spalt, och då är
+  läsordningen hela layouten. Rummets axel är då densamma som DOM:en redan bär —
+
+      huvud → uppmärksamhet → mata maskinen → kön → arbetet (uppgift, identitet, orsakskedja,
+      kommandoyta) → hyllan → tidslinjen → strömmen
+
+  — alltså in → arbete → ut, uppifrån och ned. «order: -1» från 959-blocket gäller även här
+  (media-frågor höjer inte specificitet, och båda blocken matchar vid 390 px), så utan en
+  nollställning hade mobilen visat en TREDJE ordning: arbetet, sedan ingången, sedan hyllan.
+  Nollställningen sker på samma väljare som 959-blocket använder — ingen ny väljare får sätta
+  order, eftersom order på ett direktbarn till rummet ordnar om HELA rummet (se blocket ovan).
+
+  VARFÖR INTE "ARBETET FÖRST" ÄVEN HÄR — OCH VAD SKILLNADEN FAKTISKT BEROR PÅ:
+
+  Scenen är EN spalt redan vid ≤959 px; banorna står alltså inte sida vid sida i något av de två
+  intervallen, och skillnaden mellan dem är därför inte rutnät mot remsa utan ren läsordning.
+
+  · 720–959 px BEHÅLLER ROOM-01:s provade arrangemang: fokusbanan lyfts över ingången, samma
+    disciplin som Maskinens .mk-col-current haft sedan V2 — det pågående arbetet är det man kom
+    hit för. Den här skivan tar inte om det beslutet. Att kasta om en provad ordning utan ett
+    MÄTT skäl är precis vad huset förbjuder.
+  · ≤719 px ändras det, och skälet är ROOM-08:s eget: i den smalaste vyn ÄR spalten hela
+    layouten. Då måste axeln in → arbete → ut synas som axel, annars påstår stegetiketterna en
+    ordning ögat inte ser, och rummets primära handling — inlämningen — hamnar under en
+    orsakskedja med elva hopp. Det operatören möter först är ändå huvudets läge och BEHÖVER
+    UPPMÄRKSAMHET, som pekar ut de uppgifts-id det gäller.
+*/
 @media (max-width: 719px) {
   .rm-stage { grid-template-columns: minmax(0, 1fr); }
-  .rm-lane-focus { order: -1; }
+  .rm-lane-focus { order: 0; }
+  /* Ordningen 1 · in, 2 · arbetet, 3 · ut är SANN igen i den enkla spalten — och en lång
+     spalt som scrollas i telefonen är precis där ett stegtal hjälper. Talet är fortfarande
+     aria-hidden: DOM-ordningen bär sekvensen för den som lyssnar. */
+  .rm-step-n { display: inline; }
+  /*
+    RÅDATA BRYTS I STÄLLET FÖR ATT SCROLLA I SIDLED PÅ DEN SMALASTE VYN.
+
+    Samma disciplin som LOOP_CSS redan tillämpar på originalkällan vid 719 px: källan är
+    fortfarande byte-identisk — bara ombruten, aldrig kapad — och en operatör slipper hitta en
+    horisontell scroll inuti en vertikal för att läsa ett bevis. Behållarens egen scroll
+    («.rm-scroll-x») står kvar för de bredare vyerna.
+  */
+  .rm-details > .mk-raw { white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* Strömmens egen ruta bryts redan vid ≤959 px — regeln står i blocket ovan, inte här. */
+  /*
+    ETT MÄRKE FÅR ALDRIG BLI SIDANS BREDD.
+
+    Husets märke (.mk-badge) bär «white-space: nowrap» — riktigt på ett rutnät där märkena är
+    korta tillstånd, men rummet renderar också tidslinjens statusetiketter, och den längsta i
+    fixturen är fyrtio tecken («Inlämnad — väntar på Nortropics tolkning»). Ett märke som inte
+    får brytas är ett flexbarn som inte kan krympa: vid 390 px trycker det ut sin rad, sin
+    behållare och till slut SIDAN i sidled — exakt den frusna negativa kontrollen. Märket får
+    därför brytas här, och växer i höjd i stället för i bredd. Ingen text kortas, inget märke
+    döljs, och formen är oförändrad så länge etiketten ryms på en rad.
+  */
+  .rm-room .mk-badge { white-space: normal; overflow-wrap: anywhere; height: auto;
+    min-height: 20px; padding: 2px 8px; }
 }
 `;
