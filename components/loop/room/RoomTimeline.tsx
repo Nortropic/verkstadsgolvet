@@ -35,6 +35,18 @@ export const TIMELINE_NO_FIXTURE_TEXT =
   "Rummet visar bara poster ur validerade källor. Fixturläget är av, och ingen annan källa av " +
   "operatörsposter finns i den här skivan — därför står här ingenting i stället för en gissning.";
 
+/**
+ * ROOM-08 · Namnen på rummets fokuserbara bevisytor.
+ *
+ * En rullbar ruta som går att tabba till måste kunna presentera sig: vad den är, vilken post
+ * den hör till och att den rullar. Namnen byggs av postens EGET id — aldrig av en påhittad
+ * beskrivning — och exporteras så att provet kan mäta dem i stället för att leta efter en
+ * handskriven sträng i markupen.
+ */
+export const rawLabel = (entryId: string) => `Rådata (rullbar) · ${entryId}`;
+export const verbatimLabel = (entryId: string) =>
+  `Controllerns svar ordagrant (rullbar) · ${entryId}`;
+
 function Entry({ entry }: { entry: TimelineEntry }) {
   const missingStatus = entry.status_label === MISSING;
 
@@ -84,14 +96,46 @@ function Entry({ entry }: { entry: TimelineEntry }) {
       )}
 
       {entry.verbatim !== null && (
-        <pre className="mk-raw rm-scroll-x" data-rejection-verbatim="true">
+        /*
+          ROOM-08 · CONTROLLERNS ORDAGRANNA SVAR ÄR OCKSÅ EN SCROLLYTA.
+
+          Ytan bryter visserligen sina rader (LOOP_CSS ger data-rejection-verbatim pre-wrap), men
+          `.mk-raw` bär också max-height med overflow-y: auto — ett långt avslag scrollar alltså
+          VERTIKALT i sin egen behållare, i varje vy. Utan tabindex nås den scrollen bara med
+          pekare, och då är controllerns avslag ett bevis som kräver mus. Samma behandling som
+          rådatalägena därför: fokuserbar behållare, ring ur ROOM_CSS (.rm-scroll-x:focus-visible).
+        */
+        <pre
+          className="mk-raw rm-scroll-x"
+          data-rejection-verbatim="true"
+          tabIndex={0}
+          role="group"
+          aria-label={verbatimLabel(entry.entry_id)}
+        >
           {entry.verbatim}
         </pre>
       )}
 
       <details className="rm-details" data-room-raw="true">
         <summary>{"{ }"} rådata</summary>
-        <pre className="mk-raw rm-scroll-x" data-room-raw-json="true">
+        {/*
+          ROOM-08 · behållaren är FOKUSERBAR. Bred rådata scrollar i sin egen behållare (och
+          bryts vid ≤959 px, där rummet är en spalt); en scrollyta utan tabindex går bara att
+          nå med pekare, och ett
+          bevis som kräver mus är inte ett tillgängligt bevis. Fokusringen målas i ROOM_CSS.
+
+          ETT FOKUSSTOPP UTAN NAMN ÄR EN TYST STATION. Rutan får därför en roll och ett namn:
+          en skärmläsare säger vad ytan ÄR, vilken post den hör till och att den är rullbar,
+          i stället för att bara läsa upp en vägg av JSON utan sammanhang. Namnet bär postens
+          id — samma id som står i posten ovanför — och hittar aldrig på ett värde.
+        */}
+        <pre
+          className="mk-raw rm-scroll-x"
+          data-room-raw-json="true"
+          tabIndex={0}
+          role="group"
+          aria-label={rawLabel(entry.entry_id)}
+        >
           {entry.raw}
         </pre>
       </details>

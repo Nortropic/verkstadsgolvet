@@ -804,10 +804,14 @@ test("ROOM-LAYOUT: banornas ordning är DOM-ordning — etikett, yta, notis, i a
   }
 
   /*
-    ORDNINGSTALET ÄR ETT PÅSTÅENDE OM LAYOUTEN. Under 960 px lägger sig arbetet först, och då
-    får etiketten inte påstå 1, 2, 3. Talet bärs därför i ett eget element som döljs i exakt
-    det media-blocket — och det är `aria-hidden`, för DOM-ordningen bär redan sekvensen för
-    den som lyssnar i stället för att titta.
+    ORDNINGSTALET ÄR ETT PÅSTÅENDE OM LAYOUTEN, och det gäller i exakt ett intervall.
+
+    Mellan 720 och 959 px lägger sig arbetet först, och då får etiketten inte påstå 1, 2, 3.
+    Talet bärs därför i ett eget element som döljs i EXAKT det media-blocket. Vid ≤719 px
+    (ROOM-08) står banorna åter i DOM-ordningen in → arbete → ut, och då är påståendet sant
+    igen och talet visas — den regeln mäts av tests/loop/room-mobile.test.ts, medan mätningen
+    nedan äger 959-blocket. Talet är dessutom `aria-hidden`, för DOM-ordningen bär redan
+    sekvensen för den som lyssnar i stället för att titta.
   */
   /*
     ORDNING SÄTTS BARA PÅ SCENENS EGNA BARN.
@@ -847,7 +851,7 @@ test("ROOM-LAYOUT: banornas ordning är DOM-ordning — etikett, yta, notis, i a
   assert.match(
     narrow.slice(0, narrow.indexOf("}\n}") + 3),
     /\.rm-step-n\s*\{[^}]*display:\s*none/,
-    "ordningstalet står kvar när banorna byter ordning under 960 px",
+    "ordningstalet står kvar när banorna byter ordning vid 720–959 px",
   );
   for (const ordinal of ["1", "2", "3"]) {
     assert.ok(

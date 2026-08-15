@@ -65,6 +65,15 @@ export const CHAIN_NO_TASK_TEXT =
   "Ingen aktuell uppgift i snapshoten: det finns ingen kedja att visa, och ingen uppgift lyfts " +
   "hit ur kön för att fylla ytan.";
 
+/**
+ * ROOM-08 · Namnet på ett hopps fokuserbara rådataruta.
+ *
+ * Rutan går att tabba till (den rullar i sin egen behållare) och måste därför kunna säga vad
+ * den är och vilket hopp den hör till. Namnet bär hoppets EGEN art ur projektionen — aldrig en
+ * påhittad beskrivning — och exporteras så att provet kan mäta det.
+ */
+export const chainRawLabel = (kind: string) => `Rådata (rullbar) · hoppet ${kind}`;
+
 /** Nycklar vars värde visas KORTAT i mono. Hela värdet bärs i `title` och i rådatan. */
 const SHA_KEYS = ["sha256", "base_sha", "candidate_sha", "from_sha", "to_sha", "grind_sha256"];
 
@@ -262,7 +271,23 @@ function Hop({ hop }: { hop: ChainHop }) {
       {hop.raw !== null && (
         <details className="rm-details" data-chain-raw="true">
           <summary>{"{ }"} rådata</summary>
-          <pre className="mk-raw rm-scroll-x" data-chain-raw-json={hop.kind}>
+          {/*
+            ROOM-08 · behållaren är FOKUSERBAR, av samma skäl som i tidslinjen: rådatan scrollar
+            i sin egen behållare (och bryts vid ≤959 px, där rummet är en spalt), och en
+            scrollyta utan tabindex är
+            stängd för tangentbordet. Fokusringen målas i ROOM_CSS.
+
+            Och den presenterar sig: roll plus namn med HOPPETS EGEN art, så att ett fokusstopp
+            mitt i en kedja med elva hopp säger vilket hopp rådatan tillhör i stället för att
+            vara en namnlös station.
+          */}
+          <pre
+            className="mk-raw rm-scroll-x"
+            data-chain-raw-json={hop.kind}
+            tabIndex={0}
+            role="group"
+            aria-label={chainRawLabel(hop.kind)}
+          >
             {hop.raw}
           </pre>
         </details>

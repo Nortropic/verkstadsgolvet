@@ -27,7 +27,17 @@
  *   inte alls.
  * · EN ENDA TAIL-ANSLUTNING PER RUM: bara `LiveEventStream` ansluter. Rummet öppnar ingen andra
  *   SSE- eller poll-klient, och huvudet gissar därför aldrig ett transportläge.
- * · Vid ≤959 px lägger sig rummets blick först och banorna staplas i planens ordning.
+ * · ROOM-08 · BANORNAS ORDNING BESKRIVS PER VY, EFTERSOM DEN ÄR OLIKA PER VY:
+ *   – vid ≥960 px står ingången och arbetet sida vid sida med hyllan under dem;
+ *   – vid ≤959 px är scenen EN spalt, och de två smala intervallen skiljer sig bara i
+ *     läsordning, aldrig i antal spalter;
+ *   – vid 720–959 px behålls därför ROOM-01:s provade ordning: rummets blick lyfts FÖRST och
+ *     ingången faller under den, samma disciplin som Maskinens .mk-col-current sedan V2;
+ *   – vid ≤719 px står spalten i planens ordning in → arbete → ut, eftersom läsordningen då är
+ *     hela layouten, och då är stegetiketternas ordningstal (1 · in, 2 · arbetet, 3 · ut) sanna
+ *     igen och visas.
+ *   Ordningen sätts i ROOM_CSS på scenens egna barn; skalet arrangerar inget per vy och
+ *   renderar samma markup i alla tre bredderna.
  */
 import * as React from "react";
 import Graceful from "@/components/Graceful";
