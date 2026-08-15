@@ -6,9 +6,10 @@
   "errata": [
     "docs/nortropic-factory-room-roadmap-erratum-01.md",
     "docs/nortropic-factory-room-product-erratum-v2.md",
-    "docs/nortropic-factory-room-requirement-addendum-v3.md"
+    "docs/nortropic-factory-room-requirement-addendum-v3.md",
+    "docs/nortropic-factory-room-lanes-clarification.md"
   ],
-  "errataNote": "The roadmap is frozen and is corrected only through errata documents, never by editing it. erratum-01 corrects two programme misclassifications: (1) the Anthropic Claude Tag entitlement is NOT a core blocker — the required Slack interface is a Nortropic-owned Slack app (REMOTE-01), and the Claude Tag adapter is a new OPTIONAL slice (REMOTE-02), which renumbers the previous REMOTE-02/03/04 to REMOTE-03/04/05; (2) the connected Railway CLI is the required production discovery and empirical verification path, so deploy state is not recorded as unverified while CLI access exists. product-erratum-v2 (V2) records six further owner corrections — showroom-first visibility, the Nortropic Tag binding, conversation/context not deferred behind REMOTE-00, a vendor-neutral standing-work contract, the website-factory output model, and 'merged is not shipped' (production SHA plus visible production behaviour are required evidence) — plus the P1..P34 product requirements ledger, the region-level source honesty model and the required showroom scenario coverage. requirement-addendum-v3 is the owner-authored requirement-completeness addendum recorded verbatim; it is authoritative over any conflicting omission in erratum-v2 and adds eleven further slices (SESSION-01, PARTICIPANT-01, OPERATOR-PROTOCOL-01, SLACK-INBOX-01, NOTIFICATION-01, STANDING-MANAGEMENT-01, RELEASE-RECOVERY-01, DATA-GOVERNANCE-01, OWNER-ACTION-01, PRODUCT-OPS-01, SEARCH-HISTORY-01). Errata are cumulative: erratum-01 remains valid in full.",
+  "errataNote": "The roadmap is frozen and is corrected only through errata documents, never by editing it. erratum-01 corrects two programme misclassifications: (1) the Anthropic Claude Tag entitlement is NOT a core blocker — the required Slack interface is a Nortropic-owned Slack app (REMOTE-01), and the Claude Tag adapter is a new OPTIONAL slice (REMOTE-02), which renumbers the previous REMOTE-02/03/04 to REMOTE-03/04/05; (2) the connected Railway CLI is the required production discovery and empirical verification path, so deploy state is not recorded as unverified while CLI access exists. product-erratum-v2 (V2) records six further owner corrections — showroom-first visibility, the Nortropic Tag binding, conversation/context not deferred behind REMOTE-00, a vendor-neutral standing-work contract, the website-factory output model, and 'merged is not shipped' (production SHA plus visible production behaviour are required evidence) — plus the P1..P34 product requirements ledger, the region-level source honesty model and the required showroom scenario coverage. requirement-addendum-v3 is the owner-authored requirement-completeness addendum recorded verbatim; it is authoritative over any conflicting omission in erratum-v2 and adds eleven further slices (SESSION-01, PARTICIPANT-01, OPERATOR-PROTOCOL-01, SLACK-INBOX-01, NOTIFICATION-01, STANDING-MANAGEMENT-01, RELEASE-RECOVERY-01, DATA-GOVERNANCE-01, OWNER-ACTION-01, PRODUCT-OPS-01, SEARCH-HISTORY-01). lanes-clarification is the owner-authored two-lane product clarification recorded verbatim (docs/nortropic-factory-room-lanes-clarification.md); it is additive to Product-V2/V3, changes no existing slice status, and adds nine further slices (LANE-01..LANE-09). Errata are cumulative: erratum-01 remains valid in full.",
   "note": "Programme data for the Nortropic Factory Room master roadmap. This file is NOT a scheduler input and NOT a second canonical backlog: backlog/control-room-v1.json remains the canonical backlog consumed by scripts/claude-loop/backlog.ts, and scripts/claude-loop/** is untouched by this programme. An operator or session translates a slice below into an ordinary `npm run claude:run --task` file. Statuses use the roadmap's ledger vocabulary (NOT_STARTED, IN_PROGRESS, PROVEN, BLOCKED, DEFERRED_BY_OWNER, REJECTED_WITH_REASON) and never a percentage. allowedWrite is a best current estimate at freeze and is finalised in the task file for each slice. Gates listed for slices with a Nortropic/verkstadsgolvet half are this repository's real gate commands; slices whose target is the control plane or Nortropic/nortropic-system carry an empty gates array here because their gates are owned by that target's own operating model (nortropic-system AGENTS.md: $nortropic-test-author writes the spec row and the RED frozen gate in specs/** and verify/**, which are builder-denied).",
   "measuredAt": "2026-08-15",
   "measuredMain": {
@@ -16,6 +17,9 @@
     "Nortropic/nortropic-system": "e56edc08e5f069f16b5bdb853302a0f39c1f7075"
   },
   "measuredMainNote": "Nortropic/verkstadsgolvet re-measured with git rev-parse origin/main in the ERRATUM-02_PRODUCT_V2 run worktree, 2026-08-15; the value is the SHREDDER-01A merge commit (PR #34) and supersedes the previously recorded 851c0b25b7463d616d5c95d94d55245687bf0a8b (SUPERVISOR-01). Nortropic/nortropic-system moved to e56edc08e5f069f16b5bdb853302a0f39c1f7075 (h-032 host-builder-r2, PR #79) as reported by the supervising session outside this worktree; this repository cannot and does not measure that repository. Measured-at-date facts, not live truth.",
+  "currentBootstrapWorkDomain": "SYSTEM_IMPROVEMENT",
+  "customerProductionLoopStatus": "separate future production capability using the shared Nortropic trust kernel; the Codex bootstrap autopilot is not this loop",
+  "lanesNote": "Owner two-lane clarification recorded verbatim in docs/nortropic-factory-room-lanes-clarification.md. Locks (§1): FACTORY_LANE_SYSTEM=SYSTEM_IMPROVEMENT · FACTORY_LANE_CUSTOMER=CUSTOMER_PRODUCTION · BOOTSTRAP_AUTOPILOT_PRIMARY_LANE=SYSTEM_IMPROVEMENT · SYSTEM_IMPROVEMENT_LOOP_IS_CUSTOMER_WEBSITE_FACTORY=NO · SHARED_TRUST_KERNEL_BETWEEN_LANES=YES. The lane slices LANE-01..LANE-09 (§11) are additive: no existing slice status was changed by this recording. Dependency-id mapping: every id referenced by the lane dependencies already exists in this ledger under the same name — SHREDDER-01B, SEARCH-HISTORY-01, NOTIFICATION-01, REMOTE-01 and ROOM-05 — so no renaming or aliasing was required.",
   "slices": [
     {
       "id": "MASTER-00",
@@ -2002,6 +2006,414 @@
       ],
       "visualReview": false,
       "empiricalReview": "Negative controls per §14, each observed FAILING: index state overriding the current snapshot; deleted context remaining searchable; a participant searching an inaccessible room; a candidate shown under the wrong task or run.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "LANE-01",
+      "title": "work-domain contract",
+      "source": "docs/nortropic-factory-room-lanes-clarification.md §1, §2, §3, §11",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Introduce the smallest safe typed work-domain contract distinguishing CUSTOMER_PRODUCTION and SYSTEM_IMPROVEMENT as a first-class context inside the one product (§3). Owner locks recorded verbatim from §1: FACTORY_LANE_SYSTEM=SYSTEM_IMPROVEMENT · FACTORY_LANE_CUSTOMER=CUSTOMER_PRODUCTION · BOOTSTRAP_AUTOPILOT_PRIMARY_LANE=SYSTEM_IMPROVEMENT · SYSTEM_IMPROVEMENT_LOOP_IS_CUSTOMER_WEBSITE_FACTORY=NO · SHARED_TRUST_KERNEL_BETWEEN_LANES=YES. One canonical field name is chosen by architect review (work_domain / factory_lane / project_kind) and then used consistently. The work domain is NOT a task state and is never added to TASK_LIFECYCLE. The frozen loop contract lib/loop/schema.ts is not edited: the value is carried by additive, clearly-non-authoritative view-model schemas shaped so that future controller-published provenance fits without redesign. Until the backend publishes the value, showroom scenarios may carry it explicitly, live UI never guesses, and a missing live value renders —. SYSTEM_IMPROVEMENT is never inferred from a repository name unless a frozen projection later authorizes that derivation. One product, not two (§2): one Verkstadsgolvet, one Kartongförstöraren, and no second dashboard, scheduler, canonical backlog or trust kernel.",
+      "dependencies": [
+        "SHREDDER-01B"
+      ],
+      "authorityPrerequisites": [
+        "the work domain is a presentation/domain context, never authority: it never becomes a task state and never enters TASK_LIFECYCLE",
+        "the frozen loop contract lib/loop/schema.ts is not extended by this slice",
+        "no live work domain may be guessed or inferred client-side; an absent live value renders — (SNAPSHOT_WINS unaffected)"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Negative controls, each observed FAILING: a work domain rendered as a task state or added to TASK_LIFECYCLE; a live view inventing CUSTOMER_PRODUCTION or SYSTEM_IMPROVEMENT when the backend publishes nothing (must render —); SYSTEM_IMPROVEMENT derived from a repository name; two competing field names for the same concept in the same build.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "LANE-02",
+      "title": "customer-production showroom",
+      "source": "docs/nortropic-factory-room-lanes-clarification.md §4, §12, §14",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Build the CUSTOMER_PRODUCTION lane showroom UX so the output reads as a WEBSITE: customer/project, brief/source, research, website plan, current website task, build, review, quality checks, preview, deploy, post-deploy smoke and monitoring (§4). At least one clearly synthetic scenario per §12 ('Nisses Måleri DEMO': website build → visual QA → preview → deploy → smoke) with explicit schema-valid synthetic scenario metadata per §14. Showroom example surfaces Design/responsive, Accessibility, SEO and Kontaktuppgifter checks, a visibly synthetic Preview, a Deploy state, and smoke/Production URL as — when unknown. Synthetic showroom data only: never a real customer, a real domain or a live deployment, and a preview is never presented as production.",
+      "dependencies": [
+        "LANE-01"
+      ],
+      "authorityPrerequisites": [
+        "showroom data is synthetic and clearly non-authoritative; no showroom value is ever presented as live production truth",
+        "unknown values render — and are never invented"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Negative controls, each observed FAILING: a showroom preview or production URL that could be mistaken for a real deployment; a real customer name, domain or contact record in showroom data; an unknown smoke or production value rendered as a pass instead of —; a control-plane task rendered inside the customer-production lane.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "LANE-03",
+      "title": "system-improvement showroom",
+      "source": "docs/nortropic-factory-room-lanes-clarification.md §5, §12, §14",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Build the SYSTEM_IMPROVEMENT lane showroom UX so it communicates that Nortropic improves its own machinery: system component/capability, roadmap slice, task, current role, candidate SHA, gate, review, publication, authoritative main, blocker/dependency and autonomous continuation state (§5). At least one clearly synthetic scenario per §12 (NORTROPIC SYSTEM · S13 read/command interface WORKING with candidate, gates, review and publication; dependency on S5 shown as a blocker) carrying explicit schema-valid synthetic scenario metadata per §14. The bootstrap/Codex autopilot work belongs in this lane. A control-plane task is NEVER represented as a customer website being deployed, and the two lanes are immediately visually distinguishable.",
+      "dependencies": [
+        "LANE-01"
+      ],
+      "authorityPrerequisites": [
+        "a showroom candidate SHA, gate, review, publication or authoritative-main value is never presented as controller truth",
+        "SNAPSHOT_WINS: no lane surface folds events into authoritative state"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Negative controls, each observed FAILING: a control-plane task presented as a customer website deploy; a showroom candidate SHA or authoritative main indistinguishable from a live controller-confirmed value; the two lanes rendered so similarly that a first-time operator cannot tell them apart; website QA semantics (SEO, responsive) forced onto a control-plane task.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "LANE-04",
+      "title": "intake domain selection",
+      "source": "docs/nortropic-factory-room-lanes-clarification.md §6, §7",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Make intake distinguish intent (§6): 'Mata maskinen — Vad vill du göra? [ Bygg / ändra kundprojekt ] [ Förbättra Nortropic ]' followed by domain-appropriate examples. LLM classification is NEVER the authority for the work domain: explicit operator selection, or a later controller-owned typed classification, is the source. Natural language may suggest but never silently decide for a real live submission. Navigation/overview (§7) makes both lanes discoverable without clutter so the operator immediately answers 'WHAT IS NORTROPIC BUILDING FOR CUSTOMERS?' and 'WHAT IS NORTROPIC IMPROVING ABOUT ITSELF?'. Compact overview counts are allowed only when backed by the current source, showroom values are labelled showroom, and no completion percentages are displayed.",
+      "dependencies": [
+        "LANE-01"
+      ],
+      "authorityPrerequisites": [
+        "LLM or heuristic classification is never the authority for the work domain of a real live submission",
+        "overview counts must be backed by the current source; showroom counts are labelled showroom and percentages are never shown"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Negative controls, each observed FAILING: a live submission whose work domain was decided silently by natural-language classification without explicit operator selection; an intake path that reaches submission with no work domain at all; an overview count not backed by the current source; a completion percentage rendered anywhere in the lane overview.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "LANE-05",
+      "title": "lane-aware history/search",
+      "source": "docs/nortropic-factory-room-lanes-clarification.md §10",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Preserve the work domain on every relevant long-lived record where the authoritative contract supports it (room, source, project, run, task, command, notification, standing work, release, audit chain) and enable per-lane history and search filtering (§10). Filtering is a convenience projection over existing records and never reconstructs authority: an index is never a truth store, results retain their source mode (SHOWROOM/LIVE/DEGRADED/UNAVAILABLE) and their canonical identifiers, and a record whose domain the contract does not carry shows — rather than a guessed lane.",
+      "dependencies": [
+        "LANE-01",
+        "SEARCH-HISTORY-01"
+      ],
+      "authorityPrerequisites": [
+        "an index is never authority; SNAPSHOT_WINS applies to every search result that carries a canonical claim",
+        "a record with no contract-supported work domain renders — and is never assigned a lane by inference"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Negative controls, each observed FAILING: a lane filter inferring a domain the record does not carry; index state overriding the current snapshot; a lane filter silently hiding records instead of reporting an unknown domain; a showroom result presented without its source mode after filtering.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "LANE-06",
+      "title": "lane-aware notifications",
+      "source": "docs/nortropic-factory-room-lanes-clarification.md §10",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Make notifications lane-legible (§10): 'SYSTEM: S13 blocked on S5.' versus 'CUSTOMER: Nisses Måleri post-deploy smoke failed.' — never collapsed into one generic task-failed UX. A notification whose work domain is unknown states that honestly rather than defaulting to a lane. Notification delivery, acknowledgement and resolution semantics remain owned by NOTIFICATION-01; this slice adds the domain distinction, and remote attention is still never remote authority.",
+      "dependencies": [
+        "LANE-01",
+        "NOTIFICATION-01"
+      ],
+      "authorityPrerequisites": [
+        "a notification is attention, never authority, and never a promotion or state mutation",
+        "an unknown work domain is stated as unknown and never defaulted to a lane"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": "Negative controls, each observed FAILING: a customer post-deploy smoke failure and a control-plane dependency block collapsing into the same generic task-failed notification; a notification with an unknown domain labelled SYSTEM or CUSTOMER anyway; a notification implying an authoritative promotion or state change.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "LANE-07",
+      "title": "lane-aware Slack/remote UX",
+      "source": "docs/nortropic-factory-room-lanes-clarification.md §9",
+      "targetRepository": "Nortropic-owned Slack app/bot ('Nortropic Tag') plus the remote operator interface",
+      "goal": "Carry the same lane distinction into remote UX (§9): Nortropic Slack supports '@nortropic status customer' / '@nortropic status system' (or an equivalent such as '@nortropic vad bygger vi åt kunder?' / 'vad förbättrar Nortropic just nu?'). Remote command and status responses carry the ACTUAL work domain or —, never a guessed one. One room/context architecture may span both domains, and context and search retain domain identity across the remote surface. Remote responses remain read/observe plus narrow typed intents; a remote message is never authority.",
+      "dependencies": [
+        "LANE-01",
+        "REMOTE-01"
+      ],
+      "authorityPrerequisites": [
+        "a remote response reports state, never establishes it; remote attention is not remote authority",
+        "a remote status response never guesses the work domain: unknown renders —"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Negative controls, each observed FAILING: 'status customer' returning control-plane work; a remote status response inventing a work domain when the source publishes none; a remote reply presented as an authoritative promotion; context or search losing domain identity when reached from the remote surface.",
+      "remotePrerequisites": [
+        "REMOTE-01 shell operational: a Slack workspace plus the Nortropic-owned Slack app provisioned by the owner",
+        "no Anthropic entitlement of any kind is required: ANTHROPIC_CLAUDE_TAG_REQUIRED=NO"
+      ],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "LANE-08",
+      "title": "live controller work-domain projection",
+      "source": "docs/nortropic-factory-room-lanes-clarification.md §3, §14",
+      "targetRepository": "Nortropic/verkstadsgolvet and Nortropic/nortropic-system as required",
+      "goal": "Replace the showroom-carried work domain with the live controller-published value once the backend publishes it (§3, §14): the UX shape established by LANE-01..LANE-04 must not require redesign. Live UI never guesses the domain, a missing live value renders —, and SYSTEM_IMPROVEMENT is never inferred from a repository name unless a frozen controller-owned projection explicitly authorizes that derivation. The projection is read-only and controller-owned: CONTROLLER_LOCAL_STATE=SOLE_AUTHORITY and SNAPSHOT_WINS are unchanged by this slice.",
+      "dependencies": [
+        "LANE-01",
+        "ROOM-05"
+      ],
+      "authorityPrerequisites": [
+        "nortropic-system S5 (controller/handelse) frozen and built",
+        "nortropic-system S13 (controller/lucka) frozen and built",
+        "the controller publishes a typed work domain, and schema/transport compatibility with the consuming read-model is proven before the live half is claimed",
+        "the work domain is never derived client-side from a repository name or any other heuristic"
+      ],
+      "allowedWrite": [
+        "app/api/loop/**",
+        "lib/loop/**",
+        "components/loop/**",
+        "app/(app)/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Against a real publishing controller: a snapshot that omits the work domain is observed rendering — rather than a stale or guessed lane; a deliberately conflicting tail event is observed losing to the snapshot; and the live lane value is observed matching the controller projection rather than any client-side derivation.",
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": {
+        "class": "EXTERNAL_BACKEND_SLICE",
+        "evidence": "the controller work-domain projection requires a backend read-model that does not exist yet: it inherits the ROOM-05 S5/S13 chain, and the nortropic-codex-autopilot roadmap prints UNFROZEN for S5/S10/S13 at 32b6e07. No work domain is published by any controller snapshot as measured 2026-08-15 at Nortropic/nortropic-system e56edc08e5f069f16b5bdb853302a0f39c1f7075 (reported by the supervising session; this repository cannot measure that repository)."
+      }
+    },
+    {
+      "id": "LANE-09",
+      "title": "domain-specific verification profiles",
+      "source": "docs/nortropic-factory-room-lanes-clarification.md §8",
+      "targetRepository": "Nortropic/verkstadsgolvet",
+      "goal": "Express the two domain verification profiles over the SHARED trust machinery (§8): both lanes reuse task/attempt/workspace/candidate/policy/gate/review/attestation/promotion/audit (SHARED_TRUST_KERNEL_BETWEEN_LANES=YES). SYSTEM_IMPROVEMENT emphasizes frozen task gates, controller invariants, provider identity, trust boundaries, regression tests and Nortropic-repo publication. CUSTOMER_PRODUCTION emphasizes build/typecheck, visual/responsive, accessibility, SEO, business/contact data, no-secret/client-leak, preview, domain/config, deployment and post-deploy smoke. Website QA semantics are never forced onto control-plane tasks, and customer production is never reduced to generic code gates. A profile is a presentation of which checks matter per lane; it never becomes a second trust kernel and never grants or withholds authority.",
+      "dependencies": [
+        "LANE-01"
+      ],
+      "authorityPrerequisites": [
+        "a verification profile is presentational and never a second trust kernel, policy engine or attestation path",
+        "profiles never relax, replace or synthesize a gate result; a gate result comes only from its source"
+      ],
+      "allowedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "lib/loop/schema.ts",
+        "lib/loop/fixtures/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": "Negative controls, each observed FAILING: SEO or responsive checks demanded of a control-plane task; a customer website task reduced to generic code gates with no visual, accessibility or smoke expectation; a profile synthesizing a gate verdict its source never produced; a second parallel trust kernel introduced per lane.",
       "remotePrerequisites": [],
       "status": "NOT_STARTED",
       "evidence": [],

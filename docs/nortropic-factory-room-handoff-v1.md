@@ -48,6 +48,20 @@ ADDENDUM_V3_PATH      = docs/nortropic-factory-room-requirement-addendum-v3.md
                         OWNER-ACTION-01, PRODUCT-OPS-01 and SEARCH-HISTORY-01, re-affirms
                         IDENTITY-01/02/03 as REQUIRED, retitles IDENTITY-03 as CREDENTIAL-PROXY-01
                         and supplies the merged implementation order in its §15.)
+LANES_CLARIFICATION_PATH = docs/nortropic-factory-room-lanes-clarification.md
+                        (REQUIRED READING. Owner product clarification recorded VERBATIM and
+                        byte-identical to its source: Nortropic has TWO factory lanes.
+                        (1) SYSTEM_IMPROVEMENT — Nortropic building and improving itself (S5/S10/S13,
+                        verifier, supervisor, Credential Proxy, Nortropic Slack, Factory Room,
+                        control-plane capabilities). The current Codex/bootstrap/autopilot loop is
+                        primarily THIS lane.
+                        (2) CUSTOMER_PRODUCTION — the future customer WEBSITE production factory
+                        (build a customer site, hero/service pages, visual/a11y/SEO QA, preview,
+                        deploy, smoke, monitoring).
+                        It is ONE product with ONE trust kernel, not two dashboards, schedulers or
+                        backlogs: the work domain is a first-class CONTEXT, never a task state and
+                        never part of TASK_LIFECYCLE. Additive to erratum-02 and addendum-v3: it
+                        changes no existing slice status and adds LANE-01..LANE-09 (§11).)
 ```
 
 Errata are cumulative and none of them rewrites history: the frozen roadmap file and every report
@@ -57,8 +71,13 @@ Authority reading list for a session picking this up: `CLAUDE.md`,
 `docs/nortropic-control-room-plan-v1.md`, `docs/claude-operating-model-v1.md`, then
 `docs/nortropic-factory-room-master-roadmap-v1.md` **together with**
 `docs/nortropic-factory-room-roadmap-erratum-01.md`,
-`docs/nortropic-factory-room-product-erratum-v2.md` and
-`docs/nortropic-factory-room-requirement-addendum-v3.md`, then this handoff and the backlog.
+`docs/nortropic-factory-room-product-erratum-v2.md`,
+`docs/nortropic-factory-room-requirement-addendum-v3.md` and
+`docs/nortropic-factory-room-lanes-clarification.md`, then this handoff and the backlog.
+
+The lanes clarification is the newest owner document in that list. Read it before authoring any
+Factory Room UX slice: it decides which of the two work domains a surface is speaking about, and a
+surface that cannot answer that question fails independent visual review (§13).
 
 ## CURRENT_AUTHORITATIVE_MAIN
 
@@ -258,7 +277,10 @@ BACKEND_CHAIN
   evidence: nortropic-codex-autopilot roadmap prints UNFROZEN for S5/S10/S13 at 32b6e07
   blocks:   ROOM-02 (live intake, S10+S13), ROOM-04 (controller-side identity fields),
             ROOM-05 (live snapshot cutover, S5+S13), ROOM-06 (live commands, S13),
-            REMOTE-00 (controller-side interface, S13)
+            REMOTE-00 (controller-side interface, S13),
+            LANE-08 (live controller work-domain projection — needs ROOM-05 plus a controller
+            that publishes a typed work domain; until then the domain is showroom-carried and the
+            live value renders —)
   note:     the backend's own next step is h-031, which is itself still UNDEFINED and must be
             defined before the chain can move; then supervisor resume, then first autonomous
             launch, then SUB-1..SUB-4 (h-027..h-030), then S2, S4–S13, then L.
@@ -351,6 +373,11 @@ ROOM-IDENTITY-01 → SESSION-01, PARTICIPANT-01 → CONTEXT-01A → OPERATOR-PRO
 fixture implementation), DATA-GOVERNANCE-01, SEARCH-HISTORY-01; TELEMETRY-01 and
 RELEASE-RECOVERY-01 after WEBSITE-FACTORY-01; STANDING-MANAGEMENT-01 after STANDING-01;
 NOTIFICATION-01 after SUPERVISOR-02; SLACK-INBOX-01 and PRODUCT-OPS-01 above the REMOTE-01 shell
+
+LANE SLICES (lanes clarification §11 — no backend dependency except LANE-08):
+LANE-01 after SHREDDER-01B → then LANE-02, LANE-03, LANE-04 and LANE-09 (all deps LANE-01 only);
+LANE-05 after LANE-01 + SEARCH-HISTORY-01; LANE-06 after LANE-01 + NOTIFICATION-01;
+LANE-07 after LANE-01 + the REMOTE-01 shell; LANE-08 is backend-blocked (see below)
 ```
 
 **Terminal condition B no longer holds.** It was recorded when REMOTE-01 was believed to be blocked
@@ -369,6 +396,8 @@ half is reclassified):
     ROOM-02 (live intake), ROOM-04, ROOM-05, ROOM-06,
     REMOTE-00 and every slice dependent on it — ROOM-07 (needs ROOM-06 + REMOTE-00),
     CONTEXT-01 (needs REMOTE-00), REMOTE-03, REMOTE-05,
+    LANE-08 (live controller work-domain projection — inherits the ROOM-05 S5/S13 chain and
+    additionally needs a controller that actually publishes a typed work domain),
     and the LIVE half of REMOTE-01 only (its fake-transport half is eligible now)
 blocked on control-plane environment work owned by the backend's operating model:
     IDENTITY-01, IDENTITY-02, IDENTITY-03, OBSERVER-01, AUDIT-01, RETRO-01
@@ -431,6 +460,20 @@ VISIBLE_PRODUCT_NOW=YES
 PRODUCTION_VISIBILITY_REQUIRED=YES
 BACKEND_MISSING_MEANS_SHOWROOM_NOT_HIDDEN=YES
 BACKEND_MISSING_MEANS_FAKE_LIVE=NO
+```
+
+Added by the lanes clarification §1 — these EXTEND both blocks above and weaken nothing in them:
+
+```text
+FACTORY_LANE_SYSTEM=SYSTEM_IMPROVEMENT
+FACTORY_LANE_CUSTOMER=CUSTOMER_PRODUCTION
+BOOTSTRAP_AUTOPILOT_PRIMARY_LANE=SYSTEM_IMPROVEMENT
+SYSTEM_IMPROVEMENT_LOOP_IS_CUSTOMER_WEBSITE_FACTORY=NO
+SHARED_TRUST_KERNEL_BETWEEN_LANES=YES
+WORK_DOMAIN_IS_TASK_STATE=NO
+WORK_DOMAIN_IN_TASK_LIFECYCLE=NO
+LLM_CLASSIFICATION_IS_WORK_DOMAIN_AUTHORITY=NO
+SECOND_DASHBOARD_SCHEDULER_BACKLOG_OR_TRUST_KERNEL=NO
 ```
 
 The five canonical intention verbs are unchanged and remain a closed set: `intake.submit`,
@@ -503,11 +546,12 @@ STALE AT           2026-08-15 (erratum 02): origin/main has since moved to ac2ba
 ROADMAP_COVERAGE_COMPLETE=YES   (at ROADMAP LEVEL ONLY — coverage, never implementation)
 ```
 
-Measured 2026-08-15 in the ERRATUM-02_PRODUCT_V2 run worktree, by parsing
+Re-measured 2026-08-15 in the ERRATUM-03_LANES run worktree, by parsing
 `backlog/nortropic-factory-room-master-v1.json` with node:
 
 ```text
-slices                     46, every one with exactly one status from the ledger vocabulary
+slices                     55 (46 before this task, plus LANE-01..LANE-09), every one with exactly
+                           one status from the ledger vocabulary
                            (NOT_STARTED, IN_PROGRESS, PROVEN, BLOCKED, DEFERRED_BY_OWNER,
                            REJECTED_WITH_REASON); no duplicate id; every dependency resolves to an
                            id that exists in the same file
@@ -521,6 +565,11 @@ V3 slices present          SESSION-01, PARTICIPANT-01, OPERATOR-PROTOCOL-01, SLA
                            DATA-GOVERNANCE-01, OWNER-ACTION-01, PRODUCT-OPS-01, SEARCH-HISTORY-01,
                            plus IDENTITY-01/02/03 re-affirmed (IDENTITY-03 titled
                            CREDENTIAL-PROXY-01, IDENTITY-02 extended with room-scoped binding)
+LANE slices present        LANE-01..LANE-09 (lanes clarification §11), all NOT_STARTED; LANE-08 is
+                           the only one carrying a blocker (EXTERNAL_BACKEND_SLICE, the ROOM-05
+                           S5/S13 chain). No pre-existing slice status was changed by adding them.
+lanes top-level keys       currentBootstrapWorkDomain = SYSTEM_IMPROVEMENT;
+                           customerProductionLoopStatus recorded per §11
 no end-to-end PROVEN       HARDEN-01 and EMPIRICAL-01 are NOT_STARTED; the six PROVEN rows
                            (MASTER-00, ROOM-01, ROOM-03, ROOM-08, SUPERVISOR-01, SHREDDER-01A) are
                            artifact-, fixture- or browser-half slices and each carries its LIMIT
@@ -532,56 +581,123 @@ an independent reviewer confirming that no source requirement was dropped or sil
 weaker requirement — is the reviewer's primary falsification duty on the publishing task, and this
 `YES` stands only if that count/coverage check confirms it.
 
-## EXACT_NEXT_ACTION
+## FACTORY_LANE_STATUS
 
-The merged V2 + V3 order (erratum-02 §REQUIRED IMPLEMENTATION ORDER together with addendum-v3 §15).
-Dependency-aware execution may reorder INDEPENDENT slices; it may not omit any of them, and no
-security-sensitive write path is built before its frozen gate and authority prerequisites exist.
+The status-report keys required by the lanes clarification §15, with honest current values. Every
+lane slice is `NOT_STARTED`: nothing in the two-lane distinction is implemented, and recording the
+clarification is not implementing it.
 
 ```text
- 1. ERRATUM-02 + ADDENDUM-V3 — this document set and the ledger additions (THIS TASK; publication
-    is the supervisor's, not the model's)
- 2. SHREDDER-01B — discoverable, polished showroom exposure above the merged SHREDDER-01A contract
- 3. RAILWAY PRODUCTION PROOF (P1/P4) — supervisor or owner runs the connected Railway CLI outside
+WORK_DOMAIN_CONTRACT_STATUS          = NOT_STARTED   (LANE-01)
+CUSTOMER_PRODUCTION_SHOWROOM_STATUS  = NOT_STARTED   (LANE-02)
+SYSTEM_IMPROVEMENT_SHOWROOM_STATUS   = NOT_STARTED   (LANE-03)
+INTAKE_DOMAIN_SELECTION_STATUS       = NOT_STARTED   (LANE-04)
+CURRENT_BOOTSTRAP_LANE               = SYSTEM_IMPROVEMENT
+CUSTOMER_PRODUCTION_LOOP_STATUS      = separate future production capability using the shared
+                                       Nortropic trust kernel; the Codex bootstrap autopilot is not
+                                       this loop
+LANE_VISUAL_REVIEW                   = NOT_STARTED   (no lane UX exists, so no screenshot of a lane
+                                       distinction has been reviewed; §13 is blocking once LANE-02,
+                                       LANE-03 or LANE-04 produce UI)
+```
+
+The five owner locks, verbatim from §1 of the clarification:
+
+```text
+FACTORY_LANE_SYSTEM=SYSTEM_IMPROVEMENT · FACTORY_LANE_CUSTOMER=CUSTOMER_PRODUCTION · BOOTSTRAP_AUTOPILOT_PRIMARY_LANE=SYSTEM_IMPROVEMENT · SYSTEM_IMPROVEMENT_LOOP_IS_CUSTOMER_WEBSITE_FACTORY=NO · SHARED_TRUST_KERNEL_BETWEEN_LANES=YES.
+```
+
+`CURRENT_BOOTSTRAP_LANE=SYSTEM_IMPROVEMENT` is a statement about which work domain the current
+bootstrap/autopilot loop operates in. It is NOT a claim that the customer-production loop exists,
+and the system-improvement loop must never be described as the customer website factory
+(`SYSTEM_IMPROVEMENT_LOOP_IS_CUSTOMER_WEBSITE_FACTORY=NO`). The same values are recorded
+machine-readably in `backlog/nortropic-factory-room-master-v1.json` as `currentBootstrapWorkDomain`
+and `customerProductionLoopStatus`.
+
+## EXACT_NEXT_ACTION
+
+The merged V2 + V3 order (erratum-02 §REQUIRED IMPLEMENTATION ORDER together with addendum-v3 §15),
+now carrying the LANE slices from the lanes clarification §11. Dependency-aware execution may
+reorder INDEPENDENT slices; **it may not omit any of them**, and no security-sensitive write path is
+built before its frozen gate and authority prerequisites exist.
+
+The only ordering change made by the lanes clarification is INSERTION: LANE-01..LANE-04 become the
+next eligible bounded slices immediately after SHREDDER-01B and the Railway production
+verification, and the remaining LANE slices are inserted directly after the prerequisite each one
+depends on. The relative order of every pre-existing V2/V3 item is unchanged; only their numbers
+shift because entries were inserted above them. Nothing was dropped, deferred or merged into a
+weaker item.
+
+```text
+ 1. ERRATUM-02 + ADDENDUM-V3 — that document set and its ledger additions (published)
+ 2. ERRATUM-03_LANES — the verbatim lanes clarification, the LANE-01..LANE-09 ledger additions and
+    this handoff update (THIS TASK; publication is the supervisor's, not the model's)
+ 3. SHREDDER-01B — discoverable, polished showroom exposure above the merged SHREDDER-01A contract
+ 4. RAILWAY PRODUCTION PROOF (P1/P4) — supervisor or owner runs the connected Railway CLI outside
     the model sandbox and records a deployed SHA at or after ac2ba4ea…, the observed production URL
     and the observed behaviour. Merged is not shipped (CORRECTED_DECISION_6).
- 4. CONVERSATION-01 — conversational showroom room-timeline interaction, typed-intention preview
+ 5. LANE-01 — work-domain contract: the smallest safe typed CUSTOMER_PRODUCTION / SYSTEM_IMPROVEMENT
+    context, one canonical field name chosen by architect review, never a task state, never in
+    TASK_LIFECYCLE, lib/loop/schema.ts unedited, missing live value renders —
+ 6. LANE-02 — customer-production showroom: the output is the WEBSITE (synthetic "Nisses Måleri
+    DEMO" build → visual QA → preview → deploy → smoke). No real customer, domain or deployment.
+ 7. LANE-03 — system-improvement showroom: Nortropic improving its own machinery (component,
+    slice, task, role, candidate, gate, review, publication, authoritative main, dependency)
+ 8. LANE-04 — intake domain selection: explicit operator choice between "Bygg / ändra kundprojekt"
+    and "Förbättra Nortropic"; LLM classification may suggest but is NEVER the authority
+ 9. CONVERSATION-01 — conversational showroom room-timeline interaction, typed-intention preview
     cards, NO dispatch in showroom, no LLM required
- 5. ROOM-IDENTITY-01 — non-authoritative room/conversation/thread/participant identity model,
+10. ROOM-IDENTITY-01 — non-authoritative room/conversation/thread/participant identity model,
     client_kind ∈ {web, slack, claude_tag_optional, claude_code_channel, routine, system_observer}
- 6. SESSION-01 — persistent agent session vs ephemeral workspace lifecycle (addendum-v3 §1)
- 7. PARTICIPANT-01 — shared room, multi-participant steering, concurrency (§2)
- 8. CONTEXT-01A — durable NON-AUTHORITATIVE context foundation; storage architecture decided by an
+11. SESSION-01 — persistent agent session vs ephemeral workspace lifecycle (addendum-v3 §1)
+12. PARTICIPANT-01 — shared room, multi-participant steering, concurrency (§2)
+13. CONTEXT-01A — durable NON-AUTHORITATIVE context foundation; storage architecture decided by an
     inventory-first architect; stale memory always loses to the current snapshot
- 9. OPERATOR-PROTOCOL-01 — one versioned Nortropic operator protocol, contract plus fixture
+14. OPERATOR-PROTOCOL-01 — one versioned Nortropic operator protocol, contract plus fixture
     implementation (§6); live transport still binds REMOTE-00
-10. WEBSITE-FACTORY-01 — showroom website-factory output surfaces (project, build, quality,
+15. WEBSITE-FACTORY-01 — showroom website-factory output surfaces (project, build, quality,
     preview, release, after-release), plus SHOWROOM-SCENARIOS-01 alongside it
-11. TELEMETRY-01 — complete operator read-model surface; lease/generation/heartbeat-age/duration/
+16. LANE-09 — domain-specific verification profiles over the SHARED trust kernel; website QA
+    semantics are never forced onto control-plane tasks and customer production is never reduced
+    to generic code gates (lanes §8)
+17. TELEMETRY-01 — complete operator read-model surface; lease/generation/heartbeat-age/duration/
     usage rendered em dash until a real controller contract exists
-12. SEARCH-HISTORY-01 — read-only search and history across the long-lived room (§14)
-13. NORTROPIC-TAG-01 (= REMOTE-01) — own Slack app, FAIL-CLOSED SHELL half only
-14. SLACK-INBOX-01 — real remote source intake, fixture/fake-transport half (§7)
-15. DATA-GOVERNANCE-01 — showroom, context and audit data governance (§11)
-16. STANDING-01 — vendor-neutral standing-work and trigger contract (seven trigger classes)
-17. STANDING-MANAGEMENT-01 — the narrow management contract, FROZEN before live standing-work
+18. SEARCH-HISTORY-01 — read-only search and history across the long-lived room (§14)
+19. LANE-05 — lane-aware history/search: per-lane filtering over records that already carry the
+    domain; an index is never authority and an uncarried domain renders — (lanes §10)
+20. NORTROPIC-TAG-01 (= REMOTE-01) — own Slack app, FAIL-CLOSED SHELL half only
+21. LANE-07 — lane-aware Slack/remote UX: "@nortropic status customer" / "status system"; remote
+    responses carry the actual work domain or — (lanes §9)
+22. SLACK-INBOX-01 — real remote source intake, fixture/fake-transport half (§7)
+23. DATA-GOVERNANCE-01 — showroom, context and audit data governance (§11)
+24. STANDING-01 — vendor-neutral standing-work and trigger contract (seven trigger classes)
+25. STANDING-MANAGEMENT-01 — the narrow management contract, FROZEN before live standing-work
     writes (§9)
-18. SUPERVISOR-02 — event-driven and dependency-satisfied wakeups, measured gaps only, no second
+26. SUPERVISOR-02 — event-driven and dependency-satisfied wakeups, measured gaps only, no second
     scheduler and no second canonical backlog
-19. NOTIFICATION-01 — delivery, acknowledgement and resolution; acknowledgement is never authority
+27. NOTIFICATION-01 — delivery, acknowledgement and resolution; acknowledgement is never authority
     and never replaces backend h-014 alarm semantics (§8)
-20. PRODUCT-OPS-01 — operate Verkstadsgolvet and Nortropic Tag; runbooks, health, rotation (§13)
-21. IDENTITY-01 — mechanical principals (owner ceremony: the GitHub App "Nortropic Promoter" is
+28. LANE-06 — lane-aware notifications: "SYSTEM: S13 blocked on S5." vs "CUSTOMER: Nisses Måleri
+    post-deploy smoke failed." — never one generic task-failed UX (lanes §10)
+29. PRODUCT-OPS-01 — operate Verkstadsgolvet and Nortropic Tag; runbooks, health, rotation (§13)
+30. IDENTITY-01 — mechanical principals (owner ceremony: the GitHub App "Nortropic Promoter" is
     required before the promoter principal can exist)
-22. IDENTITY-02 — versioned capability bundles WITH room-scoped binding (§4)
-23. IDENTITY-03 / CREDENTIAL-PROXY-01 — the Nortropic Credential Proxy; threat model and
+31. IDENTITY-02 — versioned capability bundles WITH room-scoped binding (§4)
+32. IDENTITY-03 / CREDENTIAL-PROXY-01 — the Nortropic Credential Proxy; threat model and
     adversarial gates frozen BEFORE implementation (§5)
-24. RELEASE-RECOVERY-01 — release, incident and rollback PROJECTION; no rollback execution path is
+33. RELEASE-RECOVERY-01 — release, incident and rollback PROJECTION; no rollback execution path is
     authorized by that requirement alone (§10)
-25. Newly eligible live/backend integrations (ROOM-02, ROOM-04, ROOM-05, ROOM-06, ROOM-07,
-    REMOTE-00, the REMOTE-01 live half) → remote adapters (REMOTE-03, REMOTE-04, REMOTE-05, and the
-    OPTIONAL REMOTE-02 last) → HARDEN-01 → EMPIRICAL-01, the full remote proof
+34. Newly eligible live/backend integrations (ROOM-02, ROOM-04, ROOM-05, ROOM-06, ROOM-07,
+    REMOTE-00, the REMOTE-01 live half, and LANE-08 — the live controller work-domain projection,
+    which needs ROOM-05 and a controller that actually publishes the domain) → remote adapters
+    (REMOTE-03, REMOTE-04, REMOTE-05, and the OPTIONAL REMOTE-02 last) → HARDEN-01 → EMPIRICAL-01,
+    the full remote proof
 ```
+
+Mapping from the previous numbering, recorded so no reader concludes anything was omitted: old
+1 → new 1, old 2 → new 3, old 3 → new 4, old 4–11 → new 9–15 and 17, old 12 → new 18, old 13 → new
+20, old 14–20 → new 22–27 and 29, old 21–24 → new 30–33, old 25 → new 34. New entry 2 is this task;
+new entries 5–8, 16, 19, 21 and 28 and the LANE-08 clause in 34 are the nine inserted LANE slices.
 
 ```text
 UNORDERED BY DESIGN
@@ -593,15 +709,17 @@ OWNER-ACTION-01  remote attention is not remote authority. Its display half ride
 ```
 
 Owner ceremonies that no Claude run can satisfy, still open and still required where noted:
-create the Nortropic-owned Slack app (blocks the LIVE half of step 13, not the shell); advance the
+create the Nortropic-owned Slack app (blocks the LIVE half of step 20, not the shell); advance the
 `nortropic-system` chain to S5 / S10 / S13 (blocks every live half); optionally create the GitHub
 App "Nortropic Promoter" (blocks backend S7 and the IDENTITY-01 promoter principal); and — OPTIONAL
 and deliberately last — a Claude Tag entitlement, only if the optional `REMOTE-02` adapter is later
 desired. Per erratum-01 that entitlement is NOT on the critical path for remote operation from a
 phone.
 
-The programme no longer waits on the backend: steps 2 and 4–20 above have no backend dependency at
-all. When a backend dependency does land, re-measure both origin/main values, re-read
+The programme no longer waits on the backend: steps 3 and 5–29 above have no backend dependency at
+all — including LANE-01..LANE-07 and LANE-09, whose showroom and contract halves need no controller
+at all. LANE-08 is the only lane slice that does (step 34). When a backend dependency does land,
+re-measure both origin/main values, re-read
 CURRENT_NEXT_ELIGIBLE_SLICES against the newly satisfied prerequisite, and author the first slice
 whose dependencies and authority prerequisites are then genuinely met. Do not author a blocked
 slice in the meantime, and do not convert a showroom, fixture-backed or fake-transport half into a
@@ -612,6 +730,8 @@ controls and visual-review requirements of whichever slice comes next — always
 `docs/nortropic-factory-room-roadmap-erratum-01.md` (corrected REMOTE numbering, Nortropic Slack App
 scope, deployment-verification rule), `docs/nortropic-factory-room-product-erratum-v2.md` (the six
 V2 corrections, the P1..P34 requirements ledger, the source-honesty model and the showroom scenario
-coverage) and `docs/nortropic-factory-room-requirement-addendum-v3.md` (the verbatim owner
-completeness addendum) — and `backlog/nortropic-factory-room-master-v1.json` for the
+coverage), `docs/nortropic-factory-room-requirement-addendum-v3.md` (the verbatim owner
+completeness addendum) and `docs/nortropic-factory-room-lanes-clarification.md` (the verbatim owner
+two-lane clarification and the LANE-01..LANE-09 items) — and
+`backlog/nortropic-factory-room-master-v1.json` for the
 machine-readable slice and product-requirement records.
