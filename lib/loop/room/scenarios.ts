@@ -28,6 +28,11 @@
  */
 import { fixtureEmptySnapshot, fixtureSnapshot } from "@/lib/loop/fixtures";
 import type { LoopSnapshot } from "@/lib/loop/schema";
+import {
+  CURRENT_BOOTSTRAP_WORK_DOMAIN,
+  resolveWorkDomain,
+  type WorkDomain,
+} from "@/lib/loop/room/lane";
 
 /** Frågeparametern som bär valet. EN stavning i hela trädet. */
 export const SCENARIO_PARAM = "scenario";
@@ -90,7 +95,21 @@ export type ShowroomScenario = {
   label: string;
   /** En rad om vad fixturen innehåller. Beskriver data, aldrig ett systemtillstånd. */
   description: string;
+  /**
+   * LANE-01 · Vilken ARBETSDOMÄN scenariot skildrar (lib/loop/room/lane.ts).
+   *
+   * VÄRDET BÄRS UTTRYCKLIGEN, EFTERSOM DET ÄR DEN ENDA TILLÅTNA VÄGEN. Ägarens §3 säger att
+   * showroomets scenarier FÅR bära domänen explicit medan controllern ännu inte publicerar
+   * den — och att live-ytan aldrig gissar. Fältet är därför en egenskap på den här
+   * PRESENTATIONSPOSTEN, aldrig ett fält i snapshoten: lib/loop/schema.ts och
+   * lib/loop/fixtures/** är oberörda, och ingen uppgift får en domän av att stå i en fixtur
+   * som visas under ett scenario.
+   */
+  work_domain: WorkDomain;
 };
+
+/** Etiketten över scenariots domän. Den säger VEMS domän värdet är — scenariots, inte rummets. */
+export const SCENARIO_WORK_DOMAIN_CAPTION = "Scenariots arbetsdomän";
 
 /**
  * Scenarierna, i visningsordning.
@@ -103,17 +122,28 @@ export type ShowroomScenario = {
  * inte skärmen: tidslinjen läser fixturkatalogen direkt och står kvar. En rad som lovade «hur
  * rummet ser ut innan något matats in» hade därför motsagts av posterna längre ned på samma
  * skärm — precis den sortens oförtjänta påstående rummet finns för att undvika.
+ *
+ * LANE-01 · BÅDA SCENARIERNA SKILDRAR SYSTEMFÖRBÄTTRINGSSPÅRET, OCH DET SÄGS RAKT UT.
+ *
+ * Fixturkatalogens uppgifter är den bootstrap-/autopilotloop som bygger Nortropic självt, och
+ * ägarens §11 fastslår CURRENT_BOOTSTRAP_WORK_DOMAIN för just den. Domänen skrivs därför inte in
+ * som två lösa strängar här — den läses ur den dokumenterade faktakonstanten, så att märkningen
+ * inte kan drifta ifrån ägarbeslutet. Det är ett ÄRLIGT påstående om vad fixturen visar, inte ett
+ * förval: den dag ett kundproduktionsscenario byggs (LANE-02) bär det sitt EGET värde här, och en
+ * uppgift utan uttryckligt värde förblir okänd i båda fallen.
  */
 export const SHOWROOM_SCENARIOS: readonly ShowroomScenario[] = [
   {
     id: "full",
     label: "Full fabrik",
     description: "Kö, pågående arbete och hylla — en uppgift i varje kanoniskt tillstånd.",
+    work_domain: CURRENT_BOOTSTRAP_WORK_DOMAIN,
   },
   {
     id: "tom",
     label: "Tom fabrik",
     description: "Ingen uppgift i kön, blicken eller hyllan.",
+    work_domain: CURRENT_BOOTSTRAP_WORK_DOMAIN,
   },
 ] as const;
 
@@ -123,6 +153,19 @@ export const SHOWROOM_SCENARIOS: readonly ShowroomScenario[] = [
  */
 export function scenarioById(id: ShowroomScenarioId): ShowroomScenario {
   return SHOWROOM_SCENARIOS.find((scenario) => scenario.id === id) ?? SHOWROOM_SCENARIOS[0];
+}
+
+/**
+ * LANE-01 · Scenariots arbetsdomän, LÄST GENOM UPPLÖSAREN.
+ *
+ * Funktionen returnerar aldrig ett värde den läst «fältvis och rått»: den skickar hela
+ * scenarioposten till `resolveWorkDomain`, som bara accepterar ett uttryckligt, egenägt
+ * `work_domain` med ett av de två tillåtna värdena. Bär posten inget värde — eller ett skräpvärde
+ * som smugit in — blir svaret `null`, och ytan renderar em-streck i stället för en gissning.
+ * Vägen är alltså EXAKT densamma som en framtida controllerpublicerad domän kommer att gå.
+ */
+export function scenarioWorkDomain(id: ShowroomScenarioId): WorkDomain | null {
+  return resolveWorkDomain(scenarioById(id));
 }
 
 /** Är strängen ett av de tillåtna scenarierna? Exakt-matchning, inget skiftlägestrick. */

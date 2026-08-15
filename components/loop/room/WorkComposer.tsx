@@ -35,6 +35,7 @@ import * as React from "react";
 import Link from "next/link";
 import { INTAKE_BLOCKED_ON, INTAKE_MODE } from "@/lib/loop/intake";
 import { SHOWROOM } from "@/lib/loop/room/mode";
+import { intentWorkDomain, workDomainAttribute } from "@/lib/loop/room/lane";
 import { SCENARIO_ANCHOR_ID, SCENARIO_POINTER_LABEL } from "@/lib/loop/room/scenarios";
 
 export const COMPOSER_TITLE = "Mata maskinen";
@@ -132,12 +133,25 @@ export default function WorkComposer() {
         role="group"
         aria-label={COMPOSER_INTENT_QUESTION}
       >
+        {/*
+          LANE-01 · VARJE AFFORDANS BÄR SIN ARBETSDOMÄN MASKINLÄSBART.
+
+          Bindningen är DEKLARERAD i lib/loop/room/lane.ts (en handskriven tabell från ytans krok
+          till domänen), aldrig uträknad här: den här filen känner fortfarande inga
+          kontraktsvärden, stavar inga domännamn och tolkar ingen text. Ett id som inte står i
+          tabellen får em-streck i stället för ett gissat värde.
+
+          OCH DET ÄR FORTFARANDE INGEN KLASSIFICERING: båda länkarna leder till samma byggda
+          inlämning, ingenting lämnas härifrån, och ingen modell tillfrågas. Märkningen säger vad
+          affordansen STÅR FÖR — den avgör ingenting om en verklig inlämning.
+        */}
         {COMPOSER_LANES.map((lane) => (
           <Link
             key={lane.id}
             className="rm-intent"
             href="/loop/mata"
             data-composer-lane={lane.id}
+            data-work-domain={workDomainAttribute(intentWorkDomain(lane.id))}
           >
             <span className="rm-intent-label">{lane.label}</span>
             <span className="rm-intent-example">{lane.example}</span>
