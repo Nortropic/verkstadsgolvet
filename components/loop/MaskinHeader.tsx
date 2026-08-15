@@ -54,7 +54,16 @@ export default function MaskinHeader({
   return (
     <div className="mk-header" data-maskin-header="true" data-room-mode={mode}>
       <style dangerouslySetInnerHTML={{ __html: MASKIN_HEADER_CSS }} />
-      <PageHeader title="Maskinen" sub={MASKIN_HEADER_SUB} />
+      {/*
+        SHREDDER-01C · SIDANS h1 ÄR PRODUKTENS NAMN.
+
+        Rubriken hette «Maskinen» — husets ord för MASKINKONCEPTET — medan produkten heter
+        Kartongförstöraren överallt där den namnger sig själv. En operatör som klickade sig hit
+        fick gissa att de två orden betecknade samma sak, och två oberoende granskningsronder
+        fällde diskontinuiteten. Namnet står här, en gång, som sidans identitet. Ordet
+        «maskinen» finns kvar i löpande text där det betyder maskinen — aldrig som sidans namn.
+      */}
+      <PageHeader title="Kartongförstöraren" sub={MASKIN_HEADER_SUB} />
       {/*
         Lägesraden bär husets befintliga notisform (`mk-header-truth-note`): den har redan
         radlängdstak och nedtonad vikt i MASKIN_HEADER_CSS, och en ny klass utan regel hade

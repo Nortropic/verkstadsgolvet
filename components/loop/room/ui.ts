@@ -9,15 +9,16 @@
  * av rummet som visar färre fält. Den disciplinen bärs av tre saker i den här filen:
  *
  *   1. INGEN `display: none` PÅ EN BEVISYTA. Det enda som döljs i en media-fråga är
- *      ordningstalet `.rm-step-n` — ett PÅSTÅENDE OM LAYOUTEN, inte information ur snapshoten —
- *      och det döljs bara i de vyer där påståendet inte längre stämmer (720–959 px, där arbetet
- *      lägger sig först). Vid ≤719 px står banorna åter i berättelsens ordning, och då kommer
- *      talet tillbaka.
- *   2. NARRATIVORDNING I DEN ENKLA SPALTEN. Vid ≤719 px är kolumnen rummets axel uppifrån och
- *      ned: huvud → uppmärksamhet → mata maskinen → kön → arbetet med sin orsakskedja och sin
- *      kommandoyta → hyllan → tidslinjen → strömmen. `order` nollställs därför på fokusbanan i
- *      det blocket, så att den ärvda 959-regeln inte gör mobilen till en annan berättelse än
- *      den DOM:en bär.
+ *      ordningstalet `.rm-step-n` — ett PÅSTÅENDE OM LAYOUTEN, inte information ur snapshoten.
+ *      Regeln ligger i 959-blocket och är frusen av ROOM-LAYOUT i tests/loop/room-shell.test.ts;
+ *      efter SHREDDER-01C är talen sanna även i det intervallet, så det som utelämnas är ett
+ *      SANT tal och aldrig en uppgift. Skälet står utskrivet vid regeln, inte här.
+ *   2. INGÅNGEN LEDER I VARJE SMAL VY (SHREDDER-01C). Vid ≤959 px är scenen EN spalt, och då är
+ *      läsordningen hela layouten: huvud → uppmärksamhet → mata maskinen → kön → arbetet med sin
+ *      orsakskedja och sin kommandoyta → hyllan → tidslinjen → strömmen. Fokusbanan lyfts INTE
+ *      längre över ingången vid 720–959 px: ägarkriteriet — det ska vara uppenbart VAR ARBETE
+ *      KOMMER IN, vid varje bredd — står över ROOM-01:s tidigare surfplatteval, och `order`
+ *      skrivs därför ut som noll på fokusbanan i hela intervallet ≤959 px.
  *   3. TUMSTORA TRÄFFYTOR OCH INGEN SIDLED-SCROLL PÅ SIDAN. Rummets EGNA vägar till bevisen —
  *      upplysningsytan (`<details>`) och köns genväg till inlämningen — har minst samma höjd som
  *      rummets primära kontroll (`.rm-cta`) i VARJE vy, som basregler: en bevisytas åtkomlighet
@@ -106,9 +107,10 @@ export const ROOM_CSS = `
 .rm-lane > .mk-col { order: 0; }
 .rm-step { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 1.4px;
   text-transform: uppercase; color: var(--text-muted); }
-/* Ordningstalet gäller bara där banorna FAKTISKT står i den ordningen — se RoomStep.tsx.
-   Talet döljs därför i EXAKT ett intervall: 720–959 px, där arbetet lyfts först. Regeln står i
-   959-blocket nedan, och 719-blocket EFTER det visar talet igen — där är ordningen sann. */
+/* Ordningstalet är ett påstående om layouten — se RoomStep.tsx. Efter SHREDDER-01C leder
+   ingången i varje vy, så 1, 2, 3 är sant överallt; talet utelämnas ändå i EXAKT ett intervall
+   (720–959 px), eftersom ROOM-LAYOUT fryser just den regeln. Skälet står vid regeln i
+   959-blocket nedan, och 719-blocket EFTER det visar talet igen. */
 .rm-step-n { color: var(--text-disabled); }
 /* Mitten är rummets blick: samma tokens, men lyft ur sidan så att den läses först. */
 .rm-lane-focus .mk-col { box-shadow: inset 0 0 0 1px var(--border-strong),
@@ -315,13 +317,32 @@ export const ROOM_CSS = `
 }
 @media (max-width: 959px) {
   .rm-stage { grid-template-columns: minmax(0, 1fr); }
-  /* Arbetet först vid 720–959 px — samma disciplin som Maskinens mk-col-current haft sedan V2.
-     Vid ≤719 px nollställs ordningen igen (blocket längst ned): där är rummet en spalt och
-     DOM-ordningen in → arbete → ut är hela layouten. */
-  .rm-lane-focus { grid-column: 1 / -1; order: -1; }
-  /* …och då tystnar ordningstalet: layouten visar inte längre 1, 2, 3, så etiketten får inte
-     påstå det. Namnet står kvar, för det är sant i varje vy. Det här är det ENDA rummet döljer
-     i en media-fråga, och det är ett påstående om layouten — aldrig ett värde ur snapshoten. */
+  /*
+    SHREDDER-01C · INGÅNGEN LEDER OCKSÅ VID 720–959 PX.
+
+    Fokusbanan lyftes tidigare över ingången här (order minus ett), samma disciplin som
+    Maskinens mk-col-current haft sedan V2. Ägarkriteriet står över det valet: det ska vara
+    uppenbart VAR ARBETE KOMMER IN vid varje bredd, och kompositören sitter först i
+    ingångsbanan. Lyfts blicken hit hamnar rummets enda ingång under en uppgiftsyta med
+    orsakskedja och kommandorad — vilket två oberoende visuella granskningar fällde vid 900 px.
+
+    Banan behåller därför sin DOM-plats. Nollan skrivs UT i stället för att utelämnas, så att en
+    ärvd order från ett annat stilark inte tyst kan flytta banan tillbaka, och regeln täcker
+    HELA intervallet ≤959 px: 719-blocket längst ned behöver ingen egen nollställning.
+  */
+  .rm-lane-focus { grid-column: 1 / -1; order: 0; }
+  /*
+    ORDNINGSTALET UTELÄMNAS HÄR — OCH SKÄLET ÄR INTE LÄNGRE DET SOM EN GÅNG SKREVS.
+
+    Regeln kom till när fokusbanan låg först i det här intervallet: då hade ett synligt 1 bredvid
+    den andra ytan påstått en ordning ögat inte såg. Efter SHREDDER-01C leder ingången även här,
+    alltså är 1, 2, 3 SANT också vid 720–959 px och regeln behövs inte längre av det skälet.
+
+    Den står kvar därför att den är FRUSEN av ROOM-LAYOUT i tests/loop/room-shell.test.ts, vars
+    mätning ligger utanför den här skivans skrivrätt. Att utelämna ett sant tal är en utelämning
+    och aldrig en osanning: bannamnet (in, arbetet, ut) står kvar i varje vy, och ingenting ur
+    snapshoten döljs. Att ta tillbaka talet hör till den skiva som äger 959-mätningen där.
+  */
   .rm-step-n { display: none; }
   /*
     ROOM-08 · TRÄFFYTOR FÖR EN TUMME — OCH GRÄNSEN FÖR VAD RUMMET FÅR ÄNDRA.
@@ -404,10 +425,10 @@ export const ROOM_CSS = `
   ("ytorna ovan kommer ur fixturen, panelen nedan talar med läsplanet") blev falskt, eftersom en
   fixturbaserad yta hamnade UNDER live-panelen.
 
-  Regeln är därför borta. Scenens interna ordning räcker: .rm-lane-focus ligger först vid 959 px
-  och ingången faller på sin DOM-plats efter den. Provet ROOM-LAYOUT mäter numera att inget
-  order-värde sätts på något annat än scenens egna barn, så samma miss inte kan komma tillbaka
-  nästa gång en yta flyttar.
+  Regeln är därför borta. Scenens interna ordning räcker: banorna står i sin DOM-ordning —
+  ingången först, blicken efter den — i varje vy, och hyllan ligger kvar där skalet satte den.
+  Provet ROOM-LAYOUT mäter numera att inget order-värde sätts på något annat än scenens egna
+  barn, så samma miss inte kan komma tillbaka nästa gång en yta flyttar.
 */
 /*
   ROOM-08 · DEN ENKLA SPALTEN ÄR BERÄTTELSEN, INTE EN HOPPRESSAD SKRIVBORDSVY.
@@ -418,32 +439,26 @@ export const ROOM_CSS = `
       huvud → uppmärksamhet → mata maskinen → kön → arbetet (uppgift, identitet, orsakskedja,
       kommandoyta) → hyllan → tidslinjen → strömmen
 
-  — alltså in → arbete → ut, uppifrån och ned. «order: -1» från 959-blocket gäller även här
-  (media-frågor höjer inte specificitet, och båda blocken matchar vid 390 px), så utan en
-  nollställning hade mobilen visat en TREDJE ordning: arbetet, sedan ingången, sedan hyllan.
-  Nollställningen sker på samma väljare som 959-blocket använder — ingen ny väljare får sätta
-  order, eftersom order på ett direktbarn till rummet ordnar om HELA rummet (se blocket ovan).
+  — alltså in → arbete → ut, uppifrån och ned.
 
-  VARFÖR INTE "ARBETET FÖRST" ÄVEN HÄR — OCH VAD SKILLNADEN FAKTISKT BEROR PÅ:
+  SHREDDER-01C · DE TVÅ SMALA INTERVALLEN HAR NUMERA SAMMA LÄSORDNING.
 
-  Scenen är EN spalt redan vid ≤959 px; banorna står alltså inte sida vid sida i något av de två
-  intervallen, och skillnaden mellan dem är därför inte rutnät mot remsa utan ren läsordning.
+  Scenen är EN spalt redan vid ≤959 px; banorna står alltså inte sida vid sida i något av dem,
+  och skillnaden mellan intervallen var aldrig rutnät mot remsa utan ren läsordning. ROOM-08
+  lät 720–959 px behålla ROOM-01:s arrangemang (blicken först) och gav bara ≤719 px axeln
+  in → arbete → ut. Ägarkriteriet — det ska vara uppenbart VAR ARBETE KOMMER IN, vid VARJE
+  bredd — upphäver den skillnaden: ingången leder i båda, och nollan står i 959-blocket ovan så
+  att EN regel täcker dem. Ingen ny väljare sätter order, eftersom order på ett direktbarn till
+  rummet ordnar om HELA rummet (se blocket ovan).
 
-  · 720–959 px BEHÅLLER ROOM-01:s provade arrangemang: fokusbanan lyfts över ingången, samma
-    disciplin som Maskinens .mk-col-current haft sedan V2 — det pågående arbetet är det man kom
-    hit för. Den här skivan tar inte om det beslutet. Att kasta om en provad ordning utan ett
-    MÄTT skäl är precis vad huset förbjuder.
-  · ≤719 px ändras det, och skälet är ROOM-08:s eget: i den smalaste vyn ÄR spalten hela
-    layouten. Då måste axeln in → arbete → ut synas som axel, annars påstår stegetiketterna en
-    ordning ögat inte ser, och rummets primära handling — inlämningen — hamnar under en
-    orsakskedja med elva hopp. Det operatören möter först är ändå huvudets läge och BEHÖVER
-    UPPMÄRKSAMHET, som pekar ut de uppgifts-id det gäller.
+  Det operatören möter först är fortfarande huvudets läge och BEHÖVER UPPMÄRKSAMHET, som pekar
+  ut de uppgifts-id det gäller; därefter ingången, och först därefter det pågående arbetet.
 */
 @media (max-width: 719px) {
   .rm-stage { grid-template-columns: minmax(0, 1fr); }
-  .rm-lane-focus { order: 0; }
-  /* Ordningen 1 · in, 2 · arbetet, 3 · ut är SANN igen i den enkla spalten — och en lång
-     spalt som scrollas i telefonen är precis där ett stegtal hjälper. Talet är fortfarande
+  /* Ordningen 1 · in, 2 · arbetet, 3 · ut är sann i den enkla spalten — och en lång spalt som
+     scrollas i telefonen är precis där ett stegtal hjälper. Här visas det därför, medan
+     959-blocket ovan utelämnar det av ett skäl som står vid den regeln. Talet är fortfarande
      aria-hidden: DOM-ordningen bär sekvensen för den som lyssnar. */
   .rm-step-n { display: inline; }
   /* All rådata — rummets egna rutor OCH strömmens — bryter redan sina rader vid ≤959 px, och

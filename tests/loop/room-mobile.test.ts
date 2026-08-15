@@ -389,8 +389,12 @@ const HIDING_ALLOWED: { selector: string; why: string }[] = [
   {
     selector: ".rm-step-n",
     why:
-      "ordningstalet är ett PÅSTÅENDE OM LAYOUTEN och döljs bara i de vyer där banorna inte " +
-      "längre står i den ordningen. Namnet på steget står kvar i varje vy.",
+      "ordningstalet är ett PÅSTÅENDE OM LAYOUTEN, aldrig ett värde ur snapshoten. Efter " +
+      "SHREDDER-01C leder ingången i varje vy, så talet är SANT också vid 720–959 px — och " +
+      "utelämnas ändå där. Att utelämna ett sant tal är en utelämning, aldrig en osanning: " +
+      "namnet på steget står kvar i varje vy. Regeln ligger kvar därför att den är frusen av " +
+      "ROOM-LAYOUT i tests/loop/room-shell.test.ts, vars 959-mätning ligger utanför den här " +
+      "skivans skrivrätt; att ta tillbaka talet hör till den skiva som äger den mätningen.",
   },
   {
     selector: ".rm-details > summary::-webkit-details-marker",
@@ -652,13 +656,25 @@ test("ROOM-MOBIL-MARKUP: samma markup i varje vy — media-CSS ordnar om, aldrig
 
 test("ROOM-MOBIL-ORDNING: vid 390 px är spalten huvud → uppmärksamhet → mata → arbete → hylla → ström", () => {
   /*
-    Vid ≤719 px finns ingen scen kvar att ordna om i sidled: läsordningen ÄR layouten, och den
-    ska vara rummets axel. `order: -1` från 959-blocket gäller även vid 390 px, så mätaren
-    kontrollerar att rummet nollställer den — annars visar telefonen en tredje ordning som
-    varken DOM:en eller stegetiketterna påstår.
+    SHREDDER-01C · AMENDERAD FRUSEN SANNING: INGÅNGEN LEDER VID VARJE BREDD.
+
+    ROOM-08 låste tidigare fokusbanan FÖRST i intervallet 720–959 px (`order: -1`), och den
+    här mätaren frös det värdet. Låset stod i mätbar konflikt med ägarens showroom-kriterium —
+    «är det uppenbart var arbete kommer in?» vid VARJE bredd (SHREDDER/Product-V2 §7 och §19,
+    plus banförtydligandet) — och två oberoende visuella granskningar fällde kompositörens
+    plats vid 900 px av exakt det skälet. Ägarkriteriet står över ROOM-08:s surfplatteval.
+
+    Den frusna sanningen är därför: vid ≤959 px är scenen EN spalt, och ingångsbanan
+    (kompositören + kön) läses FÖRE blicken i BÅDA de smala intervallen. Fokusbanan bär då sin
+    DOM-plats, alltså order 0.
+
+    VÄRDET MÄTS SOM «0», INTE SOM «SAKNAS». Rummet skriver ut nollan i 959-blocket, så att en
+    ärvd order från ett annat stilark inte tyst kan flytta banan tillbaka — och så att EN regel
+    täcker båda de smala intervallen i stället för två som kan glida isär.
   */
-  assert.equal(effective(ROOM_CSS, ".rm-lane-focus", "order", VIEWPORTS.tablet), "-1",
-    "arbetet ligger inte först på surfplattan — 959-regeln är borta och mätaren mäter fel sak");
+  assert.equal(effective(ROOM_CSS, ".rm-lane-focus", "order", VIEWPORTS.tablet), "0",
+    "fokusbanan lyfts över ingången på surfplattan — kompositören hamnar då under en uppgiftsyta " +
+      "med orsakskedja och kommandorad, och ägarkriteriet gäller vid VARJE bredd");
   assert.equal(effective(ROOM_CSS, ".rm-lane-focus", "order", VIEWPORTS.mobile), "0",
     "fokusbanan ordnas om vid 390 px: inlämningen hamnar under en orsakskedja med elva hopp");
   assert.equal(effective(ROOM_CSS, ".rm-lane-focus", "order", VIEWPORTS.desktop), null,
@@ -680,8 +696,16 @@ test("ROOM-MOBIL-ORDNING: vid 390 px är spalten huvud → uppmärksamhet → ma
   }
 
   /*
-    Ordningstalet följer sanningen: dolt där arbetet lyfts först (720–959 px), synligt igen där
-    spalten står i berättelsens ordning (≤719 px) och på skrivbordet.
+    ORDNINGSTALET: MÄTNINGEN ÄR OFÖRÄNDRAD, SKÄLET ÄR DET INTE.
+
+    Talet utelämnades vid 720–959 px därför att fokusbanan låg först där. Efter amendmentet
+    ovan är 1, 2, 3 sant också i det intervallet, så regeln behövs inte längre av det skälet —
+    men den står kvar, FRUSEN av ROOM-LAYOUT i tests/loop/room-shell.test.ts, vars 959-mätning
+    ligger utanför den här skivans skrivrätt. Mätningen nedan är därför ordagrant densamma.
+
+    Att utelämna ett SANT tal är en utelämning, aldrig en osanning: bannamnet står kvar i varje
+    vy och ingenting ur snapshoten döljs. Att ta tillbaka talet hör till den skiva som äger
+    959-mätningen i den provfilen.
   */
   assert.equal(effective(ROOM_CSS, ".rm-step-n", "display", VIEWPORTS.desktop), null);
   assert.equal(effective(ROOM_CSS, ".rm-step-n", "display", VIEWPORTS.tablet), "none");
@@ -735,15 +759,26 @@ test("ROOM-MOBIL-ORDNING: vid 390 px är spalten huvud → uppmärksamhet → ma
     sin egen ordning, och en osann regel i ett filhuvud är värre än ingen — nästa läsare tror på
     den. Fragmenten nedan är EXAKT de formuleringar som blev osanna; mätaren är samma sort som
     ux-sweep-residuals R2 använder mot föråldrade påståenden om strömmen.
+
+    SHREDDER-01C · SKÄLEN ÄR UPPDATERADE, LISTAN ÄR INTE UTÖKAD — OCH DET SISTA ÄR MÄTT, INTE
+    BEKVÄMT. Amendmentet gör de två första påståendena falska i HELA intervallet ≤959 px, inte
+    bara i den smalaste vyn, och `why` säger nu det. Listan får däremot inte växa i den här
+    skivan: samma överspelade formulering finns i varianter i components/loop/room/RoomStep.tsx
+    («Mellan 720 och 959 px lägger sig ARBETET FÖRST»), i components/loop/MaskinShell.tsx
+    («rummets blick lyfts FÖRST och ingången faller under den») och i den bindande prosan i
+    tests/loop/room-shell.test.ts — tre filer som alla ligger UTANFÖR den här skivans skrivrätt.
+    Att frysa de strängarna här hade fällt provet på text ingen med skrivrätt kunde rätta, vilket
+    är en trasig mätare och inte en sträng grind. Residualen är därför NAMNGIVEN i stället för
+    tyst, och hör till den skiva som äger de filerna.
   */
   const STALE_LAYOUT_CLAIMS: { text: string; why: string }[] = [
     {
       text: "Vid ≤959 px lägger sig rummets blick först",
-      why: "falskt vid ≤719 px, där ingången står först",
+      why: "falskt i HELA intervallet ≤959 px sedan SHREDDER-01C: ingången leder vid varje bredd",
     },
     {
       text: "Under 960 px lägger sig ARBETET FÖRST",
-      why: "falskt vid ≤719 px, där DOM-ordningen är återställd",
+      why: "falskt i HELA intervallet ≤959 px: DOM-ordningen in → arbete → ut gäller i båda de smala vyerna",
     },
     /*
       Samma drift, men inne i stilarket självt — och därför lättast att missa, eftersom prosan
@@ -755,12 +790,16 @@ test("ROOM-MOBIL-ORDNING: vid 390 px är spalten huvud → uppmärksamhet → ma
         "fel intervall (talet döljs bara i 720–959 px) OCH fel block: 959-blocket är inte längre " +
         "det sista sedan 719-blocket lades under det",
     },
-    { text: "Arbetet först på smala vyer", why: "osant i den smalaste vyn av alla" },
+    {
+      text: "Arbetet först på smala vyer",
+      why: "osant i BÅDA de smala vyerna sedan SHREDDER-01C — ingången står först i var och en",
+    },
     /*
-      Den tredje sorten är den svåraste: en RIKTIG regel med en PÅHITTAD motivering. Regeln
-      (order: -1 vid 720–959 px) är rätt, men skälet påstod ett rutnät som inte finns — scenen är
-      EN spalt redan vid ≤959 px, vilket mätaren strax ovanför kräver vid 900 px. Ett påhittat
-      skäl i ett filhuvud är det nästa läsare bygger vidare på.
+      Den tredje sorten är den svåraste: en RIKTIG regel med en PÅHITTAD motivering. Regeln som
+      lyfte blicken vid 720–959 px fanns (och är sedan SHREDDER-01C amenderad bort), men skälet
+      påstod ett rutnät som aldrig funnits — scenen är EN spalt redan vid ≤959 px, vilket mätaren
+      strax ovanför kräver vid 900 px. Ett påhittat skäl i ett filhuvud är det nästa läsare bygger
+      vidare på, och det överlever regeln som en gång bar det. Fragmenten står därför kvar.
     */
     {
       text: "ligger scenens två banor kvar som ett rutnät",
@@ -834,8 +873,20 @@ test("ROOM-MOBIL-ORDNING: vid 390 px är spalten huvud → uppmärksamhet → ma
     "mätaren fäller fortfarande bara en enda stavning av påståendet",
   );
   /*
-    Och den nya prosan säger BÅDA intervallen: en fil som bara nämner det ena hade beskrivit
-    halva sanningen lika tyst som den gamla beskrev fel sanning.
+    SKALET SKA NÄMNA BÅDA BREDDERNA — MEN INTE LÄNGRE SOM TVÅ OLIKA LÄSORDNINGAR.
+
+    Raderna nedan skrevs när 720–959 px och ≤719 px FAKTISKT hade skilda ordningar, och skälet
+    var då att en fil som bara nämnde det ena beskrev halva sanningen. Efter SHREDDER-01C delar
+    de två intervallen EN läsordning: ingången leder i båda. Kravet som står kvar är alltså
+    smalare än det en gång var — skalets bindande regler ska fortfarande beskriva rummet vid
+    BÅDA bredderna, eftersom en brytpunkt som ingen text nämner är en brytpunkt nästa läsare
+    inte vet finns. Det är en NÄRVAROKONTROLL, inte ett påstående om att ordningarna skiljer sig.
+
+    RESIDUAL, UTSKRIVEN I STÄLLET FÖR UNDERFÖRSTÅDD: components/loop/MaskinShell.tsx beskriver
+    fortfarande de två intervallen som olika arrangemang, och den filen ligger utanför den här
+    skivans skrivrätt. Raderna nedan pinnar därför tillfälligt fast en formulering som ska
+    skrivas om. Den skiva som äger MaskinShell.tsx ska rätta skalets prosa OCH samtidigt se över
+    det här paret, så att kontrollen inte blir ett skäl att låta den gamla distinktionen stå kvar.
   */
   const shell = readFileSync(join(REPO_ROOT, "components/loop/MaskinShell.tsx"), "utf8");
   assert.match(shell, /720–959 px/, "skalet beskriver inte längre surfplattans ordning");
