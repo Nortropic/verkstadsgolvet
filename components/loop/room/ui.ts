@@ -365,21 +365,33 @@ export const ROOM_CSS = `
   */
   .rm-room .mk-button, .rm-room .mk-toggle { min-height: 38px; }
   /*
-    STRÖMMENS RÅDATA ÄR DEN ENDA BEVISYTAN RUMMET INTE ÄGER MARKUPEN TILL.
+    RÅDATA BRYTS DÄR RUMMET ÄR EN SPALT — BÅDA RUTORNA, VID SAMMA BRYTPUNKT.
 
-    EventRow ligger utanför den här skivans skrivrätt, så dess rådataruta kan inte få ett
-    tabindex som rummets egna rutor fick. Kvar blir en yta vars enda väg genom en bred rad är en
-    horisontell panorering med pekare. Där rummet ÄR en spalt (≤959 px) tas därför själva
-    behovet bort i stället: raderna bryts, och ingen panorering behövs. Det är samma behandling
-    LOOP_CSS självt ger originalkällan vid 719 px — byte-identiskt, bara ombrutet.
+    Skälet är ETT och gäller lika för rummets egna rådatarutor och för strömmens: vid ≤959 px är
+    rummet en enda spalt, och då finns ingen bredd kvar att panorera i. En horisontell panorering
+    INUTI en vertikal scroll är den sämsta läsvägen genom ett bevis som finns; där behovet kan tas
+    bort tas det bort, i stället för att lämnas kvar bakom en scrollbehållare.
 
-    KVARSTÅENDE BEGRÄNSNING, UTSKRIVEN I STÄLLET FÖR UNDERFÖRSTÅDD: vid ≥960 px behåller
-    strömmens ruta Maskinens egen form (white-space: pre med egen sidled-scroll) och kan då bara
-    panoreras med pekare. Att skriva om den formen på skrivbordet vore att göra om en annan
-    skivas provade yta från rummets stilark; rätt åtgärd är ett tabindex i EventRow, och den
-    hör till den skiva som äger strömpanelen.
+    ATT DE HAR OLIKA VÄGAR UT ÄR INTE ETT SKÄL ATT GE DEM OLIKA BRYTPUNKT. Rummets egna rutor
+    (tidslinjens och kedjans) är fokuserbara och scrollar med tangentbord; strömmens ruta ägs av
+    EventRow — utanför den här skivans skrivrätt — och kan därför inte få ett tabindex, så utan
+    ombrytning vore dess enda väg genom en bred rad en pekarrörelse. Den skillnaden avgör hur
+    ALLVARLIGT ett kvarvarande panoreringsbehov är, inte VAR behovet upphör: rummet är lika smalt
+    för båda vid 900 px. Regeln stod först i 719-blocket för rummets egna rutor, och då bar
+    surfplattan en pekarpanorering för samma sorts bevis som strömmen redan slapp — en asymmetri
+    utan mätt skäl. Den är borta.
+
+    Ombrytningen är samma behandling LOOP_CSS självt ger originalkällan vid 719 px: byte-identiskt,
+    bara ombrutet — aldrig kapat.
+
+    KVARSTÅENDE BEGRÄNSNING, UTSKRIVEN I STÄLLET FÖR UNDERFÖRSTÅDD: vid ≥960 px behåller båda
+    rutorna Maskinens egen form (white-space: pre med egen sidled-scroll). Rummets egna går då att
+    bläddra med tangentbord; strömmens kan bara panoreras med pekare. Att skriva om den formen på
+    skrivbordet vore att göra om en annan skivas provade yta från rummets stilark; rätt åtgärd för
+    strömmen är ett tabindex i EventRow, och den hör till den skiva som äger strömpanelen.
   */
-  .rm-room .mk-raw[data-event-raw="true"] { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .rm-details > .mk-raw, .rm-room .mk-raw[data-event-raw="true"] {
+    white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 /*
   ORDNING SÄTTS BARA PÅ SCENENS EGNA BARN.
@@ -434,16 +446,10 @@ export const ROOM_CSS = `
      spalt som scrollas i telefonen är precis där ett stegtal hjälper. Talet är fortfarande
      aria-hidden: DOM-ordningen bär sekvensen för den som lyssnar. */
   .rm-step-n { display: inline; }
-  /*
-    RÅDATA BRYTS I STÄLLET FÖR ATT SCROLLA I SIDLED PÅ DEN SMALASTE VYN.
-
-    Samma disciplin som LOOP_CSS redan tillämpar på originalkällan vid 719 px: källan är
-    fortfarande byte-identisk — bara ombruten, aldrig kapad — och en operatör slipper hitta en
-    horisontell scroll inuti en vertikal för att läsa ett bevis. Behållarens egen scroll
-    («.rm-scroll-x») står kvar för de bredare vyerna.
-  */
-  .rm-details > .mk-raw { white-space: pre-wrap; overflow-wrap: anywhere; }
-  /* Strömmens egen ruta bryts redan vid ≤959 px — regeln står i blocket ovan, inte här. */
+  /* All rådata — rummets egna rutor OCH strömmens — bryter redan sina rader vid ≤959 px, och
+     regeln gäller därför här också. Den står i 959-blocket ovan, med sitt skäl, och upprepas
+     inte här: en andra regel för samma sak hade blivit två sanningar att hålla i takt.
+     Behållarens egen scroll («.rm-scroll-x») står kvar och gäller de bredare vyerna. */
   /*
     ETT MÄRKE FÅR ALDRIG BLI SIDANS BREDD.
 

@@ -120,7 +120,8 @@ function Entry({ entry }: { entry: TimelineEntry }) {
         <summary>{"{ }"} rådata</summary>
         {/*
           ROOM-08 · behållaren är FOKUSERBAR. Bred rådata scrollar i sin egen behållare (och
-          bryts vid ≤719 px); en scrollyta utan tabindex går bara att nå med pekare, och ett
+          bryts vid ≤959 px, där rummet är en spalt); en scrollyta utan tabindex går bara att
+          nå med pekare, och ett
           bevis som kräver mus är inte ett tillgängligt bevis. Fokusringen målas i ROOM_CSS.
 
           ETT FOKUSSTOPP UTAN NAMN ÄR EN TYST STATION. Rutan får därför en roll och ett namn:

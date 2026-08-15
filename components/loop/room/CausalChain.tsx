@@ -273,7 +273,8 @@ function Hop({ hop }: { hop: ChainHop }) {
           <summary>{"{ }"} rådata</summary>
           {/*
             ROOM-08 · behållaren är FOKUSERBAR, av samma skäl som i tidslinjen: rådatan scrollar
-            i sin egen behållare (och bryts vid ≤719 px), och en scrollyta utan tabindex är
+            i sin egen behållare (och bryts vid ≤959 px, där rummet är en spalt), och en
+            scrollyta utan tabindex är
             stängd för tangentbordet. Fokusringen målas i ROOM_CSS.
 
             Och den presenterar sig: roll plus namn med HOPPETS EGEN art, så att ett fokusstopp

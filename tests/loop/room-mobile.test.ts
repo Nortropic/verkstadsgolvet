@@ -1082,18 +1082,33 @@ test("ROOM-MOBIL-BREDD: bred mono-text bryts eller scrollar i sin egen behållar
   }
 
   /*
-    STRÖMMENS RÅDATA BRYTS REDAN VID 900 PX, INTE FÖRST VID 390.
+    ALL RÅDATA BRYTS REDAN VID 900 PX, INTE FÖRST VID 390 — OCH BÅDA RUTORNA VID SAMMA BREDD.
 
-    Den rutan ägs av EventRow (utanför skrivrätten) och kan därför inte få ett tabindex som
-    rummets egna rutor fick. Där rummet är en spalt tas behovet av panorering bort i stället —
-    annars hade den enda vägen genom en bred rad varit en pekarrörelse. Rummets EGNA rutor
-    behöver inte samma sak vid 900 px: de är fokuserbara och scrollar med tangentbord.
+    Rummet är en enda spalt redan vid ≤959 px (mätt ovan på grid-template-columns), och då finns
+    ingen bredd kvar att panorera i. En horisontell panorering inuti en vertikal scroll är den
+    sämsta vägen genom ett bevis som finns, och den ska upphöra där rummet blir smalt — inte en
+    brytpunkt senare.
+
+    ATT RUTORNA HAR OLIKA VÄGAR UT ÄR INTE ETT SKÄL ATT GE DEM OLIKA BRYTPUNKT. Rummets egna
+    rutor är fokuserbara och scrollar med tangentbord; strömmens ägs av EventRow (utanför
+    skrivrätten) och kan inte få ett tabindex, så för den är en kvarvarande panorering värre.
+    Den skillnaden avgör hur allvarligt ett kvarstående behov är, inte var behovet upphör.
+    Mätaren låser därför fast SAMMA brytpunkt för båda: den asymmetri som lämnade surfplattan
+    med en pekarpanorering genom kedjans rådata (granskningens ROOM08-VIS-TABLET-RAW-CLIP) kan
+    inte komma tillbaka utan att fällas här.
   */
-  assert.equal(
-    effective(ROOM_CSS, '.rm-room .mk-raw[data-event-raw="true"]', "white-space", VIEWPORTS.tablet),
-    "pre-wrap",
-    "strömmens rådata kräver pekarpanorering vid 900 px, där rummet redan är en spalt",
-  );
+  for (const selector of ['.rm-details > .mk-raw', '.rm-room .mk-raw[data-event-raw="true"]']) {
+    assert.equal(
+      effective(ROOM_CSS, selector, "white-space", VIEWPORTS.tablet),
+      "pre-wrap",
+      `${selector} kräver pekarpanorering vid 900 px, där rummet redan är en spalt`,
+    );
+    assert.equal(
+      effective(ROOM_CSS, selector, "overflow-wrap", VIEWPORTS.tablet),
+      "anywhere",
+      `${selector} bryter inte långa tecken vid 900 px`,
+    );
+  }
 
   /*
     Ingen bredd i rummets stilark kan spränga en 390 px-vy. Måtten är fr/minmax/ch/px, och de
@@ -1554,8 +1569,9 @@ test("ROOM-MOBIL-SHA: varje kortad identifierare har hela sitt värde i samma ho
     enda en telefon får se. Mätaren nedan gör mitigeringen till en mätbar invariant i stället för
     en observation i ett granskningsprotokoll.
 
-    Den ersätter INTE en eventuell framtida förbättring (full SHA ombruten vid ≤719 px). Den
-    säkrar det som gäller idag: ingenting som visas kortat saknar sin fulla form utan mus.
+    Den ersätter INTE en eventuell framtida förbättring (hela SHA:n ombruten i listan i stället
+    för kortad). Den säkrar det som gäller idag: ingenting som visas kortat saknar sin fulla form
+    utan mus.
   */
   const markup = withoutStyles(renderRoom(snapshotFocusedOn(TASK_WITH_EVIDENCE)));
 
@@ -1607,7 +1623,7 @@ test("ROOM-MOBIL-SHA: varje kortad identifierare har hela sitt värde i samma ho
   );
 
   /*
-    Rådatan är dessutom läsbar på en telefon: den bryter sina rader vid ≤719 px (mätt i
+    Rådatan är dessutom läsbar på en telefon: den bryter sina rader vid ≤959 px (mätt i
     ROOM-MOBIL-BREDD) och går att nå med tangentbord (ROOM-MOBIL-FOKUS). Här mäts bara det som
     är den här kontrollens egen sak — att värdet FINNS där.
   */
