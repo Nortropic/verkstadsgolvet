@@ -2168,10 +2168,13 @@
       "visualReview": true,
       "empiricalReview": "Negative controls, each observed FAILING: a showroom preview or production URL that could be mistaken for a real deployment; a real customer name, domain or contact record in showroom data; an unknown smoke or production value rendered as a pass instead of —; a control-plane task rendered inside the customer-production lane.",
       "remotePrerequisites": [],
-      "status": "NOT_STARTED",
+      "status": "DEFERRED_BY_OWNER",
       "evidence": [],
       "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
-      "blocker": null
+      "blocker": {
+        "class": "OWNER_DECISION",
+        "evidence": "Owner 2026-08-16: ingen latsasdata; Owner mandate 2026-08-24: docs/nortropic-verkstadsgolvet-v2-mandate.md"
+      }
     },
     {
       "id": "LANE-03",
@@ -2212,10 +2215,13 @@
       "visualReview": true,
       "empiricalReview": "Negative controls, each observed FAILING: a control-plane task presented as a customer website deploy; a showroom candidate SHA or authoritative main indistinguishable from a live controller-confirmed value; the two lanes rendered so similarly that a first-time operator cannot tell them apart; website QA semantics (SEO, responsive) forced onto a control-plane task.",
       "remotePrerequisites": [],
-      "status": "NOT_STARTED",
+      "status": "DEFERRED_BY_OWNER",
       "evidence": [],
       "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
-      "blocker": null
+      "blocker": {
+        "class": "OWNER_DECISION",
+        "evidence": "Owner 2026-08-16: ingen latsasdata; Owner mandate 2026-08-24: docs/nortropic-verkstadsgolvet-v2-mandate.md"
+      }
     },
     {
       "id": "LANE-04",
@@ -2495,6 +2501,369 @@
       "status": "NOT_STARTED",
       "evidence": [],
       "published": { "baseSha": null, "candidateSha": null, "mergeSha": null, "pr": null },
+      "blocker": null
+    },
+    {
+      "id": "COCKPIT-00",
+      "title": "owner mandate byte-copy and COCKPIT ledger",
+      "source": "docs/nortropic-verkstadsgolvet-v2-mandate.md",
+      "targetRepository": "verkstadsgolvet",
+      "goal": "Record the Verkstadsgolvet v2 owner mandate in this repository as a BYTE-IDENTICAL copy of the owner source (English original, 2026-08-24) and register the eight COCKPIT slices it mandates in this ledger. The mandate is an OWNER-AUTHORITY document: it is copied with cp and verified with diff, and is never edited, reflowed, re-wrapped, translated, summarised or annotated — a diff that does not exit 0 fails the slice. The mandate SUPERSEDES navigation and homepage PRESENTATION decisions only. It changes NO trust invariant, NO backend authority and NO frozen room contract; any such change requires a separate explicit contract-amendment slice. This slice writes exactly two files and touches no product code and no test.",
+      "dependencies": [],
+      "allowedWrite": [
+        "docs/nortropic-verkstadsgolvet-v2-mandate.md",
+        "backlog/nortropic-factory-room-master-v1.json"
+      ],
+      "deniedWrite": [
+        "CLAUDE.md",
+        ".claude/**",
+        "docs/claude-operating-model-v1.md",
+        "docs/nortropic-control-room-plan-v1.md",
+        "docs/nortropic-control-room-codex-handoff.md",
+        "docs/nortropic-factory-room-master-roadmap-v1.md",
+        "docs/nortropic-factory-room-handoff-v1.md",
+        "backlog/control-room-v1.json",
+        "app/**",
+        "components/**",
+        "lib/**",
+        "tests/**",
+        "scripts/**",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "package.json",
+        "package-lock.json"
+      ],
+      "gates": [
+        ["diff", "/Users/elinhaggstrom/nortropic/tasks/verkstadsgolvet/cockpit-v2-mandate-source.md", "docs/nortropic-verkstadsgolvet-v2-mandate.md"],
+        ["node", "-e", "JSON.parse(require('fs').readFileSync('backlog/nortropic-factory-room-master-v1.json','utf8')); console.log('backlog ok')"],
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": false,
+      "remotePrerequisites": [],
+      "status": "IN_PROGRESS",
+      "evidence": [
+        "run: cockpit-00_mandate_copy-20260824164325",
+        "byte-identity is established by the diff gate against /Users/elinhaggstrom/nortropic/tasks/verkstadsgolvet/cockpit-v2-mandate-source.md, never by model prose: a mandate copy that has not passed that gate is not a recorded mandate",
+        "the ledger half of this slice appends COCKPIT-00..COCKPIT-07 and sets LANE-02 and LANE-03 to DEFERRED_BY_OWNER; no other slice record was changed"
+      ],
+      "published": null,
+      "blocker": null
+    },
+    {
+      "id": "COCKPIT-01",
+      "title": "cockpit data layer",
+      "source": "docs/nortropic-verkstadsgolvet-v2-mandate.md",
+      "targetRepository": "verkstadsgolvet",
+      "goal": "Build the cockpit derivation layer under lib/cockpit/* as pure, testable functions with no rendering. status.ts exposes readFactory built ONLY over lib/loop/transport (isLoopEnabled, isTransportConfigured, loadSnapshot) and NEVER over fixtureSnapshot: when the backend is not enabled or not configured the cockpit reports honestly that it is not connected instead of dressing demo data as operations. halsa.ts derives deriveHealth. behover-dig.ts derives deriveNeedsYou and keeps the two honesty constants NEEDS_YOU_EMPTY and NEEDS_YOU_UNKNOWN strictly distinct — nothing needs you is not the same statement as we do not know. arbete.ts provides partitionWork as a TOTAL function over all eleven canonical task states plus FAS_ETIKETTER and nextStep, so no state can fall through unclassified. styrkan.ts derives deriveWorkforce. format.ts holds the shared formatting, with unknown or unavailable values rendering as — and never as a zero, a percentage or a guess. showroom.ts is a re-export boundary so cockpit code never reaches into showroom internals. Covered by tests/loop/cockpit-derive.test.ts. SNAPSHOT_WINS is unchanged and no event fold becomes authority.",
+      "dependencies": ["COCKPIT-00"],
+      "allowedWrite": [
+        "lib/cockpit/**",
+        "tests/loop/cockpit-derive.test.ts"
+      ],
+      "deniedWrite": [
+        "lib/loop/**",
+        "app/**",
+        "components/**",
+        "tests/loop/showroom-navigation.test.ts",
+        "tests/loop/room-shell.test.ts",
+        "tests/loop/showroom-contract.test.ts",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": false,
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": null,
+      "blocker": null
+    },
+    {
+      "id": "COCKPIT-02",
+      "title": "cockpit surface kit",
+      "source": "docs/nortropic-verkstadsgolvet-v2-mandate.md",
+      "targetRepository": "verkstadsgolvet",
+      "goal": "Build the cockpit surface kit in components/cockpit/ui.ts: one COCKPIT_CSS block using the ck- class prefix, drawing colour, spacing and typography ONLY from the existing app/globals.css custom properties so the cockpit cannot fork the house design system. The block contains ZERO percent characters and ZERO animation — no progress bars, no spinners, no signal-free motion, because a percentage and an animation both read as information the backend never published. Ship CkField as the shared label/value primitive that renders — for unknown or unavailable data. Covered by tests/loop/cockpit-ui.test.ts, which mechanically asserts the prefix, the zero-percent rule, the zero-animation rule and the globals-only variable rule rather than trusting review prose. LOOP_CSS and ROOM_CSS are untouched.",
+      "dependencies": ["COCKPIT-01"],
+      "allowedWrite": [
+        "components/cockpit/**",
+        "tests/loop/cockpit-ui.test.ts"
+      ],
+      "deniedWrite": [
+        "app/globals.css",
+        "components/loop/**",
+        "components/Sidebar.tsx",
+        "app/**",
+        "lib/loop/**",
+        "tests/loop/showroom-navigation.test.ts",
+        "tests/loop/room-shell.test.ts",
+        "tests/loop/showroom-contract.test.ts",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": false,
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": null,
+      "blocker": null
+    },
+    {
+      "id": "COCKPIT-03",
+      "title": "arbete level-2 views",
+      "source": "docs/nortropic-verkstadsgolvet-v2-mandate.md",
+      "targetRepository": "verkstadsgolvet",
+      "goal": "Build the level-2 work views /arbete and /arbete/[taskId] over the COCKPIT-01 derivations and the COCKPIT-02 kit. The language is Swedish ORGANIZATIONAL language — what is being done, for whom, and what happens next — not control-plane jargon: the machine vocabulary lives in a Teknisk metadata section rendered as a CLOSED details element, present and complete but never the first thing an operator reads. When the backend is not connected the view says so honestly and renders no invented work. The link to /loop is labelled as the SHOWROOM it is, so an operator can never mistake the demonstration surface for live operations. Covered by tests/loop/cockpit-arbete.test.ts. Unknown data renders —; no percentages, no progress bars, no invented task.",
+      "dependencies": ["COCKPIT-02"],
+      "allowedWrite": [
+        "app/(app)/arbete/**",
+        "components/cockpit/**",
+        "lib/cockpit/**",
+        "tests/loop/cockpit-arbete.test.ts"
+      ],
+      "deniedWrite": [
+        "app/(app)/loop/**",
+        "app/(app)/page.tsx",
+        "components/loop/**",
+        "components/Sidebar.tsx",
+        "lib/loop/**",
+        "app/api/**",
+        "tests/loop/showroom-navigation.test.ts",
+        "tests/loop/room-shell.test.ts",
+        "tests/loop/showroom-contract.test.ts",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": false,
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": null,
+      "blocker": null
+    },
+    {
+      "id": "COCKPIT-04",
+      "title": "styrkan workforce view",
+      "source": "docs/nortropic-verkstadsgolvet-v2-mandate.md",
+      "targetRepository": "verkstadsgolvet",
+      "goal": "Build the /styrkan workforce view over deriveWorkforce from COCKPIT-01 and the COCKPIT-02 kit: who is working, on what, and what is idle, in Swedish organizational language. A workflow role is never presented as a security boundary and a provider execution identity is never presented as a service identity. Unknown or unavailable fields render — rather than a fabricated headcount, utilisation figure or percentage, and a not-connected backend is stated plainly instead of being filled with demo staff. Covered by tests/loop/cockpit-styrkan.test.ts.",
+      "dependencies": ["COCKPIT-02"],
+      "allowedWrite": [
+        "app/(app)/styrkan/**",
+        "components/cockpit/**",
+        "lib/cockpit/**",
+        "tests/loop/cockpit-styrkan.test.ts"
+      ],
+      "deniedWrite": [
+        "app/(app)/loop/**",
+        "app/(app)/page.tsx",
+        "components/loop/**",
+        "components/Sidebar.tsx",
+        "lib/loop/**",
+        "app/api/**",
+        "tests/loop/showroom-navigation.test.ts",
+        "tests/loop/room-shell.test.ts",
+        "tests/loop/showroom-contract.test.ts",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": false,
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": null,
+      "blocker": null
+    },
+    {
+      "id": "COCKPIT-05",
+      "title": "home view staged at /hem",
+      "source": "docs/nortropic-verkstadsgolvet-v2-mandate.md",
+      "targetRepository": "verkstadsgolvet",
+      "goal": "Build the cockpit home view HemVy — FabrikensPuls, an exception-first BEHÖVER DIG region, PÅGÅENDE ARBETE, NYLIGEN KLART, the STYRKAN line and VerkstadKort — and STAGE it at app/(app)/hem/page.tsx rather than swapping the live homepage, so the contract swap is a separate reviewable step (COCKPIT-06). Exception-first means BEHÖVER DIG leads and is empty when nothing needs the owner: NEEDS_YOU_EMPTY and NEEDS_YOU_UNKNOWN stay visibly different states. No percentages, no progress bars, no animation, unknown renders —, and a not-connected backend is stated rather than filled. Covered by tests/loop/cockpit-home.test.ts.",
+      "dependencies": ["COCKPIT-01", "COCKPIT-02", "COCKPIT-03", "COCKPIT-04"],
+      "allowedWrite": [
+        "app/(app)/hem/**",
+        "components/cockpit/**",
+        "lib/cockpit/**",
+        "tests/loop/cockpit-home.test.ts"
+      ],
+      "deniedWrite": [
+        "app/(app)/page.tsx",
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "components/Sidebar.tsx",
+        "lib/loop/**",
+        "app/api/**",
+        "tests/loop/showroom-navigation.test.ts",
+        "tests/loop/room-shell.test.ts",
+        "tests/loop/showroom-contract.test.ts",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": false,
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": null,
+      "blocker": null
+    },
+    {
+      "id": "COCKPIT-06",
+      "title": "atomic contract swap: home and navigation",
+      "source": "docs/nortropic-verkstadsgolvet-v2-mandate.md",
+      "targetRepository": "verkstadsgolvet",
+      "goal": "Perform the contract swap in ONE atomic slice so no intermediate commit ships a half-swapped shell. Rewrite app/(app)/page.tsx to render HemVy, keeping the inline product-entry strings VERBATIM so no landed copy is silently lost. Rewrite components/Sidebar.tsx to the reduced navigation: the Ny kund CTA; Hem; Arbete; a Kunder group (Insamling, Kvalificering, Arbetsvy, Kalibrering); Styrkan; and a Verkstad group (Kartongförstöraren → /loop, Mata maskinen → /loop/mata, Dokument). /hem becomes redirect(\"/\") so the staged route from COCKPIT-05 keeps working without becoming a second homepage. Amend EXACTLY two frozen test files and nothing else: tests/loop/showroom-navigation.test.ts (NAV-A ordering replacement, NAV-B-2 replacement, NAV-E >=12 becomes >=7) and the ROOM-ISOLERING home-panels block in tests/loop/room-shell.test.ts. A frozen assertion is REPLACED with the new owner-mandated one, never weakened, deleted or commented out, and no other assertion in either file is touched.",
+      "dependencies": ["COCKPIT-05"],
+      "allowedWrite": [
+        "app/(app)/page.tsx",
+        "app/(app)/hem/page.tsx",
+        "components/Sidebar.tsx",
+        "components/cockpit/**",
+        "lib/cockpit/**",
+        "tests/loop/showroom-navigation.test.ts",
+        "tests/loop/room-shell.test.ts"
+      ],
+      "deniedWrite": [
+        "app/(app)/loop/**",
+        "components/loop/**",
+        "lib/loop/**",
+        "app/api/**",
+        "tests/loop/showroom-contract.test.ts",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": true,
+      "empiricalReview": false,
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": null,
+      "blocker": null
+    },
+    {
+      "id": "COCKPIT-07",
+      "title": "cleanup of superseded surfaces",
+      "source": "docs/nortropic-verkstadsgolvet-v2-mandate.md",
+      "targetRepository": "verkstadsgolvet",
+      "goal": "Delete the surfaces the mandate supersedes, only AFTER the swap has landed and nothing links to them: the /agenter page, the /systemhalsa/** pages and the /systemkarta page, together with the panels left orphaned by those deletions. A component is deleted only when it is measurably unreferenced; a still-referenced panel is reported rather than removed, and no surviving surface is silently degraded to make a deletion possible. This slice removes code and adds no behaviour: it changes no trust invariant, no backend authority and no frozen room contract.",
+      "dependencies": ["COCKPIT-06"],
+      "allowedWrite": [
+        "app/(app)/agenter/**",
+        "app/(app)/systemhalsa/**",
+        "app/(app)/systemkarta/**",
+        "components/**",
+        "tests/loop/**"
+      ],
+      "deniedWrite": [
+        "app/(app)/loop/**",
+        "app/(app)/page.tsx",
+        "app/(app)/hem/**",
+        "components/loop/**",
+        "components/cockpit/**",
+        "components/Sidebar.tsx",
+        "lib/loop/**",
+        "app/api/**",
+        "tests/loop/showroom-contract.test.ts",
+        "middleware.ts",
+        "auth.ts",
+        "auth.config.ts",
+        "scripts/**",
+        "backlog/control-room-v1.json",
+        ".claude/**",
+        "CLAUDE.md",
+        "docs/**"
+      ],
+      "gates": [
+        ["npx", "tsc", "--noEmit"],
+        ["npm", "run", "build"],
+        ["npm", "run", "loop:test"],
+        ["npm", "run", "claude:test"]
+      ],
+      "visualReview": false,
+      "empiricalReview": false,
+      "remotePrerequisites": [],
+      "status": "NOT_STARTED",
+      "evidence": [],
+      "published": null,
       "blocker": null
     }
   ],
