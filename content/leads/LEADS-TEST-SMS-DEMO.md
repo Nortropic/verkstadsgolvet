@@ -1,5 +1,26 @@
 # Leads-metoden — test, demo & SMS (manuell outreach)
 
+> ## ⛔ STEP-0A CONTAINMENT (2026-08-24) — SMS-KANALEN ÄR STOPPAD
+>
+> Juridisk research mot primärkällor (MFL 2008:486, prop. 2003/04:43, etablerad doktrin) har
+> **vederlagt gråzons-resonemanget nedan**: enskild firma = fysisk person ÄVEN i
+> näringsverksamheten, och 19 § kräver **föregående samtycke (opt-in)** för marknadsförings-SMS/
+> e-post till fysiska personer. Att utskicket sker manuellt, individuellt utvalt och en-i-taget
+> ändrar inte den rättsliga karaktären — gratis-demo-erbjudandet ÄR marknadsföring. Sanktioner
+> efter 2022: marknadsstörningsavgift upp till 4 % av omsättningen.
+>
+> **Gäller omedelbart:** skicka INGA kalla SMS eller e-postmeddelanden till enskilda firmor
+> (eller andra fysiska personer) utan föregående samtycke/soft-opt-in. Pausa svepet
+> (`/leads/insamling` → "Pausa svepet") och stäng av n8n-cronen — den durabla lagringen av
+> Places-härledda fält är dessutom ett separat Maps-ToS-problem som åtgärdas i P1
+> (Bolagsverket-rebasen).
+>
+> **Ersättningskanaler (telefon-efter-NIX-tvätt, AB-rolladresser med avregistrering, adresserad
+> post) är KANDIDATER — inte godkända kanaler.** De klassificeras av outreach-policy-matrisen
+> mot aktuella auktoritativa källor innan någon av dem används. Research, kvalificering,
+> scoring-arbete och demo-metodutveckling fortsätter oförändrat — endast utskicks- och
+> lagringsvägarna är i karantän. Se masterplanen (Part 9 steg 7, Part 12 steg 1).
+
 *Metoden som Leads-modulen stödjer. Kort, konkret, uppdaterad 2026-07. Systemet SAMLAR och
 POÄNGSÄTTER; DU bygger demo och skickar SMS för hand. Ingen automatisk utskickning — någonsin.*
 
@@ -68,10 +89,12 @@ Regler för texten:
 
 ## JURIDIK & KVALITET (därför manuellt)
 
-- **Svensk B2B-gråzon.** Marknadsföring via SMS till enskild firma kan räknas som till privatperson
-  (samma person). Håll det till **relevanta, individuellt utvalda** mottagare med tydlig avsändare
-  och enkel möjlighet att säga ifrån — inte massutskick. Vid tvekan: hör med de nöjda kunderna
-  först / rådfråga.
+- **~~Svensk B2B-gråzon~~ — VEDERLAGT 2026-08-24, se containment-notisen överst.** Det är ingen
+  gråzon: SMS till enskild firma är SMS till en fysisk person och kräver opt-in enligt MFL 19 §
+  oavsett hur individuellt utvalt eller manuellt utskicket är. Kanalen är stoppad.
+  *(Ursprunglig, nu vederlagd text: "Marknadsföring via SMS till enskild firma kan räknas som
+  till privatperson (samma person). Håll det till relevanta, individuellt utvalda mottagare med
+  tydlig avsändare och enkel möjlighet att säga ifrån — inte massutskick.")*
 - **Kvalitet slår volym.** Ett personligt SMS med en färdig demo till rätt företag slår hundra
   generiska. Systemet är byggt för att hitta *rätt* företag, inte många.
 - **Read-only mot prospekt.** Vi läser bara offentlig data. Vi skickar aldrig DM, formulär eller
