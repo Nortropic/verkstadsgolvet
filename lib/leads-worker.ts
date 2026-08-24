@@ -60,6 +60,15 @@ export type WorkerSvar =
   | { ok: false; reason: string; message: string };
 
 export async function runWorkerBatch(batch = 2): Promise<WorkerSvar> {
+  // STEP-0A CONTAINMENT (2026-08-24): svepet skapar durabla poster med Places-härledda
+  // fält (namn/adress/telefon/betyg m.m.) — otillåtet enligt Maps-ToS (endast place_id
+  // får lagras varaktigt; EEA-villkoren 2025-07-08 skärpte ytterligare). Insamlingen är
+  // stoppad tills P1:s Bolagsverket-rebase (registret som durabel källa + place_id-pekare
+  // med färskhämtning vid användning) är på plats. Hävs ENDAST genom att ägaren sätter
+  // env STEP0A_CONTAINMENT_OVERRIDE=jag-forstar-tos-risken — aldrig i förbifarten.
+  if (process.env.STEP0A_CONTAINMENT_OVERRIDE !== "jag-forstar-tos-risken") {
+    return { ok: false, reason: "step0a-containment", message: "Insamlingen är stoppad (STEP-0A): durabel lagring av Places-data väntar P1:s Bolagsverket-rebase. Se content/leads/LEADS-TEST-SMS-DEMO.md." };
+  }
   const client = supa();
   if (!client) return { ok: false, reason: "no-config", message: "Supabase ej konfigurerat." };
   if (!placesConfigured()) return { ok: false, reason: "no-places", message: "PLACES_API_KEY saknas i Railway." };
