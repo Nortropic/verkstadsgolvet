@@ -1,0 +1,22 @@
+{
+  "schema": "verkstadsgolvet.research-contract.pin/v1",
+  "kommentar": "HÄRLEDD pinn. Kontraktet är kanoniskt i Nortropic/nortropic-system och ALDRIG här. Uppdateras enbart av scripts/sync-research-contract.mjs. Drift = fail-closed.",
+  "kalla": {
+    "repo": "Nortropic/nortropic-system",
+    "commit": "3cc199552fd00aa9cde104b33f895f5db4814e1a"
+  },
+  "karna": {
+    "version": "3.0.0",
+    "path": "skills/nortropic-plan/references/research-kontrakt-v3.md",
+    "sha256": "1d860849994801e889694d1eaad4416ea8cf1ed5b2fcca5bc2f1a98363655c82"
+  },
+  "paketmoduler": [
+    {
+      "pack": "lokal-se",
+      "version": "1.0.0",
+      "motKarna": ">=3.0.0 <4.0.0",
+      "path": "packs/lokal-se/research-module.md",
+      "sha256": "1eaff35f9819ba037717bed3defe9ef616de2f15806532831def6954a9b7bb98"
+    }
+  ]
+}

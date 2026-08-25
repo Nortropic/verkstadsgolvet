@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toRepoName } from "@/lib/slug";
-import { buildResearchPrompt, type OnboardingInput } from "@/lib/prompt-research";
+import { buildResearchPrompt, type OnboardingInput, type VerifiedContract } from "@/lib/prompt-research";
 
 /**
  * Onboarding-formulär (Fas B, variant A). Appen anropar INTE Claude.
@@ -18,7 +18,14 @@ type CreateResp =
   | { ok: true; repo: string; url: string }
   | { ok: false; reason: string; message: string };
 
-export default function OnboardingForm({ enabled }: { enabled: boolean }) {
+export default function OnboardingForm({
+  enabled,
+  contract,
+}: {
+  enabled: boolean;
+  /** Redan FAIL-CLOSED-verifierad på servern. Klienten komponerar aldrig utan den. */
+  contract: VerifiedContract;
+}) {
   const [kundnamn, setKundnamn] = useState("");
   const [formularsvar, setFormularsvar] = useState("");
   const [facebook, setFacebook] = useState("");
@@ -44,8 +51,8 @@ export default function OnboardingForm({ enabled }: { enabled: boolean }) {
   };
   const repoName = useMemo(() => toRepoName(kundnamn), [kundnamn]);
   const prompt = useMemo(
-    () => buildResearchPrompt(input),
-    [kundnamn, formularsvar, facebook, instagram, hemsida, branschOrt, kanaler]
+    () => buildResearchPrompt(input, contract),
+    [kundnamn, formularsvar, facebook, instagram, hemsida, branschOrt, kanaler, contract]
   );
 
   async function copyPrompt() {
