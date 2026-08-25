@@ -1,6 +1,6 @@
 import PageHeader from "@/components/PageHeader";
 import OnboardingForm from "@/components/OnboardingForm";
-import { getContractCore, getPackModule } from "@/lib/research-contract";
+import { getContractCore, getPackModule, CONTRACT_PIN } from "@/lib/research-contract";
 import type { VerifiedContract } from "@/lib/prompt-research";
 
 /**
@@ -17,17 +17,25 @@ export default function OnboardingPage() {
 
   let contract: VerifiedContract | null = null;
   let contractError: string | null = null;
+  let tillgangligaPaket: { pack: string; version: string; text: string }[] = [];
   try {
     const core = getContractCore();
-    // core-only är default: en paketmodul aktiveras först när paketet är BELAGT.
-    // Onboardingformuläret belägger inget paket, så hypotesläget gäller (kontraktet).
-    const pack = getPackModule(null);
+    // core-only är DEFAULT: en paketmodul aktiveras först när paketet är BELAGT.
+    // S2: pakethypotesen är OPERATÖRSVÄND och överstyrbar — operatören kan bekräfta
+    // att paketet är belagt, men ingenting gissar åt den. Alla tillgängliga moduler
+    // skickas därför VERIFIERADE från servern; klienten väljer, men kan aldrig
+    // uppfinna en modul som inte passerat identitetskontrollen.
+    const packs = CONTRACT_PIN.paketmoduler
+      .map((p) => getPackModule(p.pack))
+      .filter((m): m is NonNullable<typeof m> => m !== null)
+      .map((m) => ({ pack: m.pack, version: m.version, text: m.text }));
     contract = {
       version: core.version,
       coreText: core.text,
       sourceCommit: core.sourceCommit,
-      pack: pack ? { pack: pack.pack, version: pack.version, text: pack.text } : null,
+      pack: null,
     };
+    tillgangligaPaket = packs;
   } catch (e) {
     contractError = e instanceof Error ? e.message : String(e);
   }
@@ -40,7 +48,7 @@ export default function OnboardingPage() {
       />
       <div className="panel" style={{ maxWidth: 840 }}>
         {contract ? (
-          <OnboardingForm enabled={enabled} contract={contract} />
+          <OnboardingForm enabled={enabled} contract={contract} tillgangligaPaket={tillgangligaPaket} />
         ) : (
           <div role="alert">
             <h2>Researchkontraktet kunde inte verifieras</h2>
