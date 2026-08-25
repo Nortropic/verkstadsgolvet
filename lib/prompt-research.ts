@@ -1,10 +1,21 @@
 /**
- * Research-prompten (PROMPT-RESEARCH.md v2) som onboarding-flödet automatiserar.
- * buildResearchPrompt() fyller INDATA-blocket med formulärvärdena; resten är verbatim.
+ * PINNAD COMPOSER (S1, Webbförvaltningen).
  *
- * OBS: att DEFINIERA denna sträng gör INGET Claude-anrop. Det första riktiga anropet
- * sker först i Fas B, bakom ONBOARDING_ENABLED och efter Johnnys go-ahead (invariant 6).
- * Read-only-regeln (skicka aldrig formulär/DM/kontaktförfrågningar) är inbyggd i texten.
+ * Denna fil bär INTE längre någon egen kopia av researchfrågorna. Kontraktet är
+ * kanoniskt i `Nortropic/nortropic-system`
+ * (`skills/nortropic-plan/references/research-kontrakt-v3.md` + `packs/<pack>/research-module.md`),
+ * pinnas via `lib/research-contract/pin.json` och verifieras fail-closed på servern
+ * innan något komponeras. En composer som bär sin egen kopia är en MUTABEL
+ * RUNTIME-KÄLLA — precis det kontraktet förbjuder.
+ *
+ * `buildResearchPrompt` är en REN funktion: den tar den redan verifierade
+ * kontraktstexten som indata och kan därför köras i klienten utan krypto-beroenden.
+ * Den verifierar alltså INTE själv: dess enda produktionsanropare är serverkomponenten
+ * `app/(app)/onboarding/page.tsx`, som redan bevisat identiteten fail-closed. Utan den
+ * grinden renderas ingen prompt alls.
+ *
+ * OBS: att komponera denna sträng gör INGET Claude-anrop. Read-only-regeln
+ * (skicka aldrig formulär/DM/kontaktförfrågningar) kommer ur kontraktstexten.
  */
 
 export type OnboardingInput = {
@@ -17,10 +28,31 @@ export type OnboardingInput = {
   kundnamn: string;
 };
 
-export function buildResearchPrompt(input: OnboardingInput): string {
-  const v = (s: string) => (s.trim() ? s.trim() : "saknas");
+/** Den verifierade kontraktsidentiteten, framtagen på servern av lib/research-contract. */
+export type VerifiedContract = {
+  version: string;
+  coreText: string;
+  sourceCommit: string;
+  /** `null` = core-only. Ett GILTIGT läge enligt kontraktet — aldrig ett fel. */
+  pack: { pack: string; version: string; text: string } | null;
+};
 
-  return `Du hjälper mig producera en komplett \`research.md\` för en ny Nortropic-kund — en svensk egenföretagare eller ett lokalt småföretag (snickare, hunddagis, blomsterhandel, frisör, elektriker...) som ska få en sajt. Filen matas in i min byggpipeline där en planner syntetiserar strategi och kalibreringsprofil ur den — **din uppgift är fakta med belägg, inte slutsatser**: fabricera aldrig; allt du inte kan belägga markeras \`[OSÄKER]\`, och varje faktapåstående får en källnot i parentes (formulär / FB / IG / sajt / sökning) så jag kan verifiera. Read-only överallt: skicka aldrig formulär, DM eller kontaktförfrågningar.
+export function buildResearchPrompt(input: OnboardingInput, contract: VerifiedContract): string {
+  const v = (s: string) => (s.trim() ? s.trim() : "saknas");
+  const packId = contract.pack ? contract.pack.pack : "core-only";
+  const packModule = contract.pack ? contract.pack.version : "none";
+
+  return `Du hjälper mig producera en komplett \`research.md\` för en ny Nortropic-kund.
+
+Du arbetar mot ETT kanoniskt kontrakt som återges ORDAGRANT nedan. Kontraktet är
+auktoriteten — inte denna inledning, och inte något du minns från tidigare körningar.
+Följ det som står i kontraktstexten; avviker min inledning från kontraktet vinner
+kontraktet.
+
+**Kontraktsidentitet (får inte ändras av dig):**
+- Kontraktsversion: ${contract.version}
+- Paket: ${packId} (paketmodul: ${packModule})
+- Källa: nortropic-system @ ${contract.sourceCommit.slice(0, 12)}
 
 ## INDATA
 - Kundnamn: ${v(input.kundnamn)}
@@ -31,41 +63,42 @@ export function buildResearchPrompt(input: OnboardingInput): string {
 - Bransch + huvudort: ${v(input.branschOrt)}
 - Bokning/kontaktkanaler i dag: ${v(input.kanaler)}
 
-## ARBETSGÅNG
+---
 
-**1. Formuläret.** Extrahera och strukturera allt kunden uppgett. Det kunden själv sagt är facit — motsäger andra källor det, notera konflikten i stället för att välja.
+# KONTRAKT — UNIVERSELL KÄRNA (ordagrant)
 
-**2. Primärhandlingen (matar profilens arketyp).** Hur konverterar kunder FAKTISKT i dag, med belägg: ringer de (nummer synligt var?), bokar de (vilket system?), DM:ar de (svarsmönster?), eller kommer de till en fysisk plats? Vad *önskar* kunden som primär handling enligt formuläret? En rads slutsats: trolig primärhandling = ring nu | boka tid | platsförfrågan | offert | besök — med källa per observation. Gissa inte; två motstridiga signaler = notera båda.
+${contract.coreText}
 
-**3. Facebook-sidan.** Exakt företagsnamn, NAP (adress/telefon), öppettider, omdömen (betyg + EXAKT antal + plattform), org-info i Om-sektionen, inläggsfrekvens och tonalitet, inlägg som visar utförda jobb, samt vilka kontaktvägar sidan faktiskt erbjuder.
+${
+  contract.pack
+    ? `---
 
-**4. Instagram — bildinventeringen (viktigast).** Avgör sajtens premium-tak: antal inlägg; uppskattat antal ANVÄNDBARA foton (skarpa, dagsljus, visar arbete/resultat); motivtyper; finns liggande bilder som klarar hero? highlights? bio-rösten? **Finns ett bra ansiktsporträtt av ägaren?** Avsluta med bedömning: "räcker materialet för foto-först-design, eller behövs ny fotografering?" — och flagga alltid rättighetsfrågan.
+# KONTRAKT — PAKETMODUL \`${contract.pack.pack}\` v${contract.pack.version} (ordagrant)
 
-**5. Befintlig sajt (om finns).** Vad ska bevaras (URL:er med SEO-värde, texter kunden gillar), vad är problemen, vilken plattform.
+Modulen SKÄRPER kärnan ovan. Den lättar aldrig ett universellt krav och förskjuter
+aldrig kärnans sektionsnumrering.
 
-**6. Kvitton-inventeringen (ELLER nystartad-läget).** Kartlägg förtroendekvitton med belägg: F-skatt, certifikat med namn, utbildningar med skola+datum, försäkring, garanti, omdömen, portfolio, fysisk plats, år i branschen. **Om nystartad och kvitton saknas:** växla till person-först — ägarens bakgrund/utbildning (med datum), startår, ansiktsporträtt, rimliga löften från dag ett. Markera tydligt: **"NYSTARTAD — kvitton saknas, person-först gäller."** Kudda aldrig med lånade meriter.
+${contract.pack.text}`
+    : `---
 
-**7. Juridik- och scope-spaning (rå observation).** Rapportera med citat/källa om något förekommer: hälsa/kropp/medicin · livsmedel · finans/försäkring · barn som primär målgrupp · alkohol/tobak · **vill kunden sälja online** (e-handel) · **vill kunden ha bokning/inloggning/medlemsdata** (notera om extern bokningstjänst redan används). Bara observationer — inga bedömningar.
+# KOMPOSITIONSLÄGE: core-only
 
-**8. Konkurrentkoll.** 2–3 lokala konkurrenter i branschen + orten. Per konkurrent: URL, en mening om styrka/svaghet, synliga betyg. Ingen djupanalys.
+Inget paket är BELAGT för den här kunden, så enbart den universella kärnan (sektion
+1–17) gäller. Detta är ett GILTIGT läge enligt kontraktet, aldrig ett fel — och en
+ANTAGEN bransch aktiverar aldrig en paketmodul. Tror du dig se ett paket: notera det
+som hypotes i sektion 15 och fortsätt core-only.`
+}
 
-**9. Designreferensjakt.** Omdömesjakten först (Reco/Google Maps → företag med betyg ≥4,7 → deras sajter → footer-jakt). Komplettera: SiteInspire, Land-book, One Page Love, Httpster, Mobbin. Varning: Awwwards/Godly/FWA endast filtrerat. Recept: 3 × verkliga branschsajter · 1–2 × SiteInspire/Land-book · max 2 × Dribbble-koncept (märk "koncept"). Per referens: URL + 2–3 meningars motivering kopplad till DENNA kunds material och röst.
+---
 
-**10. Skriv \`research.md\`** i denna struktur, klar att spara:
-   - Företag & kontakt (namn, org-form, telefon, NAP, öppettider)
-   - Tjänster (kundens egna ord)
-   - Orter & läge (belagda arbetsområden; åker vi ut / kunden kommer hit / varumärke — med belägg)
-   - **Primärhandling & kanaler** (steg 2)
-   - **Kvitton — eller NYSTARTAD-inventering** (steg 6)
-   - Priser / ROT-läge (om ROT-relevant)
-   - Bildmaterial (steg 4 + rättighetsläget + ansiktsporträtt)
-   - **Bild-URL:er för nedladdning** — lista de användbara bildernas URL:er STRUKTURERAT per sektion (hero-kandidater, galleri/projekt, porträtt, övrigt), en URL per rad med en kort not per bild (motiv + varför den passar). Extrahera exakta URL:er där du kan (särskilt från befintlig sajt via web_fetch). För bilder bakom FB/IG-inloggning eller där exakt URL ej kan extraheras: skriv "kräver original från kund" istället för en gissad URL. Dessa laddas hem vid BYGGET, efter kundens publiceringsgodkännande — aldrig i detta steg.
-   - Röst & ton (1–2 exempel ur egna inlägg + 2–3 exempel på branschens eget språk)
-   - **Juridik-/scope-observationer** (steg 7, rått med citat)
-   - Konkurrenter (steg 8)
-   - Designreferenser (steg 9, med motiveringar)
-   - **Öppna frågor till kunden** — allt \`[OSÄKER]\` + standardfrågor (omdömen vi får publicera med namn+ort? högupplösta original + godkännande? domänönskemål? bokningskanal? vid nystartad: vilka löften vågar du stå för?)
-   - Kontrollrad sist: bekräfta de 5 obligatoriska fälten (namn, telefon, ≥1 tjänst, ≥1 ort, ≥1 USP *eller* markerat nystartad-läge). Saknas något: säg det RÖTT överst i stället för att gissa.
+# LEVERANS
 
-Fråga max 2 klargörande frågor innan du börjar om något i indata är motsägelsefullt — annars kör.`;
+Skriv \`research.md\` enligt kontraktets sektioner 1–17${contract.pack ? " plus paketmodulens L-sektioner" : ""},
+klar att spara. Avsluta ALLTID med kontrollraden (sektion 17) ifylld — inklusive
+\`pack=${packId}\`, \`pack_module=${packModule}\` och det faktiska antalet \`osakra\` och
+\`konflikter\`. Är något obligatoriskt fält obelagt är raden \`status=OFULLSTÄNDIG\`, och
+det skrivs RÖTT överst i filen — aldrig bara i kontrollraden.
+
+Fråga max 2 klargörande frågor innan du börjar om något i indata är motsägelsefullt —
+annars kör.`;
 }
