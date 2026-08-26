@@ -7,8 +7,12 @@ Senast verifierad mot koden: 2026-08-26, `main = 91c4862`.
 
 **Vad "verifierad" betyder här:** varje fältmappning, skrivväg och radantal är läst i
 källfilen och citerad med fil och rad. Påståenden om **driftsatta system** — n8n-instansen,
-Supabase-innehållet, `sok_config.aktiv` — är däremot uttryckligen märkta som obevisbara
-härifrån och står i §3.
+Supabase-innehållet, `sok_config.aktiv` — var vid författandet obevisbara härifrån och
+stod i §3 som just det.
+
+**AVLÄST 2026-08-26 (ägaren, mot driftsatta system): §4b bär utfallet.** De tre frågorna
+är besvarade och §3a är därmed avgjord snarare än öppen. Kärnan: senaste lead-raden är
+från 22 juli, containmenten skedde 24 augusti — **ingenting har skrivits efter stoppet**.
 
 Självständig granskning har prövat varje faktapåstående mot koden i fyra rundor och fällt
 **åtta blockerande fel**. Alla är rättade. Fyra namnges i texten, fördelade på tre avsnitt,
@@ -379,12 +383,55 @@ om det rör sig om Googles felkuvert eller om något mer.
 
 ---
 
+## 4b. AVLÄSNINGEN ÄR GJORD — 2026-08-26
+
+De tre avläsningarna i §3 och §4 är utförda av ägaren mot driftsatta system. Detta är
+mätning, inte uppskattning, och den ersätter varje "går inte att avgöra härifrån" ovan.
+
+| Fråga | Utfall |
+|---|---|
+| Svepets läge (`sok_config.aktiv`) | **PAUSAT** |
+| `leads` — antal rader | **39** |
+| `leads` — tidsstämpel | **22 juli 2026** (en enda testkörning) |
+| `leads` — med `telefon` | **32** |
+| `leads` — med `adress` | **39** |
+| `leads` — med `sms_text` | **0** |
+| `sok_kombinationer` — rader med `fel_text` | **0** |
+
+### Vad detta avgör
+
+**§3a är avgjord, inte bara obevisad.** Den senaste raden är från 22 juli; containmenten
+skedde 24 augusti. **Ingenting har skrivits efter stoppet.** Den driftsatta n8n-instansen
+har alltså inte producerat en rad sedan dess — vilket är det starkare beskedet än att den
+bara *borde* respektera pausflaggan.
+
+**§3b är avgjord:** svepet är pausat. Kön matas inte vidare.
+
+**§1c:s `sms_text`-oro är tom.** Noll rader bär fritext, så den andra lagringsplatsen för
+verksamhetsnamnet existerar inte i praktiken. Vägen dit är fortfarande live (§2) — men
+ingen har gått den.
+
+**§1d:s `fel_text` är tom.** Noll rader. Den enda kolumn i hela schemat som kunde bära
+ORDAGRANNA Places-svarsbytes bär ingenting. Det var inventeringens strängaste post och den
+visade sig oanvänd.
+
+### Vad detta INTE avgör
+
+Mängden är **liten och sluten**: 39 rader från en testkörning, inte ett växande korpus.
+Men den är inte tom. **32 rader bär telefonnummer och 39 bär adress** — och för en enskild
+firma är telefonnumret en fysisk persons kontaktuppgift. Vad den lagringen kräver är
+fortfarande steg 3:s juridiska bedömning, inte inventeringens.
+
+Avläsningen är ett ÖGONBLICK. Skulle något börja skriva igen ändras bilden, och `senaste`
+är den kolumn som visar det.
+
 ## 5. VAD SOM ÄR KVAR I BANAN
 
 | Steg | Vad | Vem |
 |---|---|---|
 | 1 | Stoppa icke-följsam kall outreach | **KLART** (PR #42) |
 | 2 | Inventera persisterade Places-härledda fält | **DETTA DOKUMENT** |
+| 2b | Avläsning mot driftsatta system | **KLART 2026-08-26** — se §4b |
 | 3 | Klassificera lagring/användning mot gällande avtal | **ÄGAREN — juridik** |
 | 4 | Rebasa durabla verksamhetsfakta till laglig/kanonisk källa (P1, Bolagsverket) | Bygge efter steg 3 |
 | 5 | Outreach-policy-matris innan någon ersättningskanal förklaras tillåten | **ÄGAREN — juridik** |
@@ -399,7 +446,7 @@ juridiska frågan och sedan bygga fast gissningen i ett schema.
 
 Ingen ersättningskanal antas laglig bara för att den gamla stoppades.
 
-### Tre avläsningar som inte kräver något beslut
+### Tre avläsningar som inte kräver något beslut — UTFÖRDA 2026-08-26
 
 Steg 3 kan inte börja på ett tomt underlag. Dessa tre är rena avläsningar — de ändrar
 ingenting och binder ingenting:
